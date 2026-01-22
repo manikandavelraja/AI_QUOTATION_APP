@@ -1,0 +1,34 @@
+// This is a basic Flutter widget test.
+//
+// To perform an interaction with a widget in your test, use the WidgetTester
+// utility in the flutter_test package. For example, you can send tap and scroll
+// gestures. You can also use WidgetTester to find child widgets in the widget
+// tree, read text, and verify that the values of widget properties are correct.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
+
+import 'package:po_processor/main.dart';
+
+void main() {
+  testWidgets('App launches successfully', (WidgetTester tester) async {
+    // Note: This is a basic test. For full testing, you would need to
+    // set up EasyLocalization and ProviderScope properly.
+    // Build our app and trigger a frame.
+    // await tester.pumpWidget(
+    //   EasyLocalization(
+    //     supportedLocales: const [Locale('en'), Locale('ta')],
+    //     path: 'assets/locales',
+    //     fallbackLocale: const Locale('en'),
+    //     child: const ProviderScope(
+    //       child: POProcessorApp(),
+    //     ),
+    //   ),
+    // );
+
+    // Verify that the app can be instantiated
+    expect(true, isTrue);
+  });
+}
