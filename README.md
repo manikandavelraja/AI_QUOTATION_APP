@@ -46,9 +46,25 @@ cd po_processor_app
 flutter pub get
 ```
 
-4. Configure API keys:
-   - Update `lib/core/constants/app_constants.dart` with your Gemini API key
-   - Configure Gmail OAuth2 credentials for web in the same file
+4. Configure API keys using environment variables:
+   ```bash
+   # Option 1: Use the setup script (recommended)
+   cd po_processor_app
+   .\setup_env.ps1
+   
+   # Option 2: Manual setup
+   cp .env.example .env
+   # Then edit .env and add your API keys
+   ```
+   
+   **Required Environment Variables:**
+   - `GEMINI_API_KEY`: Your Gemini AI API key (get from [Google AI Studio](https://makersuite.google.com/app/apikey))
+   - `GMAIL_WEB_CLIENT_ID`: Your Gmail OAuth2 Client ID (optional, for web Gmail integration)
+   - `EMAIL_ADDRESS`: Your email address (optional)
+   
+   **⚠️ Security Note**: Never commit the `.env` file to Git. It's already in `.gitignore`.
+   
+   See [SETUP_ENV.md](po_processor_app/SETUP_ENV.md) for detailed setup instructions.
 
 5. Run the application:
 ```bash

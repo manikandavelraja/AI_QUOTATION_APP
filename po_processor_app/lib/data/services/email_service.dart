@@ -317,8 +317,9 @@ class EmailService {
         }
       }
       
-      // Search for inquiry-related emails
-      final searchQuery = query ?? 'subject:(inquiry OR rfq OR quotation OR request) has:attachment filename:pdf OR filename:doc';
+      // Search for inquiry-related emails - filter by subject containing "Inquiry" (case-insensitive)
+      // Gmail search is case-insensitive by default, but we'll be explicit
+      final searchQuery = query ?? 'subject:inquiry has:attachment (filename:pdf OR filename:doc OR filename:docx)';
       
       final listResponse = await _gmailApi!.users.messages.list(
         'me',
@@ -346,7 +347,13 @@ class EmailService {
           final email = _parseGmailMessage(fullMessage);
           
           // Filter for inquiry-related emails with PDF/DOC attachments
-          if (email.attachments.isNotEmpty) {
+          // Also check if subject contains "Inquiry" (case-insensitive)
+          final subjectLower = email.subject.toLowerCase();
+          if (email.attachments.isNotEmpty && 
+              (subjectLower.contains('inquiry') || 
+               subjectLower.contains('rfq') || 
+               subjectLower.contains('quotation') ||
+               subjectLower.contains('request'))) {
             emails.add(email);
           }
         } catch (e) {

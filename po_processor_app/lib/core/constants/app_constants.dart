@@ -1,7 +1,35 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   // API Configuration
-  static const String geminiApiKey = 'AIzaSyCnIqu_wbb-aHv3d9idWAP-0FnBfRlvzO0';
-  static const String geminiModel = 'gemini-2.5-flash';
+  // Load from environment variables, with fallback to compile-time constants
+  // For production, always use environment variables
+  static String get geminiApiKey {
+    // Try environment variable first (from .env file)
+    final envKey = dotenv.env['GEMINI_API_KEY'];
+    if (envKey != null && envKey.isNotEmpty) {
+      return envKey;
+    }
+    // Fallback to compile-time constant (for development only)
+    // TODO: Remove this fallback in production
+    const fallbackKey = String.fromEnvironment(
+      'GEMINI_API_KEY',
+      defaultValue: '',
+    );
+    if (fallbackKey.isNotEmpty) {
+      return fallbackKey;
+    }
+    // Last resort: throw error to prevent using leaked key
+    throw Exception(
+      'GEMINI_API_KEY not found in environment variables. '
+      'Please create a .env file with GEMINI_API_KEY=your_key',
+    );
+  }
+  
+  static String get geminiModel {
+    return dotenv.env['GEMINI_MODEL'] ?? 
+           const String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-2.5-flash');
+  }
   
   // Default Authentication Credentials
   static const String defaultUsername = 'admin';
@@ -22,9 +50,6 @@ class AppConstants {
   static const String databaseName = 'po_processor.db';
   static const int databaseVersion = 3; // Incremented to add sender_email column
   
-  // Security
-  static const String encryptionKey = 'po_processor_secure_key_2024';
-  
   // Supported Languages
   static const String defaultLanguage = 'en';
   static const List<String> supportedLanguages = ['en', 'ta'];
@@ -44,7 +69,6 @@ class AppConstants {
   static const double paperSavedPerPO = 0.1; // sheets
   
   // Email Configuration
-  static const String emailAddress = 'kumarionix07@gmail.com';
   static const String smtpHost = 'smtp.gmail.com';
   static const int smtpPort = 587;
   // IMAP Configuration
@@ -61,6 +85,38 @@ class AppConstants {
   // 4. Create OAuth2 credentials (Web application)
   // 5. Add authorized JavaScript origins: http://localhost:PORT
   // 6. Add authorized redirect URIs: http://localhost:PORT
-  static const String? gmailWebClientId = '549513027640-44n7snhn257tbamp0hhnkb8g67if4nrg.apps.googleusercontent.com';
+  static String? get gmailWebClientId {
+    // Try environment variable first
+    final envClientId = dotenv.env['GMAIL_WEB_CLIENT_ID'];
+    if (envClientId != null && envClientId.isNotEmpty) {
+      return envClientId;
+    }
+    // Fallback to compile-time constant
+    const fallbackClientId = String.fromEnvironment('GMAIL_WEB_CLIENT_ID');
+    if (fallbackClientId.isNotEmpty) {
+      return fallbackClientId;
+    }
+    // Return null if not found (optional for some configurations)
+    return null;
+  }
+  
+  // Email Configuration
+  static String get emailAddress {
+    return dotenv.env['EMAIL_ADDRESS'] ?? 
+           const String.fromEnvironment('EMAIL_ADDRESS', defaultValue: 'kumarionix07@gmail.com');
+  }
+  
+  // Security - Encryption Key
+  static String get encryptionKey {
+    final envKey = dotenv.env['ENCRYPTION_KEY'];
+    if (envKey != null && envKey.isNotEmpty) {
+      return envKey;
+    }
+    // Fallback for development (should be changed in production)
+    return const String.fromEnvironment(
+      'ENCRYPTION_KEY',
+      defaultValue: 'po_processor_secure_key_2024',
+    );
+  }
 }
 

@@ -15,6 +15,9 @@ import '../../data/services/email_service.dart';
 import '../../data/services/pdf_service.dart';
 import '../../data/services/gemini_ai_service.dart';
 import '../providers/inquiry_provider.dart';
+import '../providers/quotation_provider.dart';
+import '../../data/services/catalog_service.dart';
+import '../../domain/entities/quotation.dart';
 import 'package:file_picker/file_picker.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -30,8 +33,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   final _emailService = EmailService();
   final _pdfService = PDFService();
   final _aiService = GeminiAIService();
+  final _catalogService = CatalogService();
   bool _isFetchingInquiry = false;
   bool _isFetchingPO = false;
+  int _processedCount = 0;
+  int _successCount = 0;
+  int _errorCount = 0;
 
   @override
   void initState() {
@@ -116,15 +123,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     children: [
                       _buildWelcomeHeader(context),
                       const SizedBox(height: 24),
+                      // QuickActions moved to top
+                      _buildQuickActions(context),
+                      const SizedBox(height: 24),
                       _buildStatsGrid(context, stats),
                       const SizedBox(height: 24),
                       _buildMonthlyUsageGraph(context, monthlyData),
                       const SizedBox(height: 24),
                       _buildExpiringAlerts(context, poState),
                       const SizedBox(height: 24),
-                      _buildSustainabilityMetrics(context, stats),
-                      const SizedBox(height: 24),
-                      _buildQuickActions(context),
+                      _buildDraftQuotationsList(context),
                       const SizedBox(height: 80),
                     ],
                   ),
@@ -221,47 +229,60 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
   Widget _buildStatsGrid(BuildContext context, Map<String, dynamic> stats) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.3,
-      children: [
-        _buildStatCard(
-          context,
-          'today_purchase_orders'.tr(),
-          '${stats['todayPOs'] ?? 0}',
-          Icons.description,
-          [Colors.blue.shade400, Colors.blue.shade600],
-          Colors.blue.shade50,
-        ),
-        _buildStatCard(
-          context,
-          'total_po_value'.tr(),
-          '₹${(stats['totalValue'] ?? 0).toStringAsFixed(0)}',
-          Icons.attach_money,
-          [Colors.green.shade400, Colors.green.shade600],
-          Colors.green.shade50,
-        ),
-        _buildStatCard(
-          context,
-          'expiring_this_week'.tr(),
-          '${stats['expiringThisWeek'] ?? 0}',
-          Icons.warning,
-          [Colors.orange.shade400, Colors.orange.shade600],
-          Colors.orange.shade50,
-        ),
-        _buildStatCard(
-          context,
-          'total_pos'.tr(),
-          '${stats['totalPOs'] ?? 0}',
-          Icons.inventory,
-          [Colors.purple.shade400, Colors.purple.shade600],
-          Colors.purple.shade50,
-        ),
-      ],
+    final statItems = [
+      {
+        'title': 'today_purchase_orders'.tr(),
+        'value': '${stats['todayPOs'] ?? 0}',
+        'icon': Icons.description,
+        'gradient': [Colors.blue.shade400, Colors.blue.shade600],
+        'iconBg': Colors.blue.shade50,
+      },
+      {
+        'title': 'total_po_value'.tr(),
+        'value': '₹${(stats['totalValue'] ?? 0).toStringAsFixed(0)}',
+        'icon': Icons.attach_money,
+        'gradient': [Colors.green.shade400, Colors.green.shade600],
+        'iconBg': Colors.green.shade50,
+      },
+      {
+        'title': 'expiring_this_week'.tr(),
+        'value': '${stats['expiringThisWeek'] ?? 0}',
+        'icon': Icons.warning,
+        'gradient': [Colors.orange.shade400, Colors.orange.shade600],
+        'iconBg': Colors.orange.shade50,
+      },
+      {
+        'title': 'total_pos'.tr(),
+        'value': '${stats['totalPOs'] ?? 0}',
+        'icon': Icons.inventory,
+        'gradient': [Colors.purple.shade400, Colors.purple.shade600],
+        'iconBg': Colors.purple.shade50,
+      },
+    ];
+
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: statItems.length,
+        itemBuilder: (context, index) {
+          final item = statItems[index];
+          return Container(
+            width: 180,
+            margin: const EdgeInsets.only(right: 16),
+            child: _buildStatCard(
+              context,
+              item['title'] as String,
+              item['value'] as String,
+              item['icon'] as IconData,
+              item['gradient'] as List<Color>,
+              item['iconBg'] as Color,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -273,59 +294,128 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     List<Color> gradientColors,
     Color backgroundColor,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors[0].withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Transform.scale(
+          scale: 0.8 + (animValue * 0.2),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    gradientColors[0],
+                    gradientColors[1],
+                    gradientColors[1].withOpacity(0.9),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradientColors[0].withOpacity(0.5),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: Icon(icon, size: 24, color: Colors.white),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              child: Stack(
+                children: [
+                  // Decorative circles
+                  Positioned(
+                    top: -20,
+                    right: -20,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -30,
+                    left: -30,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                  ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(icon, size: 36, color: Colors.white),
+                        ),
+                        const Spacer(),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              value,
+                              style: const TextStyle(
+                                fontSize: 42,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -1,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.95),
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.9),
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -794,27 +884,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  Widget _buildSustainabilityMetrics(BuildContext context, Map<String, dynamic> stats) {
-    final totalPOs = stats['totalPOs'] ?? 0;
-    final paperSaved = totalPOs * AppConstants.paperSavedPerPO;
-    final carbonReduced = totalPOs * AppConstants.carbonFootprintPerPO;
+  /// Build draft quotations list
+  Widget _buildDraftQuotationsList(BuildContext context) {
+    final quotationState = ref.watch(quotationProvider);
+    final draftQuotations = quotationState.quotations
+        .where((q) => q.status == 'draft')
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first
+
+    if (draftQuotations.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.green.shade50,
-            Colors.green.shade100.withOpacity(0.5),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.green.withOpacity(0.2),
-          width: 1,
-        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -831,103 +917,361 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryGreen,
+                      AppTheme.primaryGreenLight,
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.eco, color: Colors.green, size: 24),
+                child: const Icon(Icons.description, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'sustainability_metrics'.tr(),
+                  'Draft Quotations',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.green.shade700,
                       ),
                 ),
               ),
+              Text(
+                '${draftQuotations.length}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.primaryGreen,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMetricItem(
-                context,
-                'paper_saved'.tr(),
-                '${paperSaved.toStringAsFixed(1)} ${'sheets'.tr()}',
-                Icons.description,
-                Colors.green,
-              ),
-              _buildMetricItem(
-                context,
-                'carbon_footprint_reduced'.tr(),
-                '${carbonReduced.toStringAsFixed(2)} ${'kg_co2'.tr()}',
-                Icons.eco,
-                Colors.green,
-              ),
-            ],
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 200, // Fixed height for scrollable list
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: draftQuotations.length,
+              itemBuilder: (context, index) {
+                final quotation = draftQuotations[index];
+                return Container(
+                  width: 320,
+                  margin: EdgeInsets.only(right: index == draftQuotations.length - 1 ? 0 : 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.blue.shade50,
+                        Colors.blue.shade100.withOpacity(0.5),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.2),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              quotation.quotationNumber,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Draft',
+                              style: TextStyle(
+                                color: Colors.orange.shade900,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              quotation.customerName,
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.shopping_cart, size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${quotation.items.length} item(s)',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '${quotation.currency ?? 'AED'} ${quotation.totalAmount.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.blue.shade900,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              context.push('/quotation-detail/${quotation.id}');
+                            },
+                            icon: const Icon(Icons.arrow_forward, size: 16),
+                            label: const Text('View'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 36, color: color),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
+  /// Rich loader dialog for email fetching with progress
+  void _showRichLoaderDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // Update message periodically if processing
+            if (_isFetchingInquiry && _processedCount > 0) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _isFetchingInquiry) {
+                  setDialogState(() {});
+                }
+              });
+            }
+            
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      Colors.grey.shade50,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                      spreadRadius: 5,
+                    ),
+                  ],
                 ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Animated loader
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          height: 80,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 6,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppTheme.primaryGreen,
+                            ),
+                            backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                          ),
+                        ),
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppTheme.primaryGreen,
+                                AppTheme.primaryGreenLight,
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryGreen.withOpacity(0.3),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.email,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (_processedCount > 0) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Processed: $_processedCount | Success: $_successCount | Errors: $_errorCount',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      'Please wait while we process inquiries...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    // Animated dots
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(3, (index) {
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: Duration(milliseconds: 600 + (index * 200)),
+                          curve: Curves.easeInOut,
+                          builder: (context, value, child) {
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryGreen.withOpacity(
+                                  0.3 + (value * 0.7),
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                            );
+                          },
+                          onEnd: () {
+                            // Restart animation if still loading
+                            if (mounted && _isFetchingInquiry) {
+                              Future.delayed(const Duration(milliseconds: 100), () {
+                                if (mounted) setDialogState(() {});
+                              });
+                            }
+                          },
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   Widget _buildQuickActions(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            Colors.grey.shade50,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -1159,61 +1503,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
 
-  Future<void> _getInquiryFromMail() async {
+  /// Extract customer email from Gmail message headers
+  String? _extractCustomerEmailFromGmail({
+    required String senderEmail,
+    String? toEmail,
+    String? replyToEmail,
+    required String accountEmail,
+  }) {
+    // First, try to use "From" email (the sender is the customer)
+    if (senderEmail.isNotEmpty && senderEmail.toLowerCase() != accountEmail) {
+      return senderEmail;
+    } 
+    // If "From" is account email (parsing error), try Reply-To
+    else if (replyToEmail != null && replyToEmail.isNotEmpty && 
+             replyToEmail.toLowerCase() != accountEmail) {
+      return replyToEmail;
+    }
+    // If "From" is account email and "To" is not account email, use "To" 
+    else if (toEmail != null && toEmail.isNotEmpty && 
+             toEmail.toLowerCase() != accountEmail) {
+      return toEmail;
+    }
+    return null;
+  }
+
+  /// Process a single email and create draft quotation
+  Future<Quotation?> _processSingleEmail(EmailMessage email, int index, int total) async {
     try {
-      // Close any existing dialogs first to prevent stacking
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-      }
+      debugPrint('📧 Processing email ${index + 1}/$total: ${email.subject}');
       
-      setState(() => _isFetchingInquiry = true);
-
-      // Show loading message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Accessing Gmail (kumarionix07@gmail.com) and fetching Customer Inquiry PDF...'),
-            backgroundColor: Colors.blue,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Automatically fetch emails via Gmail API
-      // First time: Will prompt for Gmail sign-in (one-time)
-      // After sign-in: Uses stored tokens automatically
-      final emails = await _emailService.fetchInquiryEmails(maxResults: 10);
-
-      if (emails.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No inquiry emails found in inbox'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        setState(() => _isFetchingInquiry = false);
-        return;
-      }
-
-      // Automatically process the first email found (most recent)
-      // If multiple emails, process the first one automatically
-      final selectedEmail = emails.first;
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Found ${emails.length} inquiry email(s). Processing the most recent one...'),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Process the selected email with PDF attachment
-      final inquiryEmail = selectedEmail!;
-      final pdfAttachment = inquiryEmail.attachments.firstWhere(
+      // Find PDF attachment
+      final pdfAttachment = email.attachments.firstWhere(
         (att) => att.name.toLowerCase().endsWith('.pdf') || 
                  att.name.toLowerCase().endsWith('.doc') ||
                  att.name.toLowerCase().endsWith('.docx'),
@@ -1223,7 +1543,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       // Fetch attachment data if not already loaded
       Uint8List pdfData;
       if (pdfAttachment.data.isEmpty && pdfAttachment.attachmentId != null && pdfAttachment.messageId != null) {
-        // Need to fetch attachment data from Gmail API
         pdfData = await _emailService.fetchAttachmentData(pdfAttachment.messageId!, pdfAttachment.attachmentId!);
       } else {
         pdfData = pdfAttachment.data;
@@ -1233,7 +1552,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         throw Exception('Failed to fetch PDF attachment data from email');
       }
 
-      // Extract inquiry data directly from PDF bytes (visual processing)
+      // Extract inquiry data from PDF
       CustomerInquiry inquiry;
       if (pdfAttachment.name.toLowerCase().endsWith('.pdf')) {
         inquiry = await _aiService.extractInquiryFromPDFBytes(pdfData, pdfAttachment.name);
@@ -1241,75 +1560,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         throw Exception('DOC file processing not yet implemented. Please use PDF files.');
       }
 
-      // Capture sender email from the email metadata
-      final senderEmail = inquiryEmail.from;
-      final toEmail = inquiryEmail.to;
-      final replyToEmail = inquiryEmail.replyTo;
-      
-      debugPrint('📧 Email headers - From: $senderEmail, To: $toEmail, Reply-To: $replyToEmail');
-      
-      // For incoming inquiry emails:
-      // - "From" should be the customer who sent the inquiry (this is what we want)
-      // - "To" should be our account email (kumarionix07@gmail.com)
-      // - "Reply-To" might be set to a different email
-      
+      // Extract customer email from Gmail headers
       final accountEmail = AppConstants.emailAddress.toLowerCase();
-      
-      // Extract customer email from Gmail message with proper priority
-      // Priority: 1. customerEmail from PDF, 2. From (sender) if not account email, 
-      //           3. Reply-To if not account email, 4. To field if it's not account email
-      String? customerEmailFromGmail;
-      
-      // First, try to use "From" email (the sender is the customer)
-      if (senderEmail.isNotEmpty && senderEmail.toLowerCase() != accountEmail) {
-        customerEmailFromGmail = senderEmail;
-        debugPrint('✅ Using From email as customer email: $customerEmailFromGmail');
-      } 
-      // If "From" is account email (parsing error), try Reply-To
-      else if (replyToEmail != null && replyToEmail.isNotEmpty && 
-               replyToEmail.toLowerCase() != accountEmail) {
-        customerEmailFromGmail = replyToEmail;
-        debugPrint('✅ Using Reply-To email as customer email: $customerEmailFromGmail');
-      }
-      // If "From" is account email and "To" is not account email, use "To" 
-      // (this handles cases where email parsing might be reversed)
-      else if (toEmail != null && toEmail.isNotEmpty && 
-               toEmail.toLowerCase() != accountEmail) {
-        customerEmailFromGmail = toEmail;
-        debugPrint('✅ Using To email as customer email (From was account email): $customerEmailFromGmail');
-      }
-      // Last resort: if senderEmail is account email, it might be a parsing issue
-      // Check if we can extract from the raw email data
-      else if (senderEmail.toLowerCase() == accountEmail) {
-        debugPrint('⚠️ WARNING: Sender email matches account email. Email parsing may be incorrect.');
-        debugPrint('⚠️ Attempting to find customer email from alternative sources...');
-        
-        // If "To" field exists and is different from account email, use it
-        // (This handles cases where email parsing might be reversed or incorrect)
-        if (toEmail != null && toEmail.isNotEmpty && toEmail.toLowerCase() != accountEmail) {
-          customerEmailFromGmail = toEmail;
-          debugPrint('✅ Using To email as customer email (From was account email): $customerEmailFromGmail');
-        } else {
-          // If we still don't have an email, log all available information for debugging
-          debugPrint('❌ Could not determine customer email from Gmail headers.');
-          debugPrint('❌ Available data - From: $senderEmail, To: $toEmail, Reply-To: $replyToEmail');
-          debugPrint('❌ Account email: $accountEmail');
-          customerEmailFromGmail = null;
-        }
-      } else {
-        debugPrint('❌ Could not determine customer email from Gmail headers.');
-        debugPrint('❌ Available data - From: $senderEmail, To: $toEmail, Reply-To: $replyToEmail');
-        customerEmailFromGmail = null;
-      }
-      
-      // Final validation: Ensure we have a valid customer email
-      if (customerEmailFromGmail != null && customerEmailFromGmail.toLowerCase() == accountEmail) {
-        debugPrint('⚠️ WARNING: Extracted customer email matches account email. This is likely incorrect.');
-        debugPrint('⚠️ Setting customerEmailFromGmail to null to force fallback.');
-        customerEmailFromGmail = null;
+      final customerEmailFromGmail = _extractCustomerEmailFromGmail(
+        senderEmail: email.from,
+        toEmail: email.to,
+        replyToEmail: email.replyTo,
+        accountEmail: accountEmail,
+      );
+
+      // Determine final customer email
+      String? finalCustomerEmail = inquiry.customerEmail ?? customerEmailFromGmail;
+      if (finalCustomerEmail == null || finalCustomerEmail.isEmpty || 
+          finalCustomerEmail.toLowerCase() == accountEmail) {
+        finalCustomerEmail = email.from.isNotEmpty && email.from.toLowerCase() != accountEmail 
+            ? email.from 
+            : null;
       }
 
-      // Save PDF file using the fetched data
+      // Save PDF file
       final platformFile = PlatformFile(
         name: pdfAttachment.name,
         bytes: pdfData,
@@ -1318,62 +1587,200 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       );
       final savedPath = await _pdfService.savePDFFile(platformFile);
       
-      // Ensure we have a customer email - it should NEVER be null
-      // Final priority: 1. customerEmail from PDF, 2. customerEmail from Gmail, 3. senderEmail (if different from account)
-      String? finalCustomerEmail = inquiry.customerEmail;
-      
-      if (finalCustomerEmail == null || finalCustomerEmail.isEmpty) {
-        if (customerEmailFromGmail != null && customerEmailFromGmail.isNotEmpty) {
-          finalCustomerEmail = customerEmailFromGmail;
-          debugPrint('✅ Using customerEmail from Gmail: $finalCustomerEmail');
-        } else if (senderEmail.isNotEmpty && senderEmail.toLowerCase() != accountEmail) {
-          // Last resort: use senderEmail if it's not the account email
-          finalCustomerEmail = senderEmail;
-          debugPrint('✅ Using senderEmail as customerEmail (fallback): $finalCustomerEmail');
-        } else {
-          // This should not happen, but if it does, log a warning
-          debugPrint('❌ ERROR: Could not determine customer email. This should not happen!');
-          debugPrint('❌ senderEmail: $senderEmail, toEmail: $toEmail, replyToEmail: $replyToEmail');
-        }
-      } else {
-        debugPrint('✅ Using customerEmail from PDF: $finalCustomerEmail');
-      }
-      
-      // Update inquiry with sender email and PDF path
-      // senderEmail is the email address of the person who sent the inquiry email
-      // customerEmail is the email address to send the quotation to (should always be set)
+      // Save inquiry
       final finalInquiry = inquiry.copyWith(
         pdfPath: savedPath,
-        senderEmail: senderEmail,
-        customerEmail: finalCustomerEmail, // This should never be null now
+        senderEmail: email.from,
+        customerEmail: finalCustomerEmail,
       );
-      
-      debugPrint('📧 Final inquiry - senderEmail: $senderEmail, customerEmail: $finalCustomerEmail');
-      
-      // Validate that customerEmail is set
-      if (finalCustomerEmail == null || finalCustomerEmail.isEmpty) {
-        debugPrint('❌ CRITICAL ERROR: customerEmail is still null after all attempts!');
-      }
-
       final savedInquiry = await ref.read(inquiryProvider.notifier).addInquiry(finalInquiry);
 
-      setState(() => _isFetchingInquiry = false);
+      // Auto-match prices from catalog and create quotation items
+      final quotationItems = <QuotationItem>[];
+      for (final inquiryItem in inquiry.items) {
+        // Auto-match price from catalog
+        final unitPrice = _catalogService.matchItemPrice(
+          inquiryItem.itemName,
+          description: inquiryItem.description,
+        );
+        
+        final lineTotal = unitPrice * inquiryItem.quantity;
+        
+        quotationItems.add(QuotationItem(
+          itemName: inquiryItem.itemName,
+          itemCode: inquiryItem.itemCode,
+          description: inquiryItem.description,
+          quantity: inquiryItem.quantity,
+          unit: inquiryItem.unit,
+          unitPrice: unitPrice,
+          total: lineTotal,
+          manufacturerPart: inquiryItem.manufacturerPart,
+        ));
+      }
 
+      // Calculate totals (only if items exist)
+      double grandTotal = 0.0;
+      if (quotationItems.isNotEmpty) {
+        final subtotal = quotationItems.fold<double>(0, (sum, item) => sum + item.total);
+        final vat = subtotal * 0.05; // 5% VAT
+        grandTotal = subtotal + vat;
+      }
+
+      // Create draft quotation
+      final quotation = Quotation(
+        quotationNumber: 'QTN-${DateTime.now().millisecondsSinceEpoch}-${index}',
+        quotationDate: DateTime.now(),
+        validityDate: DateTime.now().add(const Duration(days: 30)),
+        customerName: inquiry.customerName,
+        customerAddress: inquiry.customerAddress,
+        customerEmail: finalCustomerEmail,
+        customerPhone: inquiry.customerPhone,
+        items: quotationItems,
+        totalAmount: grandTotal,
+        currency: 'AED',
+        status: 'draft', // Draft status
+        createdAt: DateTime.now(),
+        inquiryId: savedInquiry?.id,
+      );
+
+      // Save quotation
+      final savedQuotation = await ref.read(quotationProvider.notifier).addQuotation(quotation);
+      
+      debugPrint('✅ Successfully processed email ${index + 1}/$total and created draft quotation');
+      return savedQuotation;
+    } catch (e) {
+      final errorStr = e.toString().toLowerCase();
+      
+      // Handle 429 rate limit errors - continue to next email
+      if (errorStr.contains('429') || errorStr.contains('rate limit')) {
+        debugPrint('⚠️ Rate limit error (429) for email ${index + 1}/$total. Continuing to next email...');
+        // Wait a bit before continuing
+        await Future.delayed(const Duration(seconds: 2));
+        return null;
+      }
+      
+      // For other errors, log and continue
+      debugPrint('❌ Error processing email ${index + 1}/$total: $e');
+      return null;
+    }
+  }
+
+  Future<void> _getInquiryFromMail() async {
+    // Close any existing dialogs first to prevent stacking
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    }
+    
+    setState(() {
+      _isFetchingInquiry = true;
+      _processedCount = 0;
+      _successCount = 0;
+      _errorCount = 0;
+    });
+
+    // Show rich loading dialog with progress
+    if (mounted) {
+      _showRichLoaderDialog(context, 'Fetching Inquiries from Gmail...');
+    }
+    
+    try {
+      // Fetch up to 10 most recent inquiry emails
+      final emails = await _emailService.fetchInquiryEmails(maxResults: 10);
+
+      if (emails.isEmpty) {
+        setState(() => _isFetchingInquiry = false);
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No inquiry emails found in inbox'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      debugPrint('📧 Found ${emails.length} inquiry email(s). Processing in bulk...');
+
+      // Process each email in a loop
+      final processedQuotations = <Quotation>[];
+      
+      for (int i = 0; i < emails.length; i++) {
+        if (!mounted) break;
+        
+        final email = emails[i];
+        setState(() => _processedCount = i + 1);
+        
+        // Update loader message
+        if (mounted) {
+          // Close and reopen loader with updated message
+          try {
+            Navigator.of(context, rootNavigator: true).pop();
+          } catch (_) {}
+          _showRichLoaderDialog(
+            context, 
+            'Processing ${i + 1}/${emails.length}: ${email.subject}',
+          );
+        }
+
+        try {
+          final quotation = await _processSingleEmail(email, i, emails.length);
+          if (quotation != null) {
+            processedQuotations.add(quotation);
+            setState(() => _successCount++);
+          } else {
+            setState(() => _errorCount++);
+          }
+        } catch (e) {
+          debugPrint('❌ Failed to process email ${i + 1}: $e');
+          setState(() => _errorCount++);
+          // Continue to next email
+          continue;
+        }
+
+        // Small delay between emails to avoid rate limiting
+        if (i < emails.length - 1) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      setState(() => _isFetchingInquiry = false);
+      
+      // Dismiss loader dialog
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Show summary
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inquiry fetched from email and processed successfully'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              'Bulk processing complete: $_successCount draft quotation(s) created, $_errorCount failed',
+            ),
+            backgroundColor: _successCount > 0 ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 4),
           ),
         );
-        Future.delayed(const Duration(seconds: 1), () {
-          if (mounted && savedInquiry?.id != null) {
-            context.push('/inquiry-detail/${savedInquiry!.id}');
-          }
-        });
       }
+
+      // Refresh quotations list
+      await ref.read(quotationProvider.notifier).loadQuotations();
+      
     } catch (e) {
       setState(() => _isFetchingInquiry = false);
+      
+      // Dismiss loader dialog on error
+      if (mounted) {
+        try {
+          Navigator.of(context, rootNavigator: true).pop();
+        } catch (_) {
+          // Dialog might already be closed, ignore error
+        }
+      }
       if (mounted) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
         

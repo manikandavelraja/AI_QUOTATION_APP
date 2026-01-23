@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'data/services/database_service.dart';
@@ -9,6 +10,16 @@ import 'presentation/providers/language_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables from .env file
+  try {
+    await dotenv.load(fileName: '.env');
+    debugPrint('✅ Environment variables loaded successfully');
+  } catch (e) {
+    debugPrint('⚠️ Warning: Could not load .env file: $e');
+    debugPrint('⚠️ Make sure .env file exists in the po_processor_app directory');
+    debugPrint('⚠️ You can copy .env.example to .env and fill in your values');
+  }
   
   // Initialize localization first
   await EasyLocalization.ensureInitialized();

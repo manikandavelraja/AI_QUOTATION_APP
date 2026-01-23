@@ -102,8 +102,19 @@ flutter_run.log
 build/
 **/build/
 
-# Environment files
+# Environment files - CRITICAL: Never commit these!
 .env
 .env.local
 .env.*.local
+*.env
+!*.env.example
+
+# API Keys and Secrets
+**/secrets/
+**/keys/
+*.key
+*.pem
+*.p12
+**/credentials.json
+**/service-account*.json
 
