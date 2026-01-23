@@ -578,8 +578,8 @@ class EmailService {
         }
       }
       
-      // Search for PO-related emails
-      final searchQuery = 'subject:(purchase order OR po OR order) has:attachment filename:pdf';
+      // Search for PO-related emails - filter by subject containing 'PO' or 'Purchase Order' (case-insensitive)
+      final searchQuery = 'subject:(po OR "purchase order") has:attachment filename:pdf';
       
       final listResponse = await _gmailApi!.users.messages.list(
         'me',
@@ -607,8 +607,11 @@ class EmailService {
           final email = _parseGmailMessage(fullMessage);
           
           // Filter for PO-related emails with PDF attachments
+          // Also check if subject contains "PO" or "Purchase Order" (case-insensitive)
+          final subjectLower = email.subject.toLowerCase();
           if (email.attachments.isNotEmpty && 
-              email.attachments.any((att) => att.name.toLowerCase().endsWith('.pdf'))) {
+              email.attachments.any((att) => att.name.toLowerCase().endsWith('.pdf')) &&
+              (subjectLower.contains('po') || subjectLower.contains('purchase order'))) {
             emails.add(email);
           }
         } catch (e) {

@@ -9,6 +9,7 @@ import '../../core/constants/app_constants.dart';
 import '../../domain/entities/purchase_order.dart';
 import '../../domain/entities/customer_inquiry.dart';
 import '../../domain/entities/quotation.dart';
+import 'catalog_service.dart';
 
 class GeminiAIService {
   // Singleton instance
@@ -1104,52 +1105,62 @@ $truncatedBase64
   /// This prompt is used when sending PDF bytes directly for multimodal processing
   String _buildSemanticExtractionPromptForPDF() {
     return '''
-You are processing a Purchase Order PDF document. The PDF file is provided as binary data with MIME type 'application/pdf'.
+You are an expert data extractor. The PDF file is provided as binary data with MIME type 'application/pdf'.
 
-CRITICAL: This is a valid PDF file. You MUST:
-1. Process the PDF using your vision/multimodal capabilities (like a human reading a document)
-2. Extract ALL readable text and data from the PDF document visually
-3. Look for Purchase Order information by examining the document layout, not just raw text
-4. The document may contain tables, headers, footers, and various formatting - extract data from all sections
+Process the PDF using your vision/multimodal capabilities (like a human reading a document) and extract data dynamically from any PO layout.
 
-IMPORTANT: The document layout and field labels vary between files.
+DYNAMIC FIELD EXTRACTION - Identify and extract the following values from the provided PDF:
 
-Follow these semantic mapping rules (PRIORITY: If PO fields not found, use Inquiry fields):
-1. 'totalAmount': Look for values associated with labels like "Grand Total", "Total Amount", "Total AED", "Amount Due", or "Net Total". Extract ONLY the numerical value.
-2. 'poNumber' (PRIMARY): Look for "PO #", "Order No", "Purchase Order Number", "Reference", or "PO-".
-   'poNumber' (FALLBACK - Inquiry): If PO Number not found, look for "Inquiry Number", "RFQ Number", "Inquiry No", "RFQ #", "Request for Quotation".
-3. 'customerName': Look for "Bill To", "Customer Information", "Customer Name", or the primary entity receiving the order.
-4. 'items': Extract a list of all products/services including description, quantity, and unit price from tables or lists.
-5. 'poDate' (PRIMARY): Look for "Date", "PO Date", "Order Date", "Issue Date", or any date field. Convert to YYYY-MM-DD format.
-   'poDate' (FALLBACK - Inquiry): If PO Date not found, look for "Inquiry Date", "RFQ Date", "Request Date". Convert to YYYY-MM-DD format.
-6. 'expiryDate': Look for "Expiry Date", "Valid Until", "Expires", or similar. Convert to YYYY-MM-DD format or null.
-7. 'customerAddress': Extract complete address if available.
-8. 'customerEmail': Extract email if available.
-9. 'currency': Extract currency code (AED, USD, INR, EUR, etc.) from amount fields.
+1. poNumber: Find the unique identifier for the Purchase Order. Look for patterns like:
+   - "PO No.", "PO Number", "PO #", "Order #", "Order No", "Reference", "PO-", "Purchase Order Number"
+   - Extract the exact value as it appears (e.g., "9500363555", "PO-2025-001")
 
-RETURN DATA STRICTLY IN THIS JSON FORMAT:
+2. totalValue (totalAmount): Find the final grand total amount. 
+   - Look for labels like "Grand Total", "Total Amount", "Total AED", "Amount Due", "Net Total", "Final Total"
+   - IGNORE sub-totals, line item totals, or intermediate calculations
+   - Extract ONLY the absolute final amount including all taxes and fees
+   - Extract the numeric value only (remove currency symbols and commas)
+
+3. customerName: Identify the buyer or company name.
+   - Look for "Bill To", "Customer Information", "Customer Name", "Buyer", "Company Name"
+   - Extract the primary entity receiving the order (e.g., "Almarai", "Delta Engineering Services")
+   - This is usually the company name prominently displayed
+
+4. lineItems: Extract all products/services from tables or item lists.
+   - For each item, extract: description/itemName, quantity, unit, and unitPrice
+   - Include item codes/part numbers if available
+   - Extract from any table format or list structure
+
+5. poDate: Find the order date and convert to YYYY-MM-DD format.
+   - Look for "Date", "PO Date", "Order Date", "Issue Date", "Date Issued"
+
+6. Other fields (optional): expiryDate, customerAddress, customerEmail, currency, terms, notes
+
+CRITICAL: Return ONLY a raw JSON object. Do not include any conversational text, backticks, or markdown formatting.
+
+RETURN DATA STRICTLY IN THIS JSON FORMAT (NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS):
 {
   "isValid": true,
   "poData": {
-    "poNumber": "string or N/A",
+    "poNumber": "extracted PO number or null",
     "poDate": "YYYY-MM-DD or null",
     "expiryDate": "YYYY-MM-DD or null",
-    "customerName": "string or N/A",
-    "customerAddress": "string or null",
-    "customerEmail": "string or null",
-    "totalAmount": number or 0.0,
-    "currency": "string or null",
-    "terms": "string or null",
-    "notes": "string or null",
+    "customerName": "extracted customer name or null",
+    "customerAddress": "address or null",
+    "customerEmail": "email or null",
+    "totalAmount": numeric_value_or_null,
+    "currency": "currency code or null",
+    "terms": "payment terms or null",
+    "notes": "notes or null",
     "lineItems": [
       {
-        "itemName": "string",
-        "itemCode": "string or null",
-        "description": "string or null",
-        "quantity": number,
-        "unit": "string (default: pcs)",
-        "unitPrice": number,
-        "total": number
+        "itemName": "product description",
+        "itemCode": "part number or null",
+        "description": "additional description or null",
+        "quantity": numeric_value,
+        "unit": "pcs or other unit",
+        "unitPrice": numeric_value,
+        "total": numeric_value
       }
     ]
   },
@@ -1157,70 +1168,14 @@ RETURN DATA STRICTLY IN THIS JSON FORMAT:
 }
 
 CRITICAL RULES:
-- If a specific value cannot be found, return "N/A" for strings or 0.0 for numbers. Do NOT return null for required fields.
-- Extract whatever information IS available, even if incomplete.
-- Handle different document layouts and naming conventions.
-- Look for semantic meaning, not just exact label matches.
-- Process the PDF visually - read it like a human would, identifying labels and values by their position and context.
-- If the document is clearly NOT a Purchase Order, set isValid to false and explain in summary.
+- Return ONLY the JSON object. No markdown code blocks, no explanations, no conversational text.
+- Extract values dynamically - adapt to different document layouts and naming conventions.
+- If a value cannot be found, return null for optional fields or 0.0 for numbers.
+- Process the PDF visually - read it like a human would, identifying labels and values by position and context.
 - The PDF is provided as binary data - process it as a visual document, not as extracted text.
 ''';
   }
 
-  /// Build semantic extraction prompt for text-based processing
-  String _buildSemanticExtractionPrompt() {
-    return '''
-Extract data from the attached PDF. 
-IMPORTANT: The document layout and field labels vary between files. 
-
-Follow these semantic mapping rules:
-1. 'totalAmount': Look for values associated with labels like "Grand Total", "Total Amount", "Total AED", "Amount Due", or "Net Total". Extract ONLY the numerical value.
-2. 'poNumber': Look for "PO #", "Order No", "Purchase Order Number", "Reference", or "PO-". 
-3. 'customerName': Look for "Bill To", "Customer Information", "Customer Name", or the primary entity receiving the order (e.g., 'Delta Engineering Services').
-4. 'items': Extract a list of all products/services including description, quantity, and unit price.
-5. 'poDate': Look for "Date", "PO Date", "Order Date", "Issue Date", or any date field. Convert to YYYY-MM-DD format.
-6. 'expiryDate': Look for "Expiry Date", "Valid Until", "Expires", or similar. Convert to YYYY-MM-DD format or null.
-7. 'customerAddress': Extract complete address if available.
-8. 'customerEmail': Extract email if available.
-9. 'currency': Extract currency code (AED, USD, INR, EUR, etc.) from amount fields.
-
-RETURN DATA STRICTLY IN THIS JSON FORMAT:
-{
-  "isValid": true,
-  "poData": {
-    "poNumber": "string or null",
-    "poDate": "YYYY-MM-DD or null",
-    "expiryDate": "YYYY-MM-DD or null",
-    "customerName": "string or null",
-    "customerAddress": "string or null",
-    "customerEmail": "string or null",
-    "totalAmount": number or null,
-    "currency": "string or null",
-    "terms": "string or null",
-    "notes": "string or null",
-    "lineItems": [
-      {
-        "itemName": "string",
-        "itemCode": "string or null",
-        "description": "string or null",
-        "quantity": number,
-        "unit": "string (default: pcs)",
-        "unitPrice": number,
-        "total": number
-      }
-    ]
-  },
-  "summary": "2-3 sentence English summary"
-}
-
-CRITICAL RULES:
-- If a specific value cannot be found, return "N/A" for strings or 0.0 for numbers. Do NOT return null for required fields.
-- Extract whatever information IS available, even if incomplete.
-- Handle different document layouts and naming conventions.
-- Look for semantic meaning, not just exact label matches.
-- If the document is clearly NOT a Purchase Order, set isValid to false and explain in summary.
-''';
-  }
 
   /// Build multi-format prompt for text-based extraction
   String _buildMultiFormatPrompt(String pdfText) {
@@ -1228,17 +1183,20 @@ CRITICAL RULES:
 Extract data from this document. 
 1. If it is a Purchase Order, extract the PO Number, Customer Name, Grand Total, and Line Items.
 2. Even if the layout or naming is different (like in 'purchase_order_sample.pdf'), look for keywords like 'Total', 'PO #', or 'Bill To'.
-3. Return the data STRICTLY as a JSON object with this structure:
+
+CRITICAL: Return ONLY a raw JSON object. Do not include any conversational text, backticks, or markdown formatting.
+
+3. Return the data STRICTLY as a JSON object with this structure (NO MARKDOWN, NO CODE BLOCKS):
 {
   "isValid": true,
   "poData": {
-    "poNumber": "string or N/A",
+    "poNumber": "string or null",
     "poDate": "YYYY-MM-DD or null",
     "expiryDate": null,
-    "customerName": "string or N/A",
+    "customerName": "string or null",
     "customerAddress": "string or null",
     "customerEmail": "string or null",
-    "totalAmount": number or 0.0,
+    "totalAmount": number or null,
     "currency": "string or null",
     "terms": "string or null",
     "notes": null,
@@ -1256,7 +1214,7 @@ Extract data from this document.
   },
   "summary": "2-3 sentence English summary"
 }
-4. If a field is missing, use "N/A" for strings or 0.0 for numbers. Do not return null for required fields.
+4. If a field is missing, use null for optional fields or 0.0 for numbers. Handle null values gracefully.
 
 Document text:
 $pdfText
@@ -1264,72 +1222,630 @@ $pdfText
   }
 
   /// Parse semantic extraction response
+  /// Comprehensive JSON repair function that handles all edge cases
+  String _repairJson(String jsonString) {
+    String result = jsonString;
+    
+    // Step 1: Remove markdown code blocks - be very thorough
+    result = result.trim();
+    
+    // Remove all markdown code block markers (```json, ```, etc.)
+    result = result.replaceAll(RegExp(r'^```json\s*', multiLine: true), '');
+    result = result.replaceAll(RegExp(r'^```\s*', multiLine: true), '');
+    result = result.replaceAll(RegExp(r'```json\s*$', multiLine: true), '');
+    result = result.replaceAll(RegExp(r'```\s*$', multiLine: true), '');
+    
+    // Also handle inline markdown
+    result = result.replaceAll(RegExp(r'```json'), '');
+    result = result.replaceAll(RegExp(r'```'), '');
+    
+    result = result.trim();
+    
+    // Step 2: Extract JSON object (between first { and last })
+    final firstBrace = result.indexOf('{');
+    final lastBrace = result.lastIndexOf('}');
+    if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+      result = result.substring(firstBrace, lastBrace + 1);
+    }
+    
+    // Step 3: Remove comments
+    result = result.replaceAll(RegExp(r'//.*'), '');
+    result = result.replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
+    
+    // Step 4: FIX ALL UNQUOTED PROPERTY NAMES - Most aggressive approach
+    // This regex catches property names that are NOT inside strings
+    // It looks for: { or , or start of line, then whitespace, then word, then : 
+    // But we need to be careful not to match inside string values
+    
+    // First, let's use a more sophisticated approach:
+    // Process the JSON and quote ALL property names that aren't already quoted
+    final buffer = StringBuffer();
+    bool inString = false;
+    bool escapeNext = false;
+    int i = 0;
+    
+    while (i < result.length) {
+      final char = result[i];
+      
+      // Handle escape sequences
+      if (escapeNext) {
+        buffer.write(char);
+        escapeNext = false;
+        i++;
+        continue;
+      }
+      
+      if (char == '\\') {
+        buffer.write(char);
+        escapeNext = true;
+        i++;
+        continue;
+      }
+      
+      // Track string boundaries
+      if (char == '"') {
+        inString = !inString;
+        buffer.write(char);
+        i++;
+        continue;
+      }
+      
+      // Outside strings - look for unquoted property names
+      if (!inString) {
+        // Check if we're at the start of a potential property name
+        // Look ahead to see if we have: word + optional whitespace + colon
+        final remaining = result.substring(i);
+        final propMatch = RegExp(r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*:').firstMatch(remaining);
+        
+        if (propMatch != null) {
+          final propName = propMatch.group(1)!;
+          final beforeMatch = buffer.toString();
+          
+          // Check if we're in a valid position for a property name
+          // Valid positions: after {, after ,, or at start of line (with whitespace before)
+          final lastFewChars = beforeMatch.length > 10 
+              ? beforeMatch.substring(beforeMatch.length - 10) 
+              : beforeMatch;
+          final isValidPosition = beforeMatch.isEmpty || 
+                                  beforeMatch.endsWith('{') || 
+                                  beforeMatch.endsWith(',') ||
+                                  beforeMatch.endsWith('\n') ||
+                                  beforeMatch.endsWith('[') ||
+                                  RegExp(r'[,\{\[\s]$').hasMatch(beforeMatch);
+          
+          // Check if property name is already quoted - be more thorough
+          final isAlreadyQuoted = lastFewChars.endsWith('"') || 
+                                  lastFewChars.contains('"$propName"') ||
+                                  beforeMatch.endsWith('"');
+          
+          if (isValidPosition && !isAlreadyQuoted) {
+            // Add quotes around property name
+            buffer.write('"$propName":');
+            i += propMatch.end; // Skip the property name and colon
+            continue;
+          }
+        }
+      }
+      
+      // Write the character and move on
+      buffer.write(char);
+      i++;
+    }
+    
+    result = buffer.toString();
+    
+    // Step 5: Fix single-quoted property names
+    result = result.replaceAllMapped(
+      RegExp(r"'([a-zA-Z_][a-zA-Z0-9_]*)'\s*:"),
+      (match) => '"${match.group(1)}":',
+    );
+    
+    // Step 6: Fix single-quoted string values
+    result = result.replaceAllMapped(
+      RegExp(r":\s*'((?:[^'\\]|\\.)*)'"),
+      (match) {
+        final value = match.group(1) ?? '';
+        final escaped = value.replaceAll('"', '\\"');
+        return ': "$escaped"';
+      },
+    );
+    
+    // Step 7: Remove trailing commas
+    result = result.replaceAll(RegExp(r',(\s*[}\]])'), r'$1');
+    
+    // Step 8: Final pass - catch any remaining unquoted properties using regex
+    // This is a safety net for edge cases - be VERY aggressive
+    // Match ANY word-like sequence followed by colon that's not already quoted
+    int passCount = 0;
+    String previousResult = '';
+    while (passCount < 5 && result != previousResult) {
+      previousResult = result;
+      result = result.replaceAllMapped(
+        RegExp(r'([{,]\s*|^\s*|,\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', multiLine: true),
+        (match) {
+          final prefix = match.group(1) ?? '';
+          final propName = match.group(2) ?? '';
+          final beforePos = match.start;
+          
+          // Check if already quoted - be VERY thorough
+          if (beforePos > 0) {
+            final before = result.substring(0, beforePos);
+            // Check last few characters to see if property is already quoted
+            final lastChars = before.length > 20 ? before.substring(before.length - 20) : before;
+            // Check multiple patterns to see if already quoted
+            if (lastChars.endsWith('"') || 
+                lastChars.contains('"$propName"') ||
+                lastChars.endsWith('"$propName"') ||
+                before.endsWith('"')) {
+              return match.group(0) ?? '';
+            }
+          }
+          
+          // ALWAYS quote the property name if we get here
+          return '$prefix"$propName":';
+        },
+      );
+      passCount++;
+    }
+    
+    return result.trim();
+  }
+
+  /// Robust JSON sanitization function
+  /// Removes markdown, extracts JSON object, completes incomplete JSON, and validates the result
+  String? _sanitizeJsonResponse(String rawResponse) {
+    if (rawResponse.isEmpty) {
+      debugPrint('⚠️ Raw response is empty');
+      return null;
+    }
+
+    String cleaned = rawResponse.trim();
+
+    // Step 1: Remove markdown code blocks
+    cleaned = cleaned.replaceAll(RegExp(r'```json\s*', multiLine: true), '');
+    cleaned = cleaned.replaceAll(RegExp(r'```\s*', multiLine: true), '');
+    cleaned = cleaned.replaceAll(RegExp(r'```json'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'```'), '');
+    cleaned = cleaned.trim();
+
+    // Step 2: Force double quotes - replace single quotes with double quotes
+    // Handle single-quoted strings (property names and values)
+    // Pattern: 'text' or 'text with "quotes"'
+    cleaned = cleaned.replaceAllMapped(RegExp(r"'([^'\\]*(\\.[^'\\]*)*)'"), (match) {
+      final content = match.group(1) ?? '';
+      // Escape any existing double quotes in the content
+      final escaped = content.replaceAll('"', '\\"');
+      return '"$escaped"';
+    });
+
+    // Step 3: Extract JSON - handle incomplete JSON (cut off responses)
+    final firstBrace = cleaned.indexOf('{');
+    if (firstBrace == -1) {
+      debugPrint('⚠️ No opening brace { found in response');
+      return null;
+    }
+
+    // Extract from first { to end (even if no closing })
+    String extractedJson = cleaned.substring(firstBrace);
+    
+    // Step 4: Complete the JSON if it's cut off
+    // Count opening and closing braces to see if JSON is incomplete
+    int openBraces = 0;
+    int closeBraces = 0;
+    int openBrackets = 0;
+    int closeBrackets = 0;
+    bool inString = false;
+    bool escapeNext = false;
+    
+    for (int i = 0; i < extractedJson.length; i++) {
+      final char = extractedJson[i];
+      
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+      
+      if (char == '\\') {
+        escapeNext = true;
+        continue;
+      }
+      
+      if (char == '"') {
+        inString = !inString;
+        continue;
+      }
+      
+      if (!inString) {
+        if (char == '{') openBraces++;
+        if (char == '}') closeBraces++;
+        if (char == '[') openBrackets++;
+        if (char == ']') closeBrackets++;
+      }
+    }
+    
+    // Complete the JSON by adding missing closing braces/brackets
+    String completedJson = extractedJson;
+    
+    // Step 4a: Close any incomplete strings (if cut off in middle of string)
+    // Check if the JSON ends with an incomplete string (starts with " but doesn't close)
+    // Pattern: ends with ", " or just " followed by whitespace
+    final incompleteStringPattern = RegExp(r'":\s*"([^"]*)$');
+    final incompleteStringMatch = incompleteStringPattern.firstMatch(completedJson);
+    if (incompleteStringMatch != null) {
+      // We have an incomplete string value, close it
+      final incompleteContent = incompleteStringMatch.group(1) ?? '';
+      // Remove the incomplete content and close the string
+      completedJson = completedJson.substring(0, completedJson.length - incompleteContent.length) + '"';
+      debugPrint('✅ Closed incomplete string value');
+    }
+    
+    // Also check for incomplete string at the very end (starts with " but no closing quote)
+    if (completedJson.trim().endsWith('"') == false) {
+      // Check if last non-whitespace character before end is a quote
+      final trimmed = completedJson.trimRight();
+      if (trimmed.endsWith('"')) {
+        // String is already closed, nothing to do
+      } else {
+        // Check if we're in the middle of a string (last quote is opening, not closing)
+        final lastQuoteIndex = trimmed.lastIndexOf('"');
+        if (lastQuoteIndex != -1) {
+          // Count quotes before this one to see if it's an opening or closing quote
+          int quoteCount = 0;
+          bool escapeNext = false;
+          for (int i = 0; i <= lastQuoteIndex; i++) {
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            if (trimmed[i] == '\\') {
+              escapeNext = true;
+              continue;
+            }
+            if (trimmed[i] == '"') {
+              quoteCount++;
+            }
+          }
+          // If odd number of quotes, we have an unclosed string
+          if (quoteCount % 2 == 1) {
+            // Close the string
+            completedJson = trimmed + '"';
+            debugPrint('✅ Closed unclosed string at end');
+          }
+        }
+      }
+    }
+    
+    // Step 4b: Add missing closing braces/brackets
+    if (openBraces > closeBraces) {
+      // Remove trailing comma if present before adding closing brace
+      completedJson = completedJson.replaceAll(RegExp(r',\s*$'), '');
+      // Add missing closing braces
+      for (int i = 0; i < (openBraces - closeBraces); i++) {
+        completedJson += '}';
+      }
+      debugPrint('✅ Completed JSON: Added ${openBraces - closeBraces} closing brace(s)');
+    }
+    
+    if (openBrackets > closeBrackets) {
+      // Remove trailing comma if present before adding closing bracket
+      completedJson = completedJson.replaceAll(RegExp(r',\s*$'), '');
+      // Add missing closing brackets
+      for (int i = 0; i < (openBrackets - closeBrackets); i++) {
+        completedJson += ']';
+      }
+      debugPrint('✅ Completed JSON: Added ${openBrackets - closeBrackets} closing bracket(s)');
+    }
+
+    // Step 5: Remove trailing commas before closing braces and brackets
+    // This must happen AFTER completing the JSON structure
+    // Remove trailing commas before }
+    completedJson = completedJson.replaceAll(RegExp(r',\s*}'), '}');
+    // Remove trailing commas before ]
+    completedJson = completedJson.replaceAll(RegExp(r',\s*]'), ']');
+    // Remove trailing commas before closing braces in nested structures (multiple passes)
+    for (int i = 0; i < 5; i++) {
+      final before = completedJson;
+      completedJson = completedJson.replaceAll(RegExp(r',\s*}'), '}');
+      completedJson = completedJson.replaceAll(RegExp(r',\s*]'), ']');
+      if (before == completedJson) break; // No more changes
+    }
+    // Remove trailing commas at the end of the string
+    completedJson = completedJson.replaceAll(RegExp(r',\s*$'), '');
+
+    // Step 6: Final validation
+    if (completedJson.isEmpty) {
+      debugPrint('⚠️ Cleaned JSON string is empty');
+      return null;
+    }
+
+    if (!completedJson.startsWith('{')) {
+      debugPrint('⚠️ Cleaned string does not start with {');
+      return null;
+    }
+
+    // If it still doesn't end with }, try to complete it one more time
+    if (!completedJson.endsWith('}')) {
+      // Count braces again after all processing
+      final finalOpenBraces = completedJson.split('{').length - 1;
+      final finalCloseBraces = completedJson.split('}').length - 1;
+      if (finalOpenBraces > finalCloseBraces) {
+        completedJson += '}';
+        debugPrint('✅ Added final closing brace');
+      }
+    }
+
+    debugPrint('✅ Sanitized JSON: Length ${completedJson.length}, starts with {, ends with ${completedJson.endsWith('}') ? '}' : 'incomplete'}');
+    return completedJson;
+  }
+
+  /// Robust JSON parsing with comprehensive error handling
+  /// Returns parsed JSON or throws a detailed exception
+  Map<String, dynamic> _parseJsonSafely(String rawResponse, {String context = 'JSON parsing'}) {
+    // Step 1: Sanitize the response
+    final cleanedJson = _sanitizeJsonResponse(rawResponse);
+    
+    if (cleanedJson == null || cleanedJson.isEmpty) {
+      throw FormatException(
+        '$context: Cleaned JSON string is empty or null. '
+        'Raw response length: ${rawResponse.length}, '
+        'First 200 chars: ${rawResponse.length > 200 ? rawResponse.substring(0, 200) : rawResponse}'
+      );
+    }
+
+    // Step 2: Try to parse with detailed error logging
+    try {
+      final parsed = json.decode(cleanedJson) as Map<String, dynamic>;
+      debugPrint('✅ Successfully parsed JSON ($context)');
+      return parsed;
+    } catch (e) {
+      // Detailed error logging
+      debugPrint('❌ JSON parse error ($context): $e');
+      debugPrint('❌ Raw response length: ${rawResponse.length}');
+      debugPrint('❌ Cleaned JSON length: ${cleanedJson.length}');
+      debugPrint('❌ Cleaned JSON (first 1000 chars): ${cleanedJson.length > 1000 ? cleanedJson.substring(0, 1000) : cleanedJson}');
+      
+      // Extract error position if available
+      if (e is FormatException) {
+        final errorMsg = e.toString();
+        final positionMatch = RegExp(r'position (\d+)').firstMatch(errorMsg);
+        if (positionMatch != null) {
+          final errorPosition = int.tryParse(positionMatch.group(1) ?? '0') ?? 0;
+          debugPrint('❌ Error at position: $errorPosition');
+          
+          if (errorPosition > 0 && errorPosition < cleanedJson.length) {
+            final start = (errorPosition - 50).clamp(0, cleanedJson.length);
+            final end = (errorPosition + 50).clamp(0, cleanedJson.length);
+            debugPrint('❌ Problematic section (chars ${start}-${end}): ${cleanedJson.substring(start, end)}');
+            debugPrint('❌ Character at position $errorPosition: "${cleanedJson[errorPosition]}" (code: ${cleanedJson.codeUnitAt(errorPosition)})');
+            
+            // Show surrounding context
+            if (errorPosition > 20) {
+              debugPrint('❌ Context before error: ${cleanedJson.substring(errorPosition - 20, errorPosition)}');
+            }
+            if (errorPosition < cleanedJson.length - 20) {
+              debugPrint('❌ Context after error: ${cleanedJson.substring(errorPosition, errorPosition + 20)}');
+            }
+          }
+        }
+      }
+      
+      // Re-throw with context
+      throw FormatException(
+        '$context: Failed to parse JSON. Error: $e. '
+        'Cleaned JSON length: ${cleanedJson.length}, '
+        'First 500 chars: ${cleanedJson.length > 500 ? cleanedJson.substring(0, 500) : cleanedJson}',
+        e
+      );
+    }
+  }
+
   Map<String, dynamic> _parseSemanticResponse(String response) {
     try {
       debugPrint('📥 Raw response length: ${response.length}');
       debugPrint('📥 First 500 chars: ${response.length > 500 ? response.substring(0, 500) : response}');
       
-      // Clean JSON response - handle multiple formats
-      String cleanJson = response.trim();
+      // Step 1: Sanitize the response (removes markdown, extracts JSON)
+      final sanitizedJson = _sanitizeJsonResponse(response);
       
-      // Remove markdown code blocks
-      if (cleanJson.startsWith('```json')) {
-        cleanJson = cleanJson.substring(7);
-      } else if (cleanJson.startsWith('```')) {
-        cleanJson = cleanJson.substring(3);
-      }
-      if (cleanJson.endsWith('```')) {
-        cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-      }
-      cleanJson = cleanJson.trim();
-      
-      // Try to extract JSON from text that might contain explanations
-      // Look for the first { and last } to extract just the JSON object
-      final firstBrace = cleanJson.indexOf('{');
-      final lastBrace = cleanJson.lastIndexOf('}');
-      if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
-        cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+      if (sanitizedJson == null || sanitizedJson.isEmpty) {
+        throw FormatException(
+          'Failed to sanitize JSON response: Response is empty or contains no valid JSON object. '
+          'Raw response length: ${response.length}, '
+          'First 200 chars: ${response.length > 200 ? response.substring(0, 200) : response}'
+        );
       }
       
-      // Try to fix common JSON issues: single quotes instead of double quotes
-      // Only fix property names and simple string values, being careful not to break valid JSON
-      // Fix property names with single quotes: 'property': -> "property":
-      cleanJson = cleanJson.replaceAllMapped(
-        RegExp(r"'(\w+)'\s*:"),
-        (match) => '"${match.group(1)}":',
-      );
-      
-      // Fix string values with single quotes (simple case): : 'value' -> : "value"
-      // But avoid replacing single quotes that are part of the content
-      cleanJson = cleanJson.replaceAllMapped(
-        RegExp(r":\s*'([^']*)'(?=\s*[,}\]])"),
-        (match) => ': "${match.group(1)}"',
-      );
-      
-      cleanJson = cleanJson.trim();
+      // Step 2: Use comprehensive JSON repair
+      String cleanJson = _repairJson(sanitizedJson);
       
       debugPrint('📥 Cleaned JSON length: ${cleanJson.length}');
       debugPrint('📥 First 500 chars of cleaned: ${cleanJson.length > 500 ? cleanJson.substring(0, 500) : cleanJson}');
       
-      // Try to parse JSON
-      Map<String, dynamic> jsonData;
-      try {
-        jsonData = json.decode(cleanJson) as Map<String, dynamic>;
-      } catch (jsonError) {
-        debugPrint('❌ JSON parse error: $jsonError');
-        debugPrint('❌ Problematic JSON (first 1000 chars): ${cleanJson.length > 1000 ? cleanJson.substring(0, 1000) : cleanJson}');
-        
-        // Try one more time with more aggressive cleaning
-        // Remove any text before first { and after last }
-        final firstBrace2 = cleanJson.indexOf('{');
-        final lastBrace2 = cleanJson.lastIndexOf('}');
-        if (firstBrace2 != -1 && lastBrace2 != -1 && lastBrace2 > firstBrace2) {
-          final extractedJson = cleanJson.substring(firstBrace2, lastBrace2 + 1);
-          debugPrint('🔄 Trying extracted JSON (${extractedJson.length} chars)');
-          jsonData = json.decode(extractedJson) as Map<String, dynamic>;
-        } else {
-          rethrow;
+      // Step 3: Try to parse JSON with multiple repair attempts
+      Map<String, dynamic>? jsonData;
+      int attempt = 0;
+      String currentJson = cleanJson;
+      bool parseSuccess = false;
+      
+      while (attempt < 3 && !parseSuccess) {
+        try {
+          // Use the robust parsing function (includes sanitization, validation, and error logging)
+          jsonData = _parseJsonSafely(currentJson, context: 'Semantic response parsing (attempt ${attempt + 1})');
+          parseSuccess = true;
+        } catch (jsonError) {
+          attempt++;
+          debugPrint('❌ JSON parse error (attempt $attempt): $jsonError');
+          
+          if (attempt >= 3) {
+            // Last attempt - show detailed error info
+            debugPrint('❌ Problematic JSON (first 1000 chars): ${currentJson.length > 1000 ? currentJson.substring(0, 1000) : currentJson}');
+            
+            // Extract error position
+            int errorPosition = 0;
+            final positionMatch = RegExp(r'position (\d+)').firstMatch(jsonError.toString());
+            if (positionMatch != null) {
+              errorPosition = int.tryParse(positionMatch.group(1) ?? '0') ?? 0;
+              debugPrint('❌ Error at position $errorPosition');
+              
+              if (errorPosition > 0 && errorPosition < currentJson.length) {
+                final start = (errorPosition - 50).clamp(0, currentJson.length);
+                final end = (errorPosition + 50).clamp(0, currentJson.length);
+                debugPrint('❌ Problematic section: ${currentJson.substring(start, end)}');
+                debugPrint('❌ Character at position $errorPosition: "${currentJson[errorPosition]}" (code: ${currentJson.codeUnitAt(errorPosition)})');
+              }
+            }
+            
+            // Try one final ULTRA-AGGRESSIVE repair with multiple passes
+            // Run repair function multiple times to catch all edge cases
+            for (int repairIteration = 0; repairIteration < 5; repairIteration++) {
+              currentJson = _repairJson(currentJson);
+              
+              // Multiple regex passes to catch ALL unquoted properties
+              for (int regexPass = 0; regexPass < 5; regexPass++) {
+                final beforeRegex = currentJson;
+                currentJson = currentJson.replaceAllMapped(
+                  RegExp(r'([{,]\s*|^\s*|,\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', multiLine: true),
+                  (match) {
+                    final prefix = match.group(1) ?? '';
+                    final propName = match.group(2) ?? '';
+                    final beforePos = match.start;
+                    
+                    // Check if already quoted - be very thorough
+                    if (beforePos > 0) {
+                      final before = currentJson.substring(0, beforePos);
+                      final lastChars = before.length > 10 
+                          ? before.substring(before.length - 10) 
+                          : before;
+                      if (lastChars.endsWith('"') || 
+                          lastChars.contains('"$propName"') ||
+                          before.endsWith('"')) {
+                        return match.group(0) ?? '';
+                      }
+                    }
+                    return '$prefix"$propName":';
+                  },
+                );
+                
+                // If no changes were made, break early
+                if (currentJson == beforeRegex) break;
+              }
+              
+              // Remove trailing commas
+              currentJson = currentJson.replaceAll(RegExp(r',(\s*[}\]])'), r'$1');
+            }
+            
+            // Before final attempt, do one more character-by-character pass
+            // This is the most aggressive repair possible
+            final ultraRepaired = StringBuffer();
+            bool inStr = false;
+            bool escNext = false;
+            int pos = 0;
+            
+            while (pos < currentJson.length) {
+              final ch = currentJson[pos];
+              
+              if (escNext) {
+                ultraRepaired.write(ch);
+                escNext = false;
+                pos++;
+                continue;
+              }
+              
+              if (ch == '\\') {
+                ultraRepaired.write(ch);
+                escNext = true;
+                pos++;
+                continue;
+              }
+              
+              if (ch == '"') {
+                inStr = !inStr;
+                ultraRepaired.write(ch);
+                pos++;
+                continue;
+              }
+              
+              if (!inStr) {
+                final remaining = currentJson.substring(pos);
+                final propMatch = RegExp(r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*:').firstMatch(remaining);
+                if (propMatch != null) {
+                  final propName = propMatch.group(1)!;
+                  final before = ultraRepaired.toString();
+                  final lastChars = before.length > 15 
+                      ? before.substring(before.length - 15) 
+                      : before;
+                  
+                  // Only quote if not already quoted
+                  if (!lastChars.endsWith('"') && 
+                      !lastChars.contains('"$propName"')) {
+                    ultraRepaired.write('"$propName":');
+                    pos += propMatch.end;
+                    continue;
+                  }
+                }
+              }
+              
+              ultraRepaired.write(ch);
+              pos++;
+            }
+            
+            currentJson = ultraRepaired.toString();
+            currentJson = currentJson.replaceAll(RegExp(r',(\s*[}\]])'), r'$1');
+            
+            try {
+              jsonData = _parseJsonSafely(currentJson, context: 'Final ultra-aggressive repair attempt');
+              debugPrint('✅ Successfully parsed after ULTRA-AGGRESSIVE character-by-character repair!');
+              parseSuccess = true;
+            } catch (e3) {
+              debugPrint('❌ All repair attempts failed: $e3');
+              debugPrint('❌ Final JSON (first 500 chars): ${currentJson.length > 500 ? currentJson.substring(0, 500) : currentJson}');
+              throw Exception('Failed to parse AI response after all repair attempts: $e3');
+            }
+          } else {
+            // Try another repair pass with multiple iterations
+            currentJson = _repairJson(currentJson);
+            // Multiple regex passes to be thorough
+            for (int regexPass = 0; regexPass < 3; regexPass++) {
+              currentJson = currentJson.replaceAllMapped(
+                RegExp(r'([{,]\s*|^\s*|,\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', multiLine: true),
+                (match) {
+                  final prefix = match.group(1) ?? '';
+                  final propName = match.group(2) ?? '';
+                  final beforePos = match.start;
+                  // Check if already quoted
+                  if (beforePos > 0) {
+                    final before = currentJson.substring(0, beforePos);
+                    final lastChars = before.length > 5 
+                        ? before.substring(before.length - 5) 
+                        : before;
+                    if (lastChars.endsWith('"') || 
+                        lastChars.contains('"$propName"') ||
+                        before.endsWith('"')) {
+                      return match.group(0) ?? '';
+                    }
+                  }
+                  return '$prefix"$propName":';
+                },
+              );
+            }
+            currentJson = currentJson.replaceAll(RegExp(r',(\s*[}\]])'), r'$1');
+            debugPrint('🔄 Retrying with repaired JSON (attempt $attempt)');
+          }
         }
+      }
+      
+      if (jsonData == null) {
+        throw Exception('Failed to parse JSON after all attempts');
+      }
+      
+      // Handle empty response gracefully
+      if (jsonData.isEmpty) {
+        debugPrint('⚠️ Empty JSON response from AI');
+        return {
+          'isValid': false,
+          'poData': null,
+          'summary': 'AI returned an empty response. Please try again.',
+        };
       }
       
       final isValid = jsonData['isValid'] as bool? ?? false;
@@ -1339,15 +1855,93 @@ $pdfText
       PurchaseOrder? poData;
       if (poDataJson != null && poDataJson.isNotEmpty) {
         try {
-          // Convert N/A to null, ensure numbers are not null
+          // Convert N/A to null, handle null values gracefully
           final cleanedPoData = Map<String, dynamic>.from(poDataJson);
           
-          // Handle N/A values
-          if (cleanedPoData['poNumber'] == 'N/A') cleanedPoData['poNumber'] = null;
-          if (cleanedPoData['customerName'] == 'N/A') cleanedPoData['customerName'] = null;
+          // Handle N/A values and null strings - but preserve actual values
+          if (cleanedPoData['poNumber'] == 'N/A') {
+            cleanedPoData['poNumber'] = null;
+          }
+          // Don't set customerName to null if it has a value - preserve it
+          if (cleanedPoData['customerName'] == 'N/A') {
+            cleanedPoData['customerName'] = null;
+          }
+          // Ensure customerName is preserved if it exists
+          if (cleanedPoData['customerName'] != null && cleanedPoData['customerName'].toString().trim().isNotEmpty) {
+            // Keep the value as is
+            debugPrint('✅ Preserving customerName: ${cleanedPoData['customerName']}');
+          }
           
-          // Ensure numeric fields are not null
-          if (cleanedPoData['totalAmount'] == null) cleanedPoData['totalAmount'] = 0.0;
+          // Handle null numeric fields - but preserve actual values
+          if (cleanedPoData['totalAmount'] == null || cleanedPoData['totalAmount'] == 0.0) {
+            // Only set to 0.0 if truly null, otherwise preserve the value
+            if (cleanedPoData['totalAmount'] == null) {
+              cleanedPoData['totalAmount'] = 0.0;
+            }
+          } else {
+            // Ensure totalAmount is a number
+            final totalAmountValue = cleanedPoData['totalAmount'];
+            if (totalAmountValue is num) {
+              cleanedPoData['totalAmount'] = totalAmountValue.toDouble();
+            } else if (totalAmountValue is String) {
+              cleanedPoData['totalAmount'] = double.tryParse(totalAmountValue) ?? 0.0;
+            }
+            debugPrint('✅ Preserving totalAmount: ${cleanedPoData['totalAmount']}');
+          }
+          
+          // Handle null lineItems
+          if (cleanedPoData['lineItems'] == null) {
+            cleanedPoData['lineItems'] = <Map<String, dynamic>>[];
+          }
+          
+          // Ensure lineItems is a list
+          final lineItems = cleanedPoData['lineItems'];
+          if (lineItems is! List) {
+            cleanedPoData['lineItems'] = <Map<String, dynamic>>[];
+          }
+          
+          // Clean each line item to handle nulls and apply fuzzy matching
+          if (lineItems is List) {
+            final cleanedItems = <Map<String, dynamic>>[];
+            final catalogService = CatalogService();
+            
+            for (var item in lineItems) {
+              if (item is Map<String, dynamic>) {
+                final cleanedItem = Map<String, dynamic>.from(item);
+                
+                // Ensure required numeric fields have defaults
+                if (cleanedItem['quantity'] == null) cleanedItem['quantity'] = 0.0;
+                
+                // FUZZY ITEM MATCHING: Match against productCatalog dynamically
+                // If unitPrice is missing or 0, try to match from catalog
+                final itemName = (cleanedItem['itemName'] as String? ?? '').trim();
+                final description = (cleanedItem['description'] as String? ?? '').trim();
+                final currentUnitPrice = (cleanedItem['unitPrice'] as num?)?.toDouble() ?? 0.0;
+                
+                if (currentUnitPrice == 0.0 && (itemName.isNotEmpty || description.isNotEmpty)) {
+                  // Try fuzzy matching against catalog
+                  final matchedPrice = catalogService.matchItemPrice(itemName, description: description);
+                  if (matchedPrice > 0.0) {
+                    cleanedItem['unitPrice'] = matchedPrice;
+                    debugPrint('✅ Fuzzy matched: "$itemName" -> ${matchedPrice} AED');
+                  }
+                }
+                
+                // Ensure unitPrice is set (use matched price or keep existing)
+                if (cleanedItem['unitPrice'] == null) cleanedItem['unitPrice'] = 0.0;
+                
+                // Calculate total if missing
+                if (cleanedItem['total'] == null) {
+                  final qty = (cleanedItem['quantity'] as num?)?.toDouble() ?? 0.0;
+                  final price = (cleanedItem['unitPrice'] as num?)?.toDouble() ?? 0.0;
+                  cleanedItem['total'] = qty * price;
+                }
+                
+                cleanedItems.add(cleanedItem);
+              }
+            }
+            cleanedPoData['lineItems'] = cleanedItems;
+          }
           
           final jsonString = json.encode(cleanedPoData);
           poData = _parseExtractedData(jsonString, '');
@@ -1356,6 +1950,8 @@ $pdfText
           debugPrint('Error parsing PO data: $e');
           poData = null;
         }
+      } else {
+        debugPrint('⚠️ poData is null or empty in response');
       }
       
       return {
@@ -1408,7 +2004,9 @@ Perform THREE tasks in a single response:
 
 3. SUMMARY: Generate a concise 2-3 sentence English summary highlighting key information
 
-Return ONLY valid JSON with this exact structure:
+CRITICAL: Return ONLY a raw JSON object. Do not include any conversational text, backticks, or markdown formatting.
+
+Return ONLY valid JSON with this exact structure (NO MARKDOWN, NO CODE BLOCKS, NO EXPLANATIONS):
 {
   "isValid": true or false,
   "poData": {
@@ -1731,8 +2329,20 @@ Provide a 2-3 sentence summary highlighting key information.
 
       // Extract values with better error handling
       final poNumber = jsonData['poNumber']?.toString().trim();
-      final customerName = jsonData['customerName']?.toString().trim();
-      final totalAmount = jsonData['totalAmount'];
+      // Preserve customerName - don't override if it exists
+      String? customerName = jsonData['customerName']?.toString().trim();
+      if (customerName != null && customerName.isNotEmpty && customerName != 'N/A' && customerName.toLowerCase() != 'unknown') {
+        debugPrint('✅ Extracted customerName from JSON: $customerName');
+      }
+      // Extract totalAmount - preserve the value
+      dynamic totalAmount = jsonData['totalAmount'];
+      if (totalAmount != null) {
+        if (totalAmount is num) {
+          debugPrint('✅ Extracted totalAmount from JSON: ${totalAmount.toDouble()}');
+        } else {
+          debugPrint('✅ Extracted totalAmount from JSON (string): $totalAmount');
+        }
+      }
       
       // Validate and extract critical fields with flexible matching
       String finalPONumber = poNumber ?? '';
@@ -1761,7 +2371,11 @@ Provide a 2-3 sentence summary highlighting key information.
         }
       }
       
-      String finalCustomerName = customerName ?? '';
+      // Use customerName from JSON if it exists and is valid, otherwise try to extract from text
+      String finalCustomerName = (customerName != null && customerName.isNotEmpty && customerName != 'N/A' && customerName.toLowerCase() != 'unknown') 
+          ? customerName 
+          : '';
+      
       if (finalCustomerName.isEmpty || finalCustomerName == 'Unknown' || finalCustomerName.toLowerCase() == 'n/a' || finalCustomerName.toLowerCase().contains('sample') || finalCustomerName.toLowerCase().contains('test') || finalCustomerName.toLowerCase().contains('acme')) {
         // Try multiple patterns for customer name - prioritize exact format from PDF
         final patterns = [
@@ -1837,15 +2451,22 @@ Provide a 2-3 sentence summary highlighting key information.
       }
       
       // Extract total amount - handle different formats and field names
+      // Preserve the value from JSON if it exists
       double finalTotalAmount = 0.0;
       if (totalAmount != null) {
         if (totalAmount is num) {
           finalTotalAmount = totalAmount.toDouble();
+          debugPrint('✅ Using totalAmount from JSON (num): $finalTotalAmount');
         } else if (totalAmount is String) {
           // Remove currency symbols and commas
           final cleanAmount = totalAmount.replaceAll(RegExp(r'[^\d.]'), '');
           finalTotalAmount = double.tryParse(cleanAmount) ?? 0.0;
+          debugPrint('✅ Using totalAmount from JSON (string): $totalAmount -> $finalTotalAmount');
+        } else {
+          debugPrint('⚠️ totalAmount is not a number or string: $totalAmount (${totalAmount.runtimeType})');
         }
+      } else {
+        debugPrint('⚠️ totalAmount is null in JSON');
       }
       
       // If total is 0 or missing, try to extract from original text with multiple patterns
@@ -1884,14 +2505,54 @@ Provide a 2-3 sentence summary highlighting key information.
                                      !finalCustomerName.toLowerCase().contains('test') &&
                                      !finalCustomerName.toLowerCase().contains('acme');
       
+      // Use the best available value for customerName
+      String finalCustomerNameValue = finalCustomerName;
+      if (finalCustomerNameValue.isEmpty || !finalCustomerNameValid) {
+        // Fallback to JSON value if available
+        final jsonCustomerName = jsonData['customerName']?.toString().trim();
+        if (jsonCustomerName != null && jsonCustomerName.isNotEmpty && jsonCustomerName != 'N/A' && jsonCustomerName.toLowerCase() != 'unknown') {
+          finalCustomerNameValue = jsonCustomerName;
+          debugPrint('✅ Using customerName from JSON fallback: $finalCustomerNameValue');
+        } else {
+          finalCustomerNameValue = 'Unknown';
+        }
+      } else {
+        debugPrint('✅ Using customerName from extraction: $finalCustomerNameValue');
+      }
+      
+      // Ensure totalAmount is preserved
+      double finalTotalAmountValue = finalTotalAmount;
+      if (finalTotalAmountValue == 0.0) {
+        // Try to get from JSON again
+        final jsonTotalAmount = jsonData['totalAmount'];
+        if (jsonTotalAmount != null) {
+          if (jsonTotalAmount is num) {
+            finalTotalAmountValue = jsonTotalAmount.toDouble();
+            debugPrint('✅ Using totalAmount from JSON fallback: $finalTotalAmountValue');
+          } else if (jsonTotalAmount is String) {
+            final cleanAmount = jsonTotalAmount.replaceAll(RegExp(r'[^\d.]'), '');
+            finalTotalAmountValue = double.tryParse(cleanAmount) ?? 0.0;
+            debugPrint('✅ Using totalAmount from JSON fallback (string): $jsonTotalAmount -> $finalTotalAmountValue');
+          }
+        }
+      } else {
+        debugPrint('✅ Using totalAmount from extraction: $finalTotalAmountValue');
+      }
+      
+      // Log line items count
+      debugPrint('✅ Line items count: ${lineItems.length}');
+      if (lineItems.isNotEmpty) {
+        debugPrint('✅ First line item: ${lineItems.first.itemName}, Qty: ${lineItems.first.quantity}, Price: ${lineItems.first.unitPrice}');
+      }
+      
       return PurchaseOrder(
         poNumber: finalPONumberValid ? finalPONumber : (jsonData['poNumber']?.toString().trim() ?? 'N/A'),
         poDate: poDate,
         expiryDate: finalExpiryDate,
-        customerName: finalCustomerNameValid ? finalCustomerName : (jsonData['customerName']?.toString().trim() ?? 'Unknown'),
+        customerName: finalCustomerNameValue,
         customerAddress: jsonData['customerAddress']?.toString(),
         customerEmail: jsonData['customerEmail']?.toString(),
-        totalAmount: finalTotalAmount,
+        totalAmount: finalTotalAmountValue,
         currency: extractedCurrency,
         terms: jsonData['terms']?.toString(),
         notes: jsonData['notes']?.toString(),

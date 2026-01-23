@@ -39,6 +39,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   int _processedCount = 0;
   int _successCount = 0;
   int _errorCount = 0;
+  int _poProcessedCount = 0;
+  int _poSuccessCount = 0;
+  int _poErrorCount = 0;
 
   @override
   void initState() {
@@ -239,7 +242,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       },
       {
         'title': 'total_po_value'.tr(),
-        'value': '₹${(stats['totalValue'] ?? 0).toStringAsFixed(0)}',
+        'value': _formatCurrencyValue(stats['totalValue'] ?? 0),
         'icon': Icons.attach_money,
         'gradient': [Colors.green.shade400, Colors.green.shade600],
         'iconBg': Colors.green.shade50,
@@ -271,9 +274,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           final item = statItems[index];
           return Container(
             width: 180,
+            constraints: const BoxConstraints(
+              minWidth: 160,
+              maxWidth: 220,
+            ),
             margin: const EdgeInsets.only(right: 16),
             child: _buildStatCard(
-              context,
+          context,
               item['title'] as String,
               item['value'] as String,
               item['icon'] as IconData,
@@ -304,10 +311,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           child: Opacity(
             opacity: animValue,
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
                   colors: [
                     gradientColors[0],
                     gradientColors[1],
@@ -315,8 +322,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
+        boxShadow: [
+          BoxShadow(
                     color: gradientColors[0].withOpacity(0.5),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
@@ -324,11 +331,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
               child: Stack(
                 children: [
                   // Decorative circles
@@ -358,15 +365,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                   // Content
                   Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
                           padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.3),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(18),
                             boxShadow: [
                               BoxShadow(
@@ -377,35 +384,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             ],
                           ),
                           child: Icon(icon, size: 36, color: Colors.white),
-                        ),
-                        const Spacer(),
+            ),
+            const Spacer(),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              value,
-                              style: const TextStyle(
-                                fontSize: 42,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: -1,
-                                height: 1.1,
-                              ),
+                            // Use FittedBox to auto-scale text for large numbers
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+              value,
+              style: const TextStyle(
+                                  fontSize: 42,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                                  letterSpacing: -1,
+                                  height: 1.1,
+              ),
+                                maxLines: 1,
+            ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              title,
-                              style: TextStyle(
+            Text(
+              title,
+              style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white.withOpacity(0.95),
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.3,
                                 height: 1.3,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
                         ),
                       ],
                     ),
@@ -417,6 +430,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         );
       },
     );
+  }
+
+  /// Format currency value with commas and handle large numbers
+  String _formatCurrencyValue(dynamic value) {
+    if (value == null) return '₹0';
+    
+    double numValue = 0.0;
+    if (value is num) {
+      numValue = value.toDouble();
+    } else if (value is String) {
+      numValue = double.tryParse(value) ?? 0.0;
+    }
+    
+    // Format with commas for readability
+    final formatted = numValue.toStringAsFixed(0);
+    final parts = formatted.split('.');
+    final integerPart = parts[0];
+    
+    // Add commas every 3 digits
+    String formattedInteger = '';
+    for (int i = integerPart.length - 1; i >= 0; i--) {
+      formattedInteger = integerPart[i] + formattedInteger;
+      if ((integerPart.length - i) % 3 == 0 && i > 0) {
+        formattedInteger = ',' + formattedInteger;
+      }
+    }
+    
+    return '₹$formattedInteger';
   }
 
   Map<String, Map<String, dynamic>> _getMonthlyStatistics(List<PurchaseOrder> pos) {
@@ -958,33 +999,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   width: 320,
                   margin: EdgeInsets.only(right: index == draftQuotations.length - 1 ? 0 : 16),
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
                         Colors.blue.shade50,
                         Colors.blue.shade100.withOpacity(0.5),
-                      ],
-                    ),
+          ],
+        ),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+        border: Border.all(
                       color: Colors.blue.withOpacity(0.2),
                       width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
+        ),
+        boxShadow: [
+          BoxShadow(
                         color: Colors.blue.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
                           Expanded(
                             child: Text(
                               quotation.quotationNumber,
@@ -994,9 +1035,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                   ),
                             ),
                           ),
-                          Container(
+              Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
+                decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -1016,21 +1057,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                         children: [
                           Icon(Icons.person, size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
+              Expanded(
+                child: Text(
                               quotation.customerName,
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontSize: 14,
                               ),
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
+                ),
+              ),
+            ],
+          ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
+          Row(
+            children: [
                           Icon(Icons.shopping_cart, size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 6),
                           Text(
@@ -1100,9 +1141,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         return StatefulBuilder(
           builder: (context, setDialogState) {
             // Update message periodically if processing
-            if (_isFetchingInquiry && _processedCount > 0) {
+            if ((_isFetchingInquiry && _processedCount > 0) || 
+                (_isFetchingPO && _poProcessedCount > 0)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && _isFetchingInquiry) {
+                if (mounted && (_isFetchingInquiry || _isFetchingPO)) {
                   setDialogState(() {});
                 }
               });
@@ -1113,7 +1155,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               elevation: 0,
               child: Container(
                 padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
+      decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1123,18 +1165,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     ],
                   ),
                   borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
+        boxShadow: [
+          BoxShadow(
                       color: Colors.black.withOpacity(0.2),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                       spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
+          ),
+        ],
+      ),
+      child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+        children: [
                     // Animated loader
                     Stack(
                       alignment: Alignment.center,
@@ -1180,27 +1222,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ],
                     ),
                     const SizedBox(height: 24),
-                    Text(
+          Text(
                       message,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
                             color: Colors.grey[800],
-                          ),
+                ),
                       textAlign: TextAlign.center,
-                    ),
-                    if (_processedCount > 0) ...[
+          ),
+                    if (_processedCount > 0 || _poProcessedCount > 0) ...[
                       const SizedBox(height: 16),
-                      Text(
-                        'Processed: $_processedCount | Success: $_successCount | Errors: $_errorCount',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+          Text(
+                        _isFetchingInquiry
+                            ? 'Processed: $_processedCount | Success: $_successCount | Errors: $_errorCount'
+                            : 'Processed: $_poProcessedCount | Success: $_poSuccessCount | Errors: $_poErrorCount',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
                     const SizedBox(height: 12),
                     Text(
-                      'Please wait while we process inquiries...',
+                      _isFetchingPO 
+                          ? 'Please wait while we process purchase orders...'
+                          : 'Please wait while we process inquiries...',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.grey[600],
                           ),
@@ -1230,7 +1276,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                           },
                           onEnd: () {
                             // Restart animation if still loading
-                            if (mounted && _isFetchingInquiry) {
+                            if (mounted && (_isFetchingInquiry || _isFetchingPO)) {
                               Future.delayed(const Duration(milliseconds: 100), () {
                                 if (mounted) setDialogState(() {});
                               });
@@ -1333,16 +1379,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   subtitle: 'View all quotations',
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildModernActionButton(
-                  context,
-                  'Generate Quotation',
-                  Icons.add_business,
-                  _showGenerateQuotationDialog,
-                  subtitle: 'Create new quotation',
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1379,15 +1415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             () => context.push('/po-list'),
             subtitle: 'View all purchase orders',
           ),
-          const SizedBox(height: 12),
-          // Stage 4: Supplier Orders
-          _buildModernActionButton(
-            context,
-            'Supplier Orders',
-            Icons.shopping_cart,
-            () => context.push('/supplier-order-list'),
-            subtitle: 'Manage supplier orders',
-          ),
+          
           const SizedBox(height: 12),
           // Stage 5: Delivery Documents
           _buildModernActionButton(
@@ -1692,9 +1720,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         if (mounted) {
           Navigator.of(context, rootNavigator: true).pop();
         }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
               content: Text('No inquiry emails found in inbox'),
               backgroundColor: Colors.orange,
             ),
@@ -1733,8 +1761,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             setState(() => _successCount++);
           } else {
             setState(() => _errorCount++);
-          }
-        } catch (e) {
+      }
+    } catch (e) {
           debugPrint('❌ Failed to process email ${i + 1}: $e');
           setState(() => _errorCount++);
           // Continue to next email
@@ -2021,62 +2049,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  Future<void> _getPOFromMail() async {
+  /// Process a single PO email and add to list if not duplicate
+  Future<bool> _processSinglePOEmail(EmailMessage email, int index, int total, Set<String> existingPONumbers) async {
     try {
-      setState(() => _isFetchingPO = true);
-
-      // Fetch emails directly via Gmail API
-      final emails = await _emailService.fetchPOEmails(maxResults: 10);
-
-      if (emails.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No PO emails found in inbox'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        setState(() => _isFetchingPO = false);
-        return;
-      }
-
-      // Show email selection dialog if multiple emails
-      EmailMessage? selectedEmail;
-      if (emails.length > 1) {
-        selectedEmail = await _showEmailSelectionDialog(emails, 'PO');
-        if (selectedEmail == null) {
-          setState(() => _isFetchingPO = false);
-          return;
-        }
-      } else {
-        selectedEmail = emails.first;
-      }
-
-      // Process the selected PO email with PDF attachment
-      final poEmail = selectedEmail!;
-      final pdfAttachment = poEmail.attachments.firstWhere(
+      debugPrint('📧 Processing PO email ${index + 1}/$total: ${email.subject}');
+      
+      // Find PDF attachment
+      final pdfAttachment = email.attachments.firstWhere(
         (att) => att.name.toLowerCase().endsWith('.pdf'),
-        orElse: () => throw Exception('No PO PDF attachment found in email'),
+        orElse: () => throw Exception('No PDF attachment found in email'),
       );
 
       // Fetch attachment data if not already loaded
       Uint8List pdfData;
       if (pdfAttachment.data.isEmpty && pdfAttachment.attachmentId != null && pdfAttachment.messageId != null) {
-        // Need to fetch attachment data from Gmail API
         pdfData = await _emailService.fetchAttachmentData(pdfAttachment.messageId!, pdfAttachment.attachmentId!);
       } else {
         pdfData = pdfAttachment.data;
       }
 
-      // Extract PO data from PDF
+      if (pdfData.isEmpty) {
+        throw Exception('Failed to fetch PDF attachment data from email');
+      }
+
+      // Extract PO data from PDF using existing parser
       final po = await _pdfService.extractPODataFromPDFBytes(pdfData, pdfAttachment.name);
+
+      // Check for duplicate PO number
+      if (existingPONumbers.contains(po.poNumber)) {
+        debugPrint('⚠️ Duplicate PO number found: ${po.poNumber}. Skipping...');
+        return false;
+      }
 
       // Save PDF file
       final platformFile = PlatformFile(
         name: pdfAttachment.name,
-        bytes: pdfAttachment.data,
-        size: pdfAttachment.data.length,
+        bytes: pdfData,
+        size: pdfData.length,
         path: null,
       );
       final savedPath = await _pdfService.savePDFFile(platformFile);
@@ -2085,23 +2094,150 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       // Save to database
       final savedPO = await ref.read(poProvider.notifier).addPurchaseOrder(finalPO);
 
-      setState(() => _isFetchingPO = false);
+      if (savedPO != null) {
+        // Add to existing PO numbers set to prevent duplicates in same batch
+        existingPONumbers.add(po.poNumber);
+        debugPrint('✅ Successfully processed PO email ${index + 1}/$total: ${po.poNumber}');
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      final errorStr = e.toString().toLowerCase();
+      
+      // Handle 429 rate limit errors - continue to next email
+      if (errorStr.contains('429') || errorStr.contains('rate limit')) {
+        debugPrint('⚠️ Rate limit error (429) for PO email ${index + 1}/$total. Continuing to next email...');
+        await Future.delayed(const Duration(seconds: 2));
+        return false;
+      }
+      
+      // For other errors, log and continue
+      debugPrint('❌ Error processing PO email ${index + 1}/$total: $e');
+      return false;
+    }
+  }
 
+  Future<void> _getPOFromMail() async {
+    // Close any existing dialogs first
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    }
+    
+    setState(() {
+      _isFetchingPO = true;
+      _poProcessedCount = 0;
+      _poSuccessCount = 0;
+      _poErrorCount = 0;
+    });
+
+    // Show rich loading dialog with progress
+    if (mounted) {
+      _showRichLoaderDialog(context, 'Fetching Purchase Orders from Gmail...');
+    }
+
+    try {
+      // Fetch up to 10 most recent PO emails
+      final emails = await _emailService.fetchPOEmails(maxResults: 10);
+
+      if (emails.isEmpty) {
+        setState(() => _isFetchingPO = false);
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('PO fetched from email and processed successfully'),
-            backgroundColor: Colors.green,
+              content: Text('No PO emails found in inbox'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      debugPrint('📧 Found ${emails.length} PO email(s). Processing in bulk...');
+
+      // Get existing PO numbers to avoid duplicates
+      final poState = ref.read(poProvider);
+      final existingPONumbers = poState.purchaseOrders.map((po) => po.poNumber).toSet();
+      
+      // Process each email in a loop
+      
+      for (int i = 0; i < emails.length; i++) {
+        if (!mounted) break;
+        
+        final email = emails[i];
+        setState(() => _poProcessedCount = i + 1);
+        
+        // Update loader message
+        if (mounted) {
+          // Close and reopen loader with updated message
+          try {
+            Navigator.of(context, rootNavigator: true).pop();
+          } catch (_) {}
+          _showRichLoaderDialog(
+            context, 
+            'Processing ${i + 1}/${emails.length}: ${email.subject}',
+          );
+        }
+
+        try {
+          final success = await _processSinglePOEmail(email, i, emails.length, existingPONumbers);
+          if (success) {
+            setState(() => _poSuccessCount++);
+          } else {
+            setState(() => _poErrorCount++);
+      }
+    } catch (e) {
+          debugPrint('❌ Failed to process PO email ${i + 1}: $e');
+          setState(() => _poErrorCount++);
+          // Continue to next email
+          continue;
+        }
+
+        // Small delay between emails to avoid rate limiting
+        if (i < emails.length - 1) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      setState(() => _isFetchingPO = false);
+      
+      // Dismiss loader dialog
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Refresh PO list
+      await ref.read(poProvider.notifier).loadPurchaseOrders();
+
+      // Show summary
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _poSuccessCount > 0
+                  ? 'New POs Found: $_poSuccessCount purchase order(s) added'
+                  : 'No new purchase orders found',
+            ),
+            backgroundColor: _poSuccessCount > 0 ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 4),
           ),
         );
-        Future.delayed(const Duration(seconds: 1), () {
-          if (mounted && savedPO?.id != null) {
-            context.push('/po-detail/${savedPO!.id}');
-          }
-        });
       }
     } catch (e) {
       setState(() => _isFetchingPO = false);
+      
+      // Dismiss loader dialog on error
+      if (mounted) {
+        try {
+          Navigator.of(context, rootNavigator: true).pop();
+        } catch (_) {
+          // Dialog might already be closed, ignore error
+        }
+      }
+      
       if (mounted) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
         
@@ -2184,98 +2320,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     ) ?? false;
   }
 
-  /// Show dialog to select an inquiry for quotation generation
-  Future<void> _showGenerateQuotationDialog() async {
-    // Load inquiries first
-    await ref.read(inquiryProvider.notifier).loadInquiries();
-    final inquiryState = ref.read(inquiryProvider);
-    
-    if (inquiryState.inquiries.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No inquiries available. Please create an inquiry first.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Filter inquiries that don't have a quotation yet (status is 'pending' or 'reviewed')
-    final availableInquiries = inquiryState.inquiries
-        .where((inquiry) => 
-            inquiry.quotationId == null && 
-            (inquiry.status == 'pending' || inquiry.status == 'reviewed'))
-        .toList();
-
-    if (availableInquiries.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No inquiries available for quotation generation. All inquiries already have quotations.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (!mounted) return;
-
-    // Show inquiry selection dialog
-    final selectedInquiry = await showDialog<CustomerInquiry>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Inquiry for Quotation'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: inquiryState.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : availableInquiries.isEmpty
-                  ? const Text('No inquiries available')
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: availableInquiries.length,
-                      itemBuilder: (context, index) {
-                        final inquiry = availableInquiries[index];
-                        return ListTile(
-                          leading: const Icon(Icons.question_answer, color: Colors.orange),
-                          title: Text(
-                            inquiry.inquiryNumber,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Customer: ${inquiry.customerName}'),
-                              Text('Items: ${inquiry.items.length}'),
-                              Text('Status: ${inquiry.status}'),
-                            ],
-                          ),
-                          onTap: () => Navigator.of(context).pop(inquiry),
-                        );
-                      },
-                    ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-
-    // Navigate to create quotation screen if inquiry was selected
-    if (selectedInquiry != null && selectedInquiry.id != null) {
-      if (mounted) {
-        context.push('/create-quotation/${selectedInquiry.id}');
-      }
-    }
-  }
 
   void _showEmailConfigDialog(String type) {
     showDialog(

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/quotation_provider.dart';
 import '../../domain/entities/quotation.dart';
 import '../../core/utils/currency_helper.dart';
+import '../../data/services/email_service.dart';
+import '../../data/services/quotation_pdf_service.dart';
 
 class QuotationDetailScreen extends ConsumerStatefulWidget {
   final String quotationId;
@@ -17,11 +20,23 @@ class QuotationDetailScreen extends ConsumerStatefulWidget {
 class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   Quotation? _quotation;
   bool _isLoading = true;
+  bool _isSaving = false;
+  bool _autoSendEmail = true;
+  late TextEditingController _recipientEmailController;
+  final _emailService = EmailService();
+  final _pdfService = QuotationPDFService();
 
   @override
   void initState() {
     super.initState();
+    _recipientEmailController = TextEditingController();
     _loadQuotation();
+  }
+
+  @override
+  void dispose() {
+    _recipientEmailController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadQuotation() async {
@@ -29,8 +44,164 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
     final quotation = await ref.read(quotationProvider.notifier).getQuotationById(widget.quotationId);
     setState(() {
       _quotation = quotation;
+      if (quotation != null && quotation.customerEmail != null) {
+        _recipientEmailController.text = quotation.customerEmail!;
+      }
       _isLoading = false;
     });
+  }
+
+  Future<void> _saveQuotation() async {
+    if (_quotation == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Update quotation with email from controller
+      final updatedQuotation = _quotation!.copyWith(
+        customerEmail: _recipientEmailController.text.trim().isNotEmpty
+            ? _recipientEmailController.text.trim()
+            : _quotation!.customerEmail,
+        updatedAt: DateTime.now(),
+      );
+
+      // Update quotation in database
+      await ref.read(quotationProvider.notifier).updateQuotation(updatedQuotation);
+
+      // Auto-send email if enabled and recipient email is available
+      bool emailSent = false;
+      final recipientEmail = _recipientEmailController.text.trim();
+      debugPrint('📧 Preparing to send quotation email to: $recipientEmail');
+
+      if (_autoSendEmail && recipientEmail.isNotEmpty) {
+        try {
+          // Generate quotation PDF file
+          final pdfBytes = await _pdfService.generateQuotationPDF(updatedQuotation);
+
+          // Prepare items data for email body
+          final itemsData = updatedQuotation.items.map((item) => {
+            'itemName': item.itemName,
+            'quantity': item.quantity,
+            'unit': item.unit,
+            'unitPrice': item.unitPrice,
+            'total': item.total,
+          }).toList();
+
+          // Send email using url_launcher (opens user's mail client)
+          emailSent = await _emailService.sendQuotationEmail(
+            to: recipientEmail,
+            quotationNumber: updatedQuotation.quotationNumber,
+            quotationPdf: pdfBytes,
+            customerName: updatedQuotation.customerName,
+            items: itemsData,
+            grandTotal: updatedQuotation.totalAmount,
+            currency: updatedQuotation.currency,
+          );
+
+          if (emailSent) {
+            // Update quotation status to 'sent'
+            final sentQuotation = updatedQuotation.copyWith(status: 'sent');
+            await ref.read(quotationProvider.notifier).updateQuotation(sentQuotation);
+            
+            // Reload quotation to reflect changes
+            await _loadQuotation();
+
+            // Show success message with email address
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Quotation Sent Successfully',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Sent to: $recipientEmail',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 5),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } else {
+            // Email sending failed
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Quotation saved but email sending failed'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error sending quotation email: $e');
+          // Don't fail the whole operation if email fails
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Quotation saved but email failed: $e'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
+
+      // Show success message (only if email wasn't already sent above)
+      if (mounted && !emailSent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Quotation saved successfully'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Redirect to home/dashboard after successful save
+      if (mounted) {
+        // Small delay to show success message
+        await Future.delayed(const Duration(milliseconds: 500));
+        context.go('/dashboard');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _deleteQuotation() async {
@@ -101,6 +272,17 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         title: Text(_quotation!.quotationNumber),
         actions: [
           IconButton(
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save),
+            onPressed: _isSaving ? null : _saveQuotation,
+            tooltip: 'Save and Send Quotation',
+          ),
+          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _deleteQuotation,
           ),
@@ -122,6 +304,69 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
               const SizedBox(height: 16),
               _buildTermsCard(context),
             ],
+            const SizedBox(height: 16),
+            _buildEmailOptionsCard(context),
+            const SizedBox(height: 80), // Bottom padding for email options
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailOptionsCard(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Email Options',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            // Send To: Email Field
+            TextField(
+              controller: _recipientEmailController,
+              decoration: InputDecoration(
+                labelText: 'Send To:',
+                hintText: 'Enter recipient email address',
+                prefixIcon: const Icon(Icons.email),
+                border: const OutlineInputBorder(),
+                helperText: 'Email address for sending quotation. You can edit if needed.',
+                suffixIcon: _recipientEmailController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _recipientEmailController.clear();
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (value) {
+                setState(() {
+                  // Update state when email changes
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              title: const Text('Automatically send quotation via email'),
+              subtitle: _recipientEmailController.text.isNotEmpty
+                  ? Text('Will send to: ${_recipientEmailController.text}')
+                  : const Text('Recipient email not set'),
+              value: _autoSendEmail && _recipientEmailController.text.isNotEmpty,
+              onChanged: _recipientEmailController.text.isNotEmpty
+                  ? (value) {
+                      setState(() {
+                        _autoSendEmail = value;
+                      });
+                    }
+                  : null,
+            ),
           ],
         ),
       ),
