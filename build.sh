@@ -20,13 +20,25 @@ cd "$HOME"
 # Download and extract Flutter
 # Use git clone to get latest stable (which has Dart 3.9.2+)
 echo "Cloning Flutter SDK (stable branch)..."
-if [ ! -d "$HOME/flutter" ]; then
+if [ ! -d "$HOME/flutter" ] || [ ! -f "$HOME/flutter/bin/flutter" ]; then
+  echo "Flutter not found, cloning..."
+  rm -rf "$HOME/flutter" 2>/dev/null || true
   git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$HOME/flutter" || {
     echo "Git clone failed, trying direct download..."
+    rm -rf "$HOME/flutter" 2>/dev/null || true
     curl -L "$FLUTTER_SDK_URL" -o flutter.tar.xz || exit 1
     tar -xf flutter.tar.xz || exit 1
     rm flutter.tar.xz
   }
+  
+  # Verify clone/download succeeded
+  if [ ! -d "$HOME/flutter" ]; then
+    echo "Error: Flutter directory was not created"
+    exit 1
+  fi
+  
+  echo "Flutter directory created, checking contents..."
+  ls -la "$HOME/flutter" | head -20 || true
 fi
 
 # Fix git safe directory issue (Vercel runs as root) - do this BEFORE adding to PATH
