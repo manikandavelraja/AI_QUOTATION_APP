@@ -3,6 +3,10 @@ set -e
 
 echo "🚀 Starting Flutter build for Vercel..."
 
+# Save the original directory (repository root)
+ORIGINAL_DIR="$(pwd)"
+echo "Original directory: $ORIGINAL_DIR"
+
 # Install Flutter SDK
 echo "📦 Installing Flutter SDK..."
 FLUTTER_VERSION="3.24.5"
@@ -34,17 +38,37 @@ flutter doctor --android-licenses || true
 echo "Verifying Flutter installation..."
 flutter --version || exit 1
 
-# Navigate to app directory (Vercel sets VERCEL_SOURCE_DIR, fallback to current dir)
-if [ -n "$VERCEL_SOURCE_DIR" ]; then
-  cd "$VERCEL_SOURCE_DIR"
-else
-  cd "$(dirname "$0")"
-fi
-cd po_processor_app || {
+# Navigate back to repository root
+echo "Navigating back to repository root: $ORIGINAL_DIR"
+cd "$ORIGINAL_DIR" || {
+  echo "Error: Could not navigate back to repository root"
+  echo "Trying alternative: looking for po_processor_app in current location"
+  # Try to find po_processor_app from current location
+  if [ -d "po_processor_app" ]; then
+    echo "Found po_processor_app in current directory"
+  else
+    # List current directory to debug
+    echo "Current directory: $(pwd)"
+    echo "Directory contents:"
+    ls -la
+    exit 1
+  fi
+}
+
+# Verify we're in the right place
+echo "Current directory: $(pwd)"
+echo "Checking for po_processor_app directory..."
+if [ ! -d "po_processor_app" ]; then
   echo "Error: po_processor_app directory not found"
+  echo "Current directory contents:"
   ls -la
   exit 1
-}
+fi
+
+# Navigate to app directory
+echo "Navigating to po_processor_app..."
+cd po_processor_app
+echo "Now in: $(pwd)"
 
 # Get dependencies
 echo "📚 Getting Flutter dependencies..."
