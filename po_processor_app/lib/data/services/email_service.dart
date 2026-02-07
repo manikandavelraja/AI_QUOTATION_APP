@@ -272,27 +272,45 @@ class EmailService {
     try {
       debugPrint('📧 Fetching inquiry emails automatically...');
       
-      // Ensure Gmail API is initialized before fetching
+      // Ensure Gmail API is initialized before fetching with timeout
       if (_gmailApi == null) {
         try {
-          // Try silent initialization first (uses stored tokens)
-          await _initializeGmailApi(silent: true);
+          // Try silent initialization first (uses stored tokens) with timeout
+          await _initializeGmailApi(silent: true)
+              .timeout(
+                const Duration(seconds: 15),
+                onTimeout: () {
+                  throw Exception('Gmail initialization timed out. Please sign in manually.');
+                },
+              );
         } catch (initError) {
           debugPrint('❌ Gmail API silent initialization error: $initError');
           final errorStr = initError.toString();
           
-          // If it's a sign-in related error, try with user interaction
+          // If it's a sign-in related error or timeout, try with user interaction
           if (errorStr.contains('sign in') || 
               errorStr.contains('cancelled') ||
               errorStr.contains('authentication') ||
               errorStr.contains('token') ||
-              errorStr.contains('MissingPluginException')) {
+              errorStr.contains('MissingPluginException') ||
+              errorStr.contains('timed out') ||
+              errorStr.contains('timeout')) {
             debugPrint('🔄 Retrying with user interaction...');
             try {
-              await _initializeGmailApi(silent: false);
+              await _initializeGmailApi(silent: false)
+                  .timeout(
+                    const Duration(seconds: 120), // 2 minutes for interactive sign-in
+                    onTimeout: () {
+                      throw Exception('Sign-in timed out. Please check your internet connection and try again.');
+                    },
+                  );
             } catch (interactiveError) {
               debugPrint('❌ Interactive initialization also failed: $interactiveError');
               // Re-throw with a user-friendly message
+              final errorMsg = interactiveError.toString();
+              if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
+                throw Exception('Sign-in timed out. Please check your internet connection and allow popups, then try again.');
+              }
               throw Exception('Please sign in with your Gmail account. A sign-in window will open when you tap "GetFromMail".');
             }
           } else {

@@ -1497,7 +1497,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   void _showRichLoaderDialog(BuildContext context, String message) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true, // Allow dismissing on mobile if stuck
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -1535,10 +1535,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           ),
         ],
       ),
-      child: Column(
-                  mainAxisSize: MainAxisSize.min,
-        children: [
-                    // Animated loader
+      child: Stack(
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Animated loader
                     Stack(
                       alignment: Alignment.center,
                       children: [
@@ -1646,6 +1648,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                         );
                       }),
                     ),
+                      ],
+                    ),
+                    // Cancel button for stuck loading
+                    if (_isFetchingInquiry || _isFetchingPO)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () {
+                            setState(() {
+                              _isFetchingInquiry = false;
+                              _isFetchingPO = false;
+                            });
+                            Navigator.of(context).pop();
+                          },
+                          tooltip: 'Cancel',
+                        ),
+                      ),
                   ],
                 ),
               ),
