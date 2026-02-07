@@ -119,7 +119,21 @@ class EmailService {
           }
         } catch (e) {
           debugPrint('⚠️ Silent sign-in failed: $e');
-          // Continue to interactive sign-in
+          final errorStr = e.toString().toLowerCase();
+          
+          // If blocked, don't continue to interactive (it will also fail)
+          if (errorStr.contains('blocked') || 
+              errorStr.contains('err_blocked_by_client') ||
+              errorStr.contains('play.google.com')) {
+            debugPrint('⚠️ Silent sign-in blocked - skipping interactive attempt');
+            _gmailApi = null;
+            await _googleSignIn?.signOut();
+            throw Exception(
+              'Gmail sign-in is being blocked by your browser.\n\n'
+              'Please disable ad blockers and privacy extensions, then try again.'
+            );
+          }
+          // Continue to interactive sign-in for other errors
         }
       }
       
@@ -184,11 +198,33 @@ class EmailService {
         debugPrint('✅ Access token obtained successfully');
       } catch (e) {
         debugPrint('❌ Google Sign-In error: $e');
-        final errorStr = e.toString();
+        final errorStr = e.toString().toLowerCase();
+        
+        // Check for blocked requests (ERR_BLOCKED_BY_CLIENT)
+        if (errorStr.contains('blocked') || 
+            errorStr.contains('err_blocked_by_client') ||
+            errorStr.contains('net::err_blocked') ||
+            errorStr.contains('play.google.com') ||
+            errorStr.contains('credential_server')) {
+          debugPrint('⚠️ Google Sign-In blocked by browser extension or privacy settings');
+          _gmailApi = null;
+          await _googleSignIn?.signOut();
+          throw Exception(
+            'Gmail sign-in is being blocked by your browser.\n\n'
+            'Please:\n'
+            '1. Disable ad blockers (uBlock Origin, AdBlock Plus, etc.)\n'
+            '2. Disable privacy extensions that block Google services\n'
+            '3. Allow popups for this website\n'
+            '4. Try again after disabling blockers\n\n'
+            'Alternatively, use manual upload:\n'
+            '• Download PDFs from Gmail\n'
+            '• Use "Upload Customer Inquiry" or "Upload PO" buttons'
+          );
+        }
         
         // If google_sign_in fails (especially on web), provide helpful message
-        if (errorStr.contains('MissingPluginException') || 
-            errorStr.contains('No implementation found') ||
+        if (errorStr.contains('missingpluginexception') || 
+            errorStr.contains('no implementation found') ||
             errorStr.contains('plugins.flutter.io/google_sign_in')) {
           // On web, if Google Sign-In plugin fails, it means OAuth2 client ID is not configured
           if (kIsWeb) {
@@ -208,11 +244,30 @@ class EmailService {
         // For sign-in cancellation, provide specific message
         if (errorStr.contains('cancelled')) {
           _gmailApi = null;
+          await _googleSignIn?.signOut();
           throw Exception('Sign-in was cancelled. Please try again and complete the sign-in process.');
+        }
+        
+        // For network errors, check if it might be blocking
+        if (errorStr.contains('network') || 
+            errorStr.contains('failed to fetch') ||
+            errorStr.contains('connection')) {
+          debugPrint('⚠️ Network error during sign-in - might be blocked');
+          _gmailApi = null;
+          await _googleSignIn?.signOut();
+          throw Exception(
+            'Network error during Gmail sign-in.\n\n'
+            'This might be caused by:\n'
+            '• Browser extensions blocking Google services\n'
+            '• Privacy settings blocking authentication\n'
+            '• Network connectivity issues\n\n'
+            'Please check your browser extensions and try again.'
+          );
         }
         
         // Clear state on any other error and rethrow with original message
         _gmailApi = null;
+        await _googleSignIn?.signOut();
         rethrow;
       }
       

@@ -2285,6 +2285,65 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       if (mounted) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
         
+        // Handle blocked requests (ERR_BLOCKED_BY_CLIENT)
+        if (errorMsg.toLowerCase().contains('blocked') || 
+            errorMsg.toLowerCase().contains('err_blocked_by_client') ||
+            errorMsg.toLowerCase().contains('play.google.com') ||
+            errorMsg.toLowerCase().contains('browser extension') ||
+            errorMsg.toLowerCase().contains('ad blocker')) {
+          // Show a helpful dialog about disabling blockers
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+            showDialog(
+              context: context,
+              barrierDismissible: true,
+              builder: (dialogContext) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.block, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Browser Extension Blocking Gmail'),
+                  ],
+                ),
+                content: const Text(
+                  'Gmail sign-in is being blocked by your browser.\n\n'
+                  'This is usually caused by:\n'
+                  '• Ad blockers (uBlock Origin, AdBlock Plus)\n'
+                  '• Privacy extensions\n'
+                  '• Browser security settings\n\n'
+                  'To fix:\n'
+                  '1. Disable ad blockers temporarily\n'
+                  '2. Disable privacy extensions\n'
+                  '3. Allow popups for this website\n'
+                  '4. Try again\n\n'
+                  'Alternatively, use manual upload:\n'
+                  '• Download PDFs from Gmail\n'
+                  '• Use "Upload Customer Inquiry" button'
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('OK'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      context.push('/upload-inquiry');
+                    },
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Use Manual Upload'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+        
         // Handle timeout errors specifically
         if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
           errorMsg = 'Request timed out. On mobile, please:\n'
