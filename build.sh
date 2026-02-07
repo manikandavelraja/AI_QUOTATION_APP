@@ -29,19 +29,29 @@ if [ ! -d "$HOME/flutter" ]; then
   }
 fi
 
-# Add Flutter to PATH
-export PATH="$HOME/flutter/bin:$PATH"
-
-# Fix git safe directory issue (Vercel runs as root)
+# Fix git safe directory issue (Vercel runs as root) - do this BEFORE adding to PATH
 git config --global --add safe.directory /vercel/flutter || true
 git config --global --add safe.directory "$HOME/flutter" || true
 
+# Add Flutter to PATH
+export PATH="$HOME/flutter/bin:$PATH"
+
+# Verify Flutter binary exists
+if [ ! -f "$HOME/flutter/bin/flutter" ]; then
+  echo "Error: Flutter binary not found at $HOME/flutter/bin/flutter"
+  ls -la "$HOME/flutter/bin/" || true
+  exit 1
+fi
+
+# Make flutter executable
+chmod +x "$HOME/flutter/bin/flutter" || true
+
 # Accept Flutter licenses
-flutter doctor --android-licenses || true
+"$HOME/flutter/bin/flutter" doctor --android-licenses || true
 
 # Verify Flutter installation
 echo "Verifying Flutter installation..."
-flutter --version || exit 1
+"$HOME/flutter/bin/flutter" --version || exit 1
 
 # Navigate back to repository root
 echo "Navigating back to repository root: $ORIGINAL_DIR"
