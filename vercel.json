@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd po_processor_app && flutter build web --release",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "po_processor_app/build/web",
   "rewrites": [
     {
