@@ -18,10 +18,11 @@ import '../../presentation/screens/delivery_document_detail_screen.dart';
 import '../../presentation/screens/delivery_document_create_screen.dart';
 import '../../presentation/screens/quotation_list_screen.dart';
 import '../../presentation/screens/quotation_detail_screen.dart';
+import '../../presentation/screens/splash_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Column(
@@ -48,6 +49,11 @@ class AppRouter {
       ),
     ),
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',

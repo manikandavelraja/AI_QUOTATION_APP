@@ -1,0 +1,28 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "po_processor_app",
+			"cwd": "po_processor_app",
+			"request": "launch",
+			"type": "dart"
+		},
+		{
+			"name": "po_processor_app (profile mode)",
+			"cwd": "po_processor_app",
+			"request": "launch",
+			"type": "dart",
+			"flutterMode": "profile"
+		},
+		{
+			"name": "po_processor_app (release mode)",
+			"cwd": "po_processor_app",
+			"request": "launch",
+			"type": "dart",
+			"flutterMode": "release"
+		}
+	]
+}

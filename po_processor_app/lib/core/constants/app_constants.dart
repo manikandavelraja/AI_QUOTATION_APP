@@ -36,7 +36,7 @@ class AppConstants {
   static const String defaultPassword = 'admin123';
   
   // App Configuration
-  static const String appName = 'PO Processor';
+  static const String appName = 'ELEVATEIONIX';
   static const String appVersion = '1.0.0';
   
   // PO Expiry Alert Days

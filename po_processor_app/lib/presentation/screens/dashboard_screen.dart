@@ -9,6 +9,7 @@ import '../providers/po_provider.dart';
 import '../providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive_helper.dart';
 import '../../domain/entities/purchase_order.dart';
 import '../../domain/entities/customer_inquiry.dart';
 import '../../data/services/email_service.dart';
@@ -80,7 +81,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.primaryGreen,
-                  const Color(0xFF4CAF50),
+                AppTheme.primaryGreenLight,
               ],
             ),
           ),
@@ -93,11 +94,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: () => context.push('/upload'),
-            tooltip: 'upload_po'.tr(),
-          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
@@ -120,23 +116,82 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: ResponsiveHelper.responsivePadding(context),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Al-Kareem logo below app bar on the right - Rich container
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            margin: EdgeInsets.only(
+                              bottom: ResponsiveHelper.isMobile(context) ? 8 : 12,
+                              right: ResponsiveHelper.isMobile(context) ? 0 : 8,
+                            ),
+                            padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 6 : 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                  spreadRadius: 1,
+                                ),
+                                BoxShadow(
+                                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                              border: Border.all(
+                                color: AppTheme.primaryGreen.withOpacity(0.2),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/icons/al-kareem.jpg',
+                                width: ResponsiveHelper.isMobile(context) ? 70 : 85,
+                                height: ResponsiveHelper.isMobile(context) ? 70 : 85,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: ResponsiveHelper.isMobile(context) ? 70 : 85,
+                                    height: ResponsiveHelper.isMobile(context) ? 70 : 85,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.image, 
+                                      color: Colors.grey, 
+                                      size: ResponsiveHelper.isMobile(context) ? 35 : 40,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       _buildWelcomeHeader(context),
-                      const SizedBox(height: 24),
+                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       // QuickActions moved to top
                       _buildQuickActions(context),
-                      const SizedBox(height: 24),
+                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       _buildStatsGrid(context, stats),
-                      const SizedBox(height: 24),
+                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       _buildMonthlyUsageGraph(context, monthlyData),
-                      const SizedBox(height: 24),
+                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       _buildExpiringAlerts(context, poState),
-                      const SizedBox(height: 24),
+                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       _buildDraftQuotationsList(context),
-                      const SizedBox(height: 80),
+                      SizedBox(height: ResponsiveHelper.isMobile(context) ? 60.0 : 80.0),
                     ],
                   ),
                 ),
@@ -144,14 +199,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/upload'),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: AppTheme.primaryGreen,
         icon: const Icon(Icons.add),
         label: Text('upload_po'.tr()),
         elevation: 4,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
-        selectedItemColor: const Color(0xFF2E7D32),
+        selectedItemColor: AppTheme.primaryGreen,
         unselectedItemColor: Colors.grey,
         items: [
           BottomNavigationBarItem(
@@ -173,8 +228,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
   Widget _buildWelcomeHeader(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -184,7 +240,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             AppTheme.primaryGreenLight.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         border: Border.all(
           color: AppTheme.primaryGreen.withOpacity(0.2),
           width: 1,
@@ -193,18 +249,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isMobile ? 10 : 12),
             decoration: BoxDecoration(
               color: AppTheme.primaryGreen,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.trending_up,
               color: Colors.white,
-              size: 28,
+              size: ResponsiveHelper.responsiveIconSize(context, 28),
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isMobile ? 12 : 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,14 +270,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryGreen,
+                        fontSize: ResponsiveHelper.responsiveFontSize(context, 24),
                       ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: isMobile ? 2 : 4),
                 Text(
                   'Real-time insights and analytics',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[600],
+                        fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
                       ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -232,6 +292,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
   Widget _buildStatsGrid(BuildContext context, Map<String, dynamic> stats) {
+    final isMobile = ResponsiveHelper.isMobile(context);
     final statItems = [
       {
         'title': 'today_purchase_orders'.tr(),
@@ -244,8 +305,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         'title': 'total_po_value'.tr(),
         'value': _formatCurrencyValue(stats['totalValue'] ?? 0),
         'icon': Icons.attach_money,
-        'gradient': [Colors.green.shade400, Colors.green.shade600],
-        'iconBg': Colors.green.shade50,
+        'gradient': [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+        'iconBg': AppTheme.primaryGreen.withOpacity(0.1),
       },
       {
         'title': 'expiring_this_week'.tr(),
@@ -264,21 +325,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     ];
 
     return SizedBox(
-      height: 200,
+      height: isMobile ? 200 : 220,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 2 : 4),
         itemCount: statItems.length,
         itemBuilder: (context, index) {
           final item = statItems[index];
           return Container(
-            width: 180,
-            constraints: const BoxConstraints(
-              minWidth: 160,
-              maxWidth: 220,
-            ),
-            margin: const EdgeInsets.only(right: 16),
+            width: ResponsiveHelper.responsiveStatCardWidth(context),
+            margin: EdgeInsets.only(right: isMobile ? 12 : 16),
             child: _buildStatCard(
           context,
               item['title'] as String,
@@ -365,16 +422,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                   // Content
                   Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 14 : 18),
         child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-                          padding: const EdgeInsets.all(14),
+                          padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 8 : 12),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 12 : 16),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.15),
@@ -383,42 +440,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                               ),
                             ],
                           ),
-                          child: Icon(icon, size: 36, color: Colors.white),
+                          child: Icon(
+                            icon, 
+                            size: ResponsiveHelper.responsiveIconSize(context, 32), 
+                            color: Colors.white,
+                          ),
             ),
-            const Spacer(),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Use FittedBox to auto-scale text for large numbers
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-              value,
-              style: const TextStyle(
-                                  fontSize: 42,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                                  letterSpacing: -1,
-                                  height: 1.1,
+            const SizedBox(height: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              // Use FittedBox to auto-scale text for large numbers
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                value,
+                style: TextStyle(
+                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 38),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                                    letterSpacing: -1,
+                                    height: 1.0,
+                ),
+                                  maxLines: 1,
               ),
-                                maxLines: 1,
-            ),
-                            ),
-                            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.white.withOpacity(0.95),
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                                height: 1.3,
+                              ),
+                              SizedBox(height: ResponsiveHelper.isMobile(context) ? 4 : 6),
+                              Flexible(
+                                child: Text(
+                title,
+                style: TextStyle(
+                                  fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                  color: Colors.white.withOpacity(0.95),
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+                              ),
+            ],
+                          ),
                         ),
                       ],
                     ),
@@ -506,11 +572,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             .map((e) => e['count'] as int)
             .reduce((a, b) => a > b ? a : b);
 
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -525,18 +592,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.bar_chart,
                   color: AppTheme.primaryGreen,
-                  size: 24,
+                  size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 10 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,271 +612,530 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       'Monthly Usage Statistics',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
                           ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: isMobile ? 2 : 4),
                     Text(
                       'PO count and value over time',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
+                            fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
                           ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isMobile ? 16 : 24),
           SizedBox(
-            height: 250,
-            child: Row(
-              children: [
-                // Value Chart (Bar Chart)
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            height: ResponsiveHelper.responsiveChartHeight(context),
+            child: isMobile 
+                ? Column(
                     children: [
-                      Text(
-                        'Total Value (₹)',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
+                      // Value Chart (Bar Chart) - Full width on mobile
                       Expanded(
-                        child: BarChart(
-                          BarChartData(
-                            alignment: BarChartAlignment.spaceAround,
-                            maxY: maxValue > 0 ? maxValue * 1.2 : 10,
-                            barTouchData: BarTouchData(
-                              enabled: true,
-                              touchTooltipData: BarTouchTooltipData(
-                                tooltipBgColor: AppTheme.primaryGreen,
-                                tooltipRoundedRadius: 8,
-                                tooltipPadding: const EdgeInsets.all(8),
-                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                  return BarTooltipItem(
-                                    '₹${rod.toY.toStringAsFixed(0)}',
-                                    const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  );
-                                },
-                              ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Value (₹)',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                  ),
                             ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget: (value, meta) {
-                                    final index = value.toInt();
-                                    if (index >= 0 && index < spots.length) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          spots[index].value['name'] as String,
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey,
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: BarChart(
+                                BarChartData(
+                                  alignment: BarChartAlignment.spaceAround,
+                                  maxY: maxValue > 0 ? maxValue * 1.2 : 10,
+                                  barTouchData: BarTouchData(
+                                    enabled: true,
+                                    touchTooltipData: BarTouchTooltipData(
+                                      tooltipBgColor: AppTheme.primaryGreen,
+                                      tooltipRoundedRadius: 8,
+                                      tooltipPadding: const EdgeInsets.all(8),
+                                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                        return BarTooltipItem(
+                                          '₹${rod.toY.toStringAsFixed(0)}',
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ),
-                                      );
-                                    }
-                                    return const Text('');
-                                  },
-                                  reservedSize: 30,
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 50,
-                                  getTitlesWidget: (value, meta) {
-                                    final interval = maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5;
-                                    if (interval > 0 && value % interval < interval * 0.1) {
-                                      return Text(
-                                        '₹${(value / 1000).toStringAsFixed(0)}K',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey,
-                                        ),
-                                      );
-                                    }
-                                    return const Text('');
-                                  },
-                                ),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5,
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  strokeWidth: 1,
-                                );
-                              },
-                            ),
-                            barGroups: spots.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final spot = entry.value;
-                              return BarChartGroupData(
-                                x: index,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: spot.value['value'] as double,
-                                    color: AppTheme.primaryGreen,
-                                    width: 20,
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(4),
+                                        );
+                                      },
                                     ),
                                   ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                // Count Chart (Line Chart)
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PO Count',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: LineChart(
-                          LineChartData(
-                            maxY: maxCount > 0 ? maxCount * 1.2 : 10,
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5,
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  strokeWidth: 1,
-                                );
-                              },
-                            ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 40,
-                                  getTitlesWidget: (value, meta) {
-                                    final interval = maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5;
-                                    if (interval > 0 && value % interval < interval * 0.1) {
-                                      return Text(
-                                        value.toInt().toString(),
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey,
-                                        ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (value, meta) {
+                                          final index = value.toInt();
+                                          if (index >= 0 && index < spots.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                spots[index].value['name'] as String,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                        reservedSize: 30,
+                                      ),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 50,
+                                        getTitlesWidget: (value, meta) {
+                                          final interval = maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5;
+                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                            return Text(
+                                              '₹${(value / 1000).toStringAsFixed(0)}K',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        strokeWidth: 1,
                                       );
-                                    }
-                                    return const Text('');
-                                  },
-                                ),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget: (value, meta) {
-                                    final index = value.toInt();
-                                    if (index >= 0 && index < spots.length) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          spots[index].value['name'] as String,
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey,
+                                    },
+                                  ),
+                                  barGroups: spots.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final spot = entry.value;
+                                    return BarChartGroupData(
+                                      x: index,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: spot.value['value'] as double,
+                                          color: AppTheme.primaryGreen,
+                                          width: 20,
+                                          borderRadius: const BorderRadius.vertical(
+                                            top: Radius.circular(4),
                                           ),
                                         ),
-                                      );
-                                    }
-                                    return const Text('');
-                                  },
-                                  reservedSize: 30,
-                                ),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: spots.asMap().entries.map((entry) {
-                                  return FlSpot(
-                                    entry.key.toDouble(),
-                                    (entry.value.value['count'] as int).toDouble(),
-                                  );
-                                }).toList(),
-                                isCurved: true,
-                                color: Colors.blue,
-                                barWidth: 3,
-                                isStrokeCapRound: true,
-                                dotData: const FlDotData(show: true),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: Colors.blue.withOpacity(0.1),
-                                ),
-                              ),
-                            ],
-                            lineTouchData: LineTouchData(
-                              touchTooltipData: LineTouchTooltipData(
-                                tooltipBgColor: Colors.blue,
-                                tooltipRoundedRadius: 8,
-                                tooltipPadding: const EdgeInsets.all(8),
-                                getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                  return touchedSpots.map((LineBarSpot touchedSpot) {
-                                    return LineTooltipItem(
-                                      '${touchedSpot.y.toInt()} POs',
-                                      const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      ],
                                     );
-                                  }).toList();
-                                },
+                                  }).toList(),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: isMobile ? 16 : 0),
+                      // Count Chart (Line Chart) - Below on mobile
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PO Count',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: LineChart(
+                                LineChartData(
+                                  maxY: maxCount > 0 ? maxCount * 1.2 : 10,
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 40,
+                                        getTitlesWidget: (value, meta) {
+                                          final interval = maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5;
+                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                            return Text(
+                                              value.toInt().toString(),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (value, meta) {
+                                          final index = value.toInt();
+                                          if (index >= 0 && index < spots.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                spots[index].value['name'] as String,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                        reservedSize: 30,
+                                      ),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: spots.asMap().entries.map((entry) {
+                                        return FlSpot(
+                                          entry.key.toDouble(),
+                                          (entry.value.value['count'] as int).toDouble(),
+                                        );
+                                      }).toList(),
+                                      isCurved: true,
+                                      color: Colors.blue,
+                                      barWidth: 3,
+                                      isStrokeCapRound: true,
+                                      dotData: const FlDotData(show: true),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        color: Colors.blue.withOpacity(0.1),
+                                      ),
+                                    ),
+                                  ],
+                                  lineTouchData: LineTouchData(
+                                    touchTooltipData: LineTouchTooltipData(
+                                      tooltipBgColor: Colors.blue,
+                                      tooltipRoundedRadius: 8,
+                                      tooltipPadding: const EdgeInsets.all(8),
+                                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                                        return touchedSpots.map((LineBarSpot touchedSpot) {
+                                          return LineTooltipItem(
+                                            '${touchedSpot.y.toInt()} POs',
+                                            const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // Value Chart (Bar Chart)
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Value (₹)',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: BarChart(
+                                BarChartData(
+                                  alignment: BarChartAlignment.spaceAround,
+                                  maxY: maxValue > 0 ? maxValue * 1.2 : 10,
+                                  barTouchData: BarTouchData(
+                                    enabled: true,
+                                    touchTooltipData: BarTouchTooltipData(
+                                      tooltipBgColor: AppTheme.primaryGreen,
+                                      tooltipRoundedRadius: 8,
+                                      tooltipPadding: const EdgeInsets.all(8),
+                                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                        return BarTooltipItem(
+                                          '₹${rod.toY.toStringAsFixed(0)}',
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (value, meta) {
+                                          final index = value.toInt();
+                                          if (index >= 0 && index < spots.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                spots[index].value['name'] as String,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                        reservedSize: 30,
+                                      ),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 50,
+                                        getTitlesWidget: (value, meta) {
+                                          final interval = maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5;
+                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                            return Text(
+                                              '₹${(value / 1000).toStringAsFixed(0)}K',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  barGroups: spots.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final spot = entry.value;
+                                    return BarChartGroupData(
+                                      x: index,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: spot.value['value'] as double,
+                                          color: AppTheme.primaryGreen,
+                                          width: 20,
+                                          borderRadius: const BorderRadius.vertical(
+                                            top: Radius.circular(4),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: isMobile ? 0 : 24),
+                      // Count Chart (Line Chart)
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PO Count',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: LineChart(
+                                LineChartData(
+                                  maxY: maxCount > 0 ? maxCount * 1.2 : 10,
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 40,
+                                        getTitlesWidget: (value, meta) {
+                                          final interval = maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5;
+                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                            return Text(
+                                              value.toInt().toString(),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (value, meta) {
+                                          final index = value.toInt();
+                                          if (index >= 0 && index < spots.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                spots[index].value['name'] as String,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                        reservedSize: 30,
+                                      ),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: spots.asMap().entries.map((entry) {
+                                        return FlSpot(
+                                          entry.key.toDouble(),
+                                          (entry.value.value['count'] as int).toDouble(),
+                                        );
+                                      }).toList(),
+                                      isCurved: true,
+                                      color: Colors.blue,
+                                      barWidth: 3,
+                                      isStrokeCapRound: true,
+                                      dotData: const FlDotData(show: true),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        color: Colors.blue.withOpacity(0.1),
+                                      ),
+                                    ),
+                                  ],
+                                  lineTouchData: LineTouchData(
+                                    touchTooltipData: LineTouchTooltipData(
+                                      tooltipBgColor: Colors.blue,
+                                      tooltipRoundedRadius: 8,
+                                      tooltipPadding: const EdgeInsets.all(8),
+                                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                                        return touchedSpots.map((LineBarSpot touchedSpot) {
+                                          return LineTooltipItem(
+                                            '${touchedSpot.y.toInt()} POs',
+                                            const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -823,11 +1149,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       return const SizedBox.shrink();
     }
 
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         border: Border.all(
           color: Colors.orange.withOpacity(0.3),
           width: 1,
@@ -846,31 +1173,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
-                child: const Icon(Icons.warning, color: Colors.orange, size: 24),
+                child: Icon(
+                  Icons.warning, 
+                  color: Colors.orange, 
+                  size: ResponsiveHelper.responsiveIconSize(context, 24),
+                ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 10 : 12),
               Expanded(
                 child: Text(
                   'expiring_soon'.tr(),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
                       ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           ...expiringPOs.take(5).map((po) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
+                margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+                padding: EdgeInsets.all(isMobile ? 10 : 12),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                   border: Border.all(
                     color: Colors.orange.withOpacity(0.2),
                   ),
@@ -878,33 +1212,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(isMobile ? 6 : 8),
                     decoration: BoxDecoration(
                       color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                     ),
-                    child: const Icon(Icons.description, color: Colors.orange),
+                    child: Icon(
+                      Icons.description, 
+                      color: Colors.orange,
+                      size: ResponsiveHelper.responsiveIconSize(context, 20),
+                    ),
                   ),
                   title: Text(
                     po.poNumber,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(po.customerName),
+                  subtitle: Text(
+                    po.customerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                    ),
+                  ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         DateFormat('MMM dd').format(po.expiryDate),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
                         ),
                       ),
                       Text(
                         DateFormat('yyyy').format(po.expiryDate),
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 10),
                           color: Colors.grey[600],
                         ),
                       ),
@@ -937,11 +1289,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       return const SizedBox.shrink();
     }
 
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -956,7 +1309,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -964,17 +1317,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       AppTheme.primaryGreenLight,
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
-                child: const Icon(Icons.description, color: Colors.white, size: 24),
+                child: Icon(
+                  Icons.description, 
+                  color: Colors.white, 
+                  size: ResponsiveHelper.responsiveIconSize(context, 24),
+                ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 10 : 12),
               Expanded(
                 child: Text(
                   'Draft Quotations',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
                       ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
@@ -982,13 +1342,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: AppTheme.primaryGreen,
                       fontWeight: FontWeight.bold,
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 16),
                     ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           SizedBox(
-            height: 200, // Fixed height for scrollable list
+            height: isMobile ? 180 : 200, // Fixed height for scrollable list
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -996,9 +1357,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               itemBuilder: (context, index) {
                 final quotation = draftQuotations[index];
                 return Container(
-                  width: 320,
-                  margin: EdgeInsets.only(right: index == draftQuotations.length - 1 ? 0 : 16),
-                  padding: const EdgeInsets.all(16),
+                  width: isMobile ? ResponsiveHelper.screenWidth(context) * 0.85 : 320,
+                  margin: EdgeInsets.only(right: index == draftQuotations.length - 1 ? 0 : (isMobile ? 12 : 16)),
+                  padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1296,8 +1657,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1307,7 +1669,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             Colors.grey.shade50,
           ],
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         border: Border.all(
           color: Colors.grey.shade200,
           width: 1.5,
@@ -1327,27 +1689,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.flash_on,
                   color: AppTheme.primaryGreen,
-                  size: 24,
+                  size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'quick_actions'.tr(),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+              SizedBox(width: isMobile ? 10 : 12),
+              Expanded(
+                child: Text(
+                  'quick_actions'.tr(),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           // Modern Rich UI with consistent color scheme
           // Stage 1: Customer Inquiry
           _buildModernActionButton(
@@ -1357,7 +1724,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             () => context.push('/inquiry-list'),
             subtitle: 'View all customer inquiries',
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 10 : 12),
           _buildModernActionButton(
             context,
             _isFetchingInquiry ? 'Fetching Inquiries...' : 'Get Inquiry from Mail',
@@ -1366,48 +1733,93 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             subtitle: 'Fetch inquiries from Gmail',
             isLoading: _isFetchingInquiry,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 10 : 12),
           // Stage 2: Quotation
-          Row(
-            children: [
-              Expanded(
-                child: _buildModernActionButton(
-                  context,
-                  'Quotations',
-                  Icons.description,
-                  () => context.push('/quotation-list'),
-                  subtitle: 'View all quotations',
-                ),
-              ),
-            ],
+          _buildModernActionButton(
+            context,
+            'Quotations',
+            Icons.description,
+            () => context.push('/quotation-list'),
+            subtitle: 'View all quotations',
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 10 : 12),
           // Stage 3: Purchase Order
-          Row(
-            children: [
-              Expanded(
-                child: _buildModernActionButton(
-                  context,
-                  'upload_po'.tr(),
-                  Icons.upload_file,
-                  () => context.push('/upload'),
-                  subtitle: 'Upload PO document',
+          isMobile
+              ? Column(
+                  children: [
+                    _buildModernActionButton(
+                      context,
+                      'upload_po'.tr(),
+                      Icons.upload_file,
+                      () => context.push('/upload'),
+                      subtitle: 'Upload PO document',
+                    ),
+                    SizedBox(height: isMobile ? 10 : 12),
+                    _buildModernActionButton(
+                      context,
+                      _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
+                      Icons.email,
+                      _isFetchingPO ? () {} : _getPOFromMail,
+                      subtitle: 'Fetch POs from Gmail',
+                      isLoading: _isFetchingPO,
+                    ),
+                  ],
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // If screen is narrow, stack vertically even on tablet
+                    if (constraints.maxWidth < 700) {
+                      return Column(
+                        children: [
+                          _buildModernActionButton(
+                            context,
+                            'upload_po'.tr(),
+                            Icons.upload_file,
+                            () => context.push('/upload'),
+                            subtitle: 'Upload PO document',
+                          ),
+                          SizedBox(height: isMobile ? 10 : 12),
+                          _buildModernActionButton(
+                            context,
+                            _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
+                            Icons.email,
+                            _isFetchingPO ? () {} : _getPOFromMail,
+                            subtitle: 'Fetch POs from Gmail',
+                            isLoading: _isFetchingPO,
+                          ),
+                        ],
+                      );
+                    }
+                    // Otherwise, show side by side
+                    return Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildModernActionButton(
+                            context,
+                            'upload_po'.tr(),
+                            Icons.upload_file,
+                            () => context.push('/upload'),
+                            subtitle: 'Upload PO document',
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: _buildModernActionButton(
+                            context,
+                            _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
+                            Icons.email,
+                            _isFetchingPO ? () {} : _getPOFromMail,
+                            subtitle: 'Fetch POs from Gmail',
+                            isLoading: _isFetchingPO,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildModernActionButton(
-                  context,
-                  _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
-                  Icons.email,
-                  _isFetchingPO ? () {} : _getPOFromMail,
-                  subtitle: 'Fetch POs from Gmail',
-                  isLoading: _isFetchingPO,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 10 : 12),
           _buildModernActionButton(
             context,
             'po_list'.tr(),
@@ -1416,7 +1828,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             subtitle: 'View all purchase orders',
           ),
           
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 10 : 12),
           // Stage 5: Delivery Documents
           _buildModernActionButton(
             context,
@@ -1439,6 +1851,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     String? subtitle,
     bool isLoading = false,
   }) {
+    final isMobile = ResponsiveHelper.isMobile(context);
     // Use primary green theme for all buttons
     final primaryColor = AppTheme.primaryGreen;
     final secondaryColor = AppTheme.primaryGreenLight;
@@ -1453,7 +1866,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             secondaryColor,
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 14 : 16),
         boxShadow: [
           BoxShadow(
             color: primaryColor.withOpacity(0.4),
@@ -1467,60 +1880,93 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 14 : 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+            padding: EdgeInsets.symmetric(
+              vertical: isMobile ? 16 : 18,
+              horizontal: isMobile ? 14 : 20,
+            ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Icon container with better styling
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(isMobile ? 10 : 12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                      ? SizedBox(
+                          width: ResponsiveHelper.responsiveIconSize(context, 20),
+                          height: ResponsiveHelper.responsiveIconSize(context, 20),
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2.5,
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Icon(icon, color: Colors.white, size: 24),
+                      : Icon(
+                          icon, 
+                          color: Colors.white, 
+                          size: ResponsiveHelper.responsiveIconSize(context, 26),
+                        ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: isMobile ? 14 : 18),
+                // Text content with flexible layout
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          letterSpacing: 0.5,
+                      // Main label - allow wrapping
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 15 : 16),
+                            letterSpacing: 0.3,
+                            height: 1.2,
+                          ),
+                          maxLines: isMobile ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                         ),
                       ),
                       if (subtitle != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
+                        SizedBox(height: isMobile ? 4 : 6),
+                        Flexible(
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.95),
+                              fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 11 : 12),
+                              fontWeight: FontWeight.w500,
+                              height: 1.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
+                // Arrow icon - smaller on mobile, can be hidden if needed
+                SizedBox(width: isMobile ? 8 : 12),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: Colors.white.withOpacity(0.8),
-                  size: 16,
+                  color: Colors.white.withOpacity(0.9),
+                  size: ResponsiveHelper.responsiveIconSize(context, isMobile ? 14 : 16),
                 ),
               ],
             ),
@@ -1789,7 +2235,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             content: Text(
               'Bulk processing complete: $_successCount draft quotation(s) created, $_errorCount failed',
             ),
-            backgroundColor: _successCount > 0 ? Colors.green : Colors.orange,
+            backgroundColor: _successCount > 0 ? AppTheme.primaryGreen : Colors.orange,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -2221,7 +2667,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ? 'New POs Found: $_poSuccessCount purchase order(s) added'
                   : 'No new purchase orders found',
             ),
-            backgroundColor: _poSuccessCount > 0 ? Colors.green : Colors.orange,
+            backgroundColor: _poSuccessCount > 0 ? AppTheme.primaryGreen : Colors.orange,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -2304,7 +2750,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               icon: const Icon(Icons.upload_file),
               label: const Text('Go to Upload PO'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: AppTheme.primaryGreen,
                 foregroundColor: Colors.white,
               ),
             ),

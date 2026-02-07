@@ -74,7 +74,7 @@ class _POProcessorAppState extends ConsumerState<POProcessorApp> {
     EasyLocalization.of(context)?.setLocale(Locale(language));
     
     return MaterialApp.router(
-      title: 'PO Processor',
+      title: 'ELEVATEIONIX',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
