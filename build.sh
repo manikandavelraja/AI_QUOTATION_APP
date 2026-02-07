@@ -9,7 +9,8 @@ echo "Original directory: $ORIGINAL_DIR"
 
 # Install Flutter SDK
 echo "📦 Installing Flutter SDK..."
-FLUTTER_VERSION="3.24.5"
+# Use latest stable Flutter that includes Dart 3.9.2+
+FLUTTER_VERSION="3.27.1"
 FLUTTER_SDK_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
 
 # Create directory for Flutter
@@ -17,19 +18,23 @@ mkdir -p "$HOME/flutter"
 cd "$HOME"
 
 # Download and extract Flutter
-echo "Downloading Flutter SDK..."
-curl -L "$FLUTTER_SDK_URL" -o flutter.tar.xz || {
-  echo "Failed to download Flutter SDK, trying alternative method..."
-  git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$HOME/flutter" || exit 1
-}
-
-if [ -f flutter.tar.xz ]; then
-  tar -xf flutter.tar.xz || exit 1
-  rm flutter.tar.xz
+# Use git clone to get latest stable (which has Dart 3.9.2+)
+echo "Cloning Flutter SDK (stable branch)..."
+if [ ! -d "$HOME/flutter" ]; then
+  git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$HOME/flutter" || {
+    echo "Git clone failed, trying direct download..."
+    curl -L "$FLUTTER_SDK_URL" -o flutter.tar.xz || exit 1
+    tar -xf flutter.tar.xz || exit 1
+    rm flutter.tar.xz
+  }
 fi
 
 # Add Flutter to PATH
 export PATH="$HOME/flutter/bin:$PATH"
+
+# Fix git safe directory issue (Vercel runs as root)
+git config --global --add safe.directory /vercel/flutter || true
+git config --global --add safe.directory "$HOME/flutter" || true
 
 # Accept Flutter licenses
 flutter doctor --android-licenses || true
