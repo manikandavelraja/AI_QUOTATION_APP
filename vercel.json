@@ -3,14 +3,6 @@
   "outputDirectory": "po_processor_app/build/web",
   "rewrites": [
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
-      "source": "/(.*\\.(js|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|css))",
-      "destination": "/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
