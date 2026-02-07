@@ -2158,8 +2158,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
     
     try {
-      // Fetch up to 10 most recent inquiry emails
-      final emails = await _emailService.fetchInquiryEmails(maxResults: 10);
+      // Fetch up to 10 most recent inquiry emails with timeout for mobile
+      final emails = await _emailService.fetchInquiryEmails(maxResults: 10)
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timed out. Please check your internet connection and try again.');
+            },
+          );
 
       if (emails.isEmpty) {
         setState(() => _isFetchingInquiry = false);
@@ -2257,6 +2263,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       }
       if (mounted) {
         String errorMsg = e.toString().replaceAll('Exception: ', '');
+        
+        // Handle timeout errors specifically
+        if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
+          errorMsg = 'Request timed out. On mobile, please:\n'
+              '1. Check your internet connection\n'
+              '2. Allow popups in browser settings\n'
+              '3. Try again';
+        }
         
         // Handle MissingPluginException for web
         if (errorMsg.contains('MissingPluginException') || 

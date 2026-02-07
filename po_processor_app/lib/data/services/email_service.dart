@@ -92,11 +92,24 @@ class EmailService {
               : null,
         );
         
-        // Try silent sign-in (uses cached account if available)
+        // Try silent sign-in (uses cached account if available) with timeout
         try {
-          final account = await _googleSignIn!.signInSilently();
+          final account = await _googleSignIn!.signInSilently()
+              .timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  debugPrint('⚠️ Silent sign-in timed out');
+                  return null;
+                },
+              );
           if (account != null) {
-            final auth = await account.authentication;
+            final auth = await account.authentication
+                .timeout(
+                  const Duration(seconds: 10),
+                  onTimeout: () {
+                    throw Exception('Authentication timeout');
+                  },
+                );
             if (auth.accessToken != null) {
               await _storeTokens(auth.accessToken!, auth.idToken);
               await _createGmailApiClient(auth.accessToken!);
@@ -130,8 +143,14 @@ class EmailService {
         debugPrint('🔐 Starting Gmail sign-in for kumarionix07@gmail.com...');
         debugPrint('🔐 Opening Google Sign-In window...');
         
-        // This should open the sign-in window
-        final account = await _googleSignIn!.signIn();
+        // This should open the sign-in window with timeout for mobile
+        final account = await _googleSignIn!.signIn()
+            .timeout(
+              const Duration(seconds: 120), // 2 minutes for mobile OAuth
+              onTimeout: () {
+                throw Exception('Sign-in timed out. Please try again and ensure popups are not blocked.');
+              },
+            );
         
         if (account == null) {
           debugPrint('⚠️ Sign-in was cancelled by user');
