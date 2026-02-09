@@ -2058,54 +2058,55 @@ You are an expert AI assistant specialized in extracting Purchase Order (PO) inf
 
 CRITICAL RULES - READ CAREFULLY:
 1. Extract EXACT values as they appear in the document - NO placeholders, NO defaults, NO "N/A", NO "Unknown", NO sample data
-2. PRIORITY EXTRACTION RULE: If PO fields are not found, prioritize Inquiry fields:
-   - If "PO Number" is not found, look for "Inquiry Number", "RFQ Number", "Inquiry No", "RFQ #", "Request for Quotation"
-   - If "PO Date" is not found, look for "Inquiry Date", "RFQ Date", "Request Date"
-   - If "Purchase Order" context is missing, check if it's an Inquiry/RFQ document and extract Inquiry fields instead
-3. Look for these EXACT patterns in the text:
-   - PO Number (PRIMARY): Look for "PO Number:", "PO:", "PO #", "Order No", "Purchase Order Number"
-   - PO Number (FALLBACK - Inquiry): If PO Number not found, look for "Inquiry Number:", "RFQ Number:", "Inquiry No:", "RFQ #:", "Request for Quotation"
-   - Date (PRIMARY): Look for "PO Date:", "Date:", "Order Date:", "Issue Date:"
-   - Date (FALLBACK - Inquiry): If PO Date not found, look for "Inquiry Date:", "RFQ Date:", "Request Date:"
-   - Customer Name: Look for "Customer Name:", "Customer:", "Bill To:", "Ship To:"
-   - Grand Total: Look for "Grand Total:", "Total Amount:", "Total:", "Amount Due:"
-4. For line items: Extract from table with columns: Item No | Description | Part Number | Qty | Unit Price (AED) | Total (AED)
+2. EXTRACT THESE FIELDS:
+   - PO Number: Look for "PO Number:", "PO:", "PO #", "Order No", "Purchase Order Number"
+   - Quotation Reference/Quote No: Look for "Quotation Number:", "Quotation:", "Quote No:", "Quote #:", "QTN:", "Quotation Reference:", "Ref Quotation:", "QUOTATION REFERENCE NO"
+   - Vendor Name: Look for "Vendor Name:", "Vendor:", "Supplier Name:", "Supplier:", "Customer Name:", "Customer:", "Bill To:", "Ship To:"
+   - PO Date: Look for "PO Date:", "Date:", "Order Date:", "Issue Date:" (convert to YYYY-MM-DD format)
+   - Expiry Date: Look for "Expiry Date:", "Valid Until:", "Expiration Date:" (convert to YYYY-MM-DD format or null)
+   - Customer Address: Look for "Address:", "Bill To Address:", "Ship To Address:"
+   - Customer Email: Look for "Email:", "Email Address:", "Contact Email:"
+   - Total Amount: Look for "Grand Total:", "Total Amount:", "Total:", "Amount Due:" (extract numeric value only)
+   - Currency: Look for currency code (AED, USD, INR, EUR, etc.) from amount fields
+   - Line Items: Extract ALL line items from tables or lists
+   - Description: Extract description for each line item
+3. For line items: Extract from table with columns: Item No | Description | Part Number | Qty | Unit Price | Total
    - Extract ALL rows from the table
    - Use Description column for itemName
-   - Use Part Number column for itemCode
+   - Use Part Number/Material Code column for itemCode (if available)
+   - Extract description field for each item
    - Use Qty column for quantity
-   - Use Unit Price (AED) column for unitPrice
-   - Use Total (AED) column for total
-5. For dates: Convert to YYYY-MM-DD format
+   - Use Unit Price column for unitPrice
+   - Use Total column for total
+4. For dates: Convert to YYYY-MM-DD format
    - "22 November 2025" → "2025-11-22"
    - "November 22, 2025" → "2025-11-22"
-6. For amounts: Extract ONLY the numeric value, remove currency symbols and commas
+5. For amounts: Extract ONLY the numeric value, remove currency symbols and commas
    - "12127.50 AED" → 12127.50
    - "1,127.50" → 1127.50
-7. DO NOT use sample data, test data, or placeholder values
-8. If a field is not found, use null (not "N/A" or "Unknown")
+6. DO NOT use sample data, test data, or placeholder values
+7. If a field is not found, use null (not "N/A" or "Unknown")
 
 Return ONLY valid JSON (no markdown, no code blocks, no explanations):
 {
-  "poNumber": "exact PO number from document",
-  "poDate": "date in YYYY-MM-DD format",
-  "expiryDate": null,
-  "customerName": "exact customer name from document",
+  "poNumber": "exact PO number from document or null",
+  "poDate": "date in YYYY-MM-DD format or null",
+  "expiryDate": "date in YYYY-MM-DD format or null",
+  "quotationReference": "quotation number or reference if found in document, else null",
+  "vendorName": "vendor/supplier/customer name from document or null",
   "customerAddress": "address if found, else null",
   "customerEmail": "email if found, else null",
   "totalAmount": numeric_value_only,
   "currency": "currency code (AED, INR, USD, EUR, etc.) if found, else null",
-  "terms": "payment terms if found, else null",
-  "notes": null,
   "lineItems": [
     {
       "itemName": "description from table",
       "itemCode": "part number from table or null",
-      "description": null,
+      "description": "description text for the item or null",
       "quantity": numeric_value,
       "unit": "pcs",
       "unitPrice": numeric_value,
-      "total": numeric_valuex
+      "total": numeric_value
     }
   ]
 }
@@ -2329,78 +2330,17 @@ Provide a 2-3 sentence summary highlighting key information.
 
       // Extract values with better error handling
       final poNumber = jsonData['poNumber']?.toString().trim();
-      // Preserve customerName - don't override if it exists
-      String? customerName = jsonData['customerName']?.toString().trim();
-      if (customerName != null && customerName.isNotEmpty && customerName != 'N/A' && customerName.toLowerCase() != 'unknown') {
-        debugPrint('✅ Extracted customerName from JSON: $customerName');
-      }
-      // Extract totalAmount - preserve the value
-      dynamic totalAmount = jsonData['totalAmount'];
-      if (totalAmount != null) {
-        if (totalAmount is num) {
-          debugPrint('✅ Extracted totalAmount from JSON: ${totalAmount.toDouble()}');
-        } else {
-          debugPrint('✅ Extracted totalAmount from JSON (string): $totalAmount');
-        }
-      }
+      final quotationReference = jsonData['quotationReference']?.toString().trim();
+      final vendorName = jsonData['vendorName']?.toString().trim();
+      final customerAddress = jsonData['customerAddress']?.toString().trim();
+      final customerEmail = jsonData['customerEmail']?.toString().trim();
       
-      // Validate and extract critical fields with flexible matching
-      String finalPONumber = poNumber ?? '';
-      if (finalPONumber.isEmpty || finalPONumber == 'N/A' || finalPONumber.toLowerCase() == 'unknown' || finalPONumber.contains('sample') || finalPONumber.contains('test')) {
-        // Try multiple patterns for PO number - prioritize exact format from PDF
-        final patterns = [
-          RegExp(r'PO\s*Number[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
-          RegExp(r'PO\s*Number:\s*([A-Z0-9\-]+)', caseSensitive: false),
-          RegExp(r'PO\s*No[.:\s]+([A-Z0-9\-]+)', caseSensitive: false),
-          RegExp(r'PO[-\s#]+([A-Z0-9\-]+)', caseSensitive: false),
-          RegExp(r'Purchase\s*Order[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
-          RegExp(r'Order\s*Number[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
-        ];
-        
-        for (final pattern in patterns) {
-          final match = pattern.firstMatch(originalText);
-          if (match != null && match.group(1) != null) {
-            final extracted = match.group(1)!.trim();
-            // Validate it's not a placeholder
-            if (extracted.isNotEmpty && !extracted.toLowerCase().contains('sample') && !extracted.toLowerCase().contains('test')) {
-              finalPONumber = extracted;
-              jsonData['poNumber'] = finalPONumber;
-              break;
-            }
-          }
-        }
-      }
+      // Use vendorName as customerName, fallback to 'Unknown' if not found
+      String finalCustomerName = (vendorName != null && vendorName.isNotEmpty && vendorName != 'N/A' && vendorName.toLowerCase() != 'unknown')
+          ? vendorName
+          : 'Unknown';
       
-      // Use customerName from JSON if it exists and is valid, otherwise try to extract from text
-      String finalCustomerName = (customerName != null && customerName.isNotEmpty && customerName != 'N/A' && customerName.toLowerCase() != 'unknown') 
-          ? customerName 
-          : '';
-      
-      if (finalCustomerName.isEmpty || finalCustomerName == 'Unknown' || finalCustomerName.toLowerCase() == 'n/a' || finalCustomerName.toLowerCase().contains('sample') || finalCustomerName.toLowerCase().contains('test') || finalCustomerName.toLowerCase().contains('acme')) {
-        // Try multiple patterns for customer name - prioritize exact format from PDF
-        final patterns = [
-          RegExp(r'Customer\s*Name[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
-          RegExp(r'Customer\s*Name:\s*(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
-          RegExp(r'Customer[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
-          RegExp(r'Company[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
-          RegExp(r'Client[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
-        ];
-        
-        for (final pattern in patterns) {
-          final match = pattern.firstMatch(originalText);
-          if (match != null && match.group(1) != null) {
-            final extracted = match.group(1)!.trim();
-            // Clean up - remove extra whitespace and validate it's not a placeholder
-            finalCustomerName = extracted.replaceAll(RegExp(r'\s+'), ' ').trim();
-            if (finalCustomerName.isNotEmpty && !finalCustomerName.toLowerCase().contains('sample') && !finalCustomerName.toLowerCase().contains('test') && !finalCustomerName.toLowerCase().contains('acme')) {
-              jsonData['customerName'] = finalCustomerName;
-              break;
-            }
-          }
-        }
-      }
-      
-      // Extract currency first
+      // Extract currency
       String? extractedCurrency = jsonData['currency']?.toString().trim().toUpperCase();
       if (extractedCurrency == null || extractedCurrency.isEmpty || extractedCurrency == 'NULL') {
         // Try to extract currency from original text
@@ -2409,14 +2349,13 @@ Provide a 2-3 sentence summary highlighting key information.
           RegExp(r'Total[:\s]+[\d,]+\.?\d*\s*([A-Z]{3})', caseSensitive: false),
           RegExp(r'Unit\s*Price\s*\(([A-Z]{3})\)', caseSensitive: false),
           RegExp(r'Total\s*\(([A-Z]{3})\)', caseSensitive: false),
-          RegExp(r'([A-Z]{3})\s*\d+\.?\d*', caseSensitive: false), // Pattern like "AED 12127.50"
+          RegExp(r'([A-Z]{3})\s*\d+\.?\d*', caseSensitive: false),
         ];
         
         for (final pattern in currencyPatterns) {
           final match = pattern.firstMatch(originalText);
           if (match != null && match.group(1) != null) {
             extractedCurrency = match.group(1)!.trim().toUpperCase();
-            // Validate it's a known currency code
             if (['AED', 'INR', 'USD', 'EUR', 'GBP', 'SAR', 'QAR', 'KWD', 'OMR', 'BHD'].contains(extractedCurrency)) {
               break;
             }
@@ -2438,38 +2377,30 @@ Provide a 2-3 sentence summary highlighting key information.
             extractedCurrency = 'GBP';
           } else if (upperText.contains('SAR') || upperText.contains('RIYAL') || upperText.contains('RIYALS')) {
             extractedCurrency = 'SAR';
-          } else if (upperText.contains('QAR')) {
-            extractedCurrency = 'QAR';
-          } else if (upperText.contains('KWD') || upperText.contains('DINAR') || upperText.contains('DINARS')) {
-            extractedCurrency = 'KWD';
-          } else if (upperText.contains('OMR')) {
-            extractedCurrency = 'OMR';
-          } else if (upperText.contains('BHD')) {
-            extractedCurrency = 'BHD';
+          } else {
+            extractedCurrency = 'AED'; // Default
           }
         }
       }
       
-      // Extract total amount - handle different formats and field names
-      // Preserve the value from JSON if it exists
+      // Extract total amount
+      dynamic totalAmount = jsonData['totalAmount'];
       double finalTotalAmount = 0.0;
       if (totalAmount != null) {
         if (totalAmount is num) {
           finalTotalAmount = totalAmount.toDouble();
-          debugPrint('✅ Using totalAmount from JSON (num): $finalTotalAmount');
         } else if (totalAmount is String) {
-          // Remove currency symbols and commas
           final cleanAmount = totalAmount.replaceAll(RegExp(r'[^\d.]'), '');
           finalTotalAmount = double.tryParse(cleanAmount) ?? 0.0;
-          debugPrint('✅ Using totalAmount from JSON (string): $totalAmount -> $finalTotalAmount');
-        } else {
-          debugPrint('⚠️ totalAmount is not a number or string: $totalAmount (${totalAmount.runtimeType})');
         }
-      } else {
-        debugPrint('⚠️ totalAmount is null in JSON');
       }
       
-      // If total is 0 or missing, try to extract from original text with multiple patterns
+      // If total is 0 or missing, calculate from line items
+      if (finalTotalAmount == 0.0 && lineItems.isNotEmpty) {
+        finalTotalAmount = lineItems.fold(0.0, (sum, item) => sum + item.total);
+      }
+      
+      // If still 0, try to extract from original text
       if (finalTotalAmount == 0.0) {
         final totalPatterns = [
           RegExp(r'Grand\s*Total[:\s]+([\d,]+\.?\d*)\s*(?:AED|USD|INR|₹|\$)?', caseSensitive: false),
@@ -2492,51 +2423,60 @@ Provide a 2-3 sentence summary highlighting key information.
           }
         }
       }
-
-      // Final validation - reject sample/test data
-      final finalPONumberValid = finalPONumber.isNotEmpty && 
-                                 finalPONumber != 'N/A' && 
-                                 !finalPONumber.toLowerCase().contains('sample') &&
-                                 !finalPONumber.toLowerCase().contains('test');
       
-      final finalCustomerNameValid = finalCustomerName.isNotEmpty && 
-                                     finalCustomerName != 'Unknown' && 
-                                     !finalCustomerName.toLowerCase().contains('sample') &&
-                                     !finalCustomerName.toLowerCase().contains('test') &&
-                                     !finalCustomerName.toLowerCase().contains('acme');
-      
-      // Use the best available value for customerName
-      String finalCustomerNameValue = finalCustomerName;
-      if (finalCustomerNameValue.isEmpty || !finalCustomerNameValid) {
-        // Fallback to JSON value if available
-        final jsonCustomerName = jsonData['customerName']?.toString().trim();
-        if (jsonCustomerName != null && jsonCustomerName.isNotEmpty && jsonCustomerName != 'N/A' && jsonCustomerName.toLowerCase() != 'unknown') {
-          finalCustomerNameValue = jsonCustomerName;
-          debugPrint('✅ Using customerName from JSON fallback: $finalCustomerNameValue');
-        } else {
-          finalCustomerNameValue = 'Unknown';
-        }
-      } else {
-        debugPrint('✅ Using customerName from extraction: $finalCustomerNameValue');
-      }
-      
-      // Ensure totalAmount is preserved
-      double finalTotalAmountValue = finalTotalAmount;
-      if (finalTotalAmountValue == 0.0) {
-        // Try to get from JSON again
-        final jsonTotalAmount = jsonData['totalAmount'];
-        if (jsonTotalAmount != null) {
-          if (jsonTotalAmount is num) {
-            finalTotalAmountValue = jsonTotalAmount.toDouble();
-            debugPrint('✅ Using totalAmount from JSON fallback: $finalTotalAmountValue');
-          } else if (jsonTotalAmount is String) {
-            final cleanAmount = jsonTotalAmount.replaceAll(RegExp(r'[^\d.]'), '');
-            finalTotalAmountValue = double.tryParse(cleanAmount) ?? 0.0;
-            debugPrint('✅ Using totalAmount from JSON fallback (string): $jsonTotalAmount -> $finalTotalAmountValue');
+      // Validate PO number
+      String finalPONumber = poNumber ?? '';
+      if (finalPONumber.isEmpty || finalPONumber == 'N/A' || finalPONumber.toLowerCase() == 'unknown' || finalPONumber.contains('sample') || finalPONumber.contains('test')) {
+        // Try multiple patterns for PO number
+        final patterns = [
+          RegExp(r'PO\s*Number[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
+          RegExp(r'PO\s*Number:\s*([A-Z0-9\-]+)', caseSensitive: false),
+          RegExp(r'PO\s*No[.:\s]+([A-Z0-9\-]+)', caseSensitive: false),
+          RegExp(r'PO[-\s#]+([A-Z0-9\-]+)', caseSensitive: false),
+          RegExp(r'Purchase\s*Order[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
+          RegExp(r'Order\s*Number[:\s]+([A-Z0-9\-]+)', caseSensitive: false),
+        ];
+        
+        for (final pattern in patterns) {
+          final match = pattern.firstMatch(originalText);
+          if (match != null && match.group(1) != null) {
+            final extracted = match.group(1)!.trim();
+            if (extracted.isNotEmpty && !extracted.toLowerCase().contains('sample') && !extracted.toLowerCase().contains('test')) {
+              finalPONumber = extracted;
+              break;
+            }
           }
         }
-      } else {
-        debugPrint('✅ Using totalAmount from extraction: $finalTotalAmountValue');
+      }
+      
+      if (finalPONumber.isEmpty || finalPONumber == 'N/A') {
+        finalPONumber = 'N/A';
+      }
+      
+      // Validate customer name
+      if (finalCustomerName.isEmpty || finalCustomerName == 'Unknown') {
+        // Try to extract from text
+        final patterns = [
+          RegExp(r'Customer\s*Name[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
+          RegExp(r'Customer\s*Name:\s*(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
+          RegExp(r'Customer[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
+          RegExp(r'Company[:\s]+(.+?)(?:\n|Contact|Address|Email|Phone|$)', caseSensitive: false),
+        ];
+        
+        for (final pattern in patterns) {
+          final match = pattern.firstMatch(originalText);
+          if (match != null && match.group(1) != null) {
+            final extracted = match.group(1)!.trim();
+            finalCustomerName = extracted.replaceAll(RegExp(r'\s+'), ' ').trim();
+            if (finalCustomerName.isNotEmpty && !finalCustomerName.toLowerCase().contains('sample') && !finalCustomerName.toLowerCase().contains('test')) {
+              break;
+            }
+          }
+        }
+        
+        if (finalCustomerName.isEmpty || finalCustomerName == 'Unknown') {
+          finalCustomerName = 'Unknown';
+        }
       }
       
       // Log line items count
@@ -2546,19 +2486,20 @@ Provide a 2-3 sentence summary highlighting key information.
       }
       
       return PurchaseOrder(
-        poNumber: finalPONumberValid ? finalPONumber : (jsonData['poNumber']?.toString().trim() ?? 'N/A'),
+        poNumber: finalPONumber,
         poDate: poDate,
         expiryDate: finalExpiryDate,
-        customerName: finalCustomerNameValue,
-        customerAddress: jsonData['customerAddress']?.toString(),
-        customerEmail: jsonData['customerEmail']?.toString(),
-        totalAmount: finalTotalAmountValue,
-        currency: extractedCurrency,
-        terms: jsonData['terms']?.toString(),
-        notes: jsonData['notes']?.toString(),
+        customerName: finalCustomerName,
+        customerAddress: customerAddress?.isNotEmpty == true ? customerAddress : null,
+        customerEmail: customerEmail?.isNotEmpty == true ? customerEmail : null,
+        totalAmount: finalTotalAmount,
+        currency: extractedCurrency ?? 'AED',
+        terms: null,
+        notes: null,
         lineItems: lineItems,
         createdAt: DateTime.now(),
         status: status,
+        quotationReference: quotationReference,
       );
     } catch (e) {
       throw Exception('Failed to parse extracted data: $e');

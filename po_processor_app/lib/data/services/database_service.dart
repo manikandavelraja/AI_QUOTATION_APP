@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../core/constants/app_constants.dart';
@@ -534,6 +534,7 @@ class DatabaseService {
         'status': po.status,
         'created_at': po.createdAt.millisecondsSinceEpoch,
         'updated_at': po.updatedAt?.millisecondsSinceEpoch,
+        'quotation_reference': po.quotationReference,
       });
 
       for (final item in po.lineItems) {
@@ -678,6 +679,7 @@ class DatabaseService {
           'notes': po.notes,
           'status': po.status,
           'updated_at': DateTime.now().millisecondsSinceEpoch,
+          'quotation_reference': po.quotationReference,
         },
         where: 'id = ?',
         whereArgs: [po.id],
@@ -1071,6 +1073,276 @@ class DatabaseService {
     }
     
     return quotations;
+  }
+
+  /// Get historical quotations for a specific material code and customer
+  /// Returns the last 5 quotations matching the criteria
+  Future<List<Quotation>> getHistoricalQuotationsByMaterialAndCustomer({
+    required String materialCode,
+    required String customerName,
+    int limit = 5,
+  }) async {
+    if (kIsWeb) {
+      final allQuotations = await _webStorage.getAllQuotations();
+      final filtered = allQuotations.where((qtn) {
+        final hasMaterial = qtn.items.any((item) => 
+          item.itemCode?.toLowerCase() == materialCode.toLowerCase()
+        );
+        final matchesCustomer = qtn.customerName.toLowerCase() == customerName.toLowerCase();
+        return hasMaterial && matchesCustomer;
+      }).toList();
+      
+      // Sort by date descending and take last 5
+      filtered.sort((a, b) => b.quotationDate.compareTo(a.quotationDate));
+      return filtered.take(limit).toList();
+    }
+    
+    final db = await database as Database;
+    
+    // Query quotations with matching customer name
+    final quotationMaps = await db.query(
+      'quotations',
+      where: 'customer_name = ?',
+      whereArgs: [customerName],
+      orderBy: 'quotation_date DESC',
+    );
+    
+    final List<Quotation> matchingQuotations = [];
+    
+    for (final quotationMap in quotationMaps) {
+      // Get items for this quotation
+      final items = await db.query(
+        'quotation_items',
+        where: 'quotation_id = ? AND item_code = ?',
+        whereArgs: [quotationMap['id'], materialCode],
+      );
+      
+      // If this quotation has the material code, include it
+      if (items.isNotEmpty) {
+        // Get all items for this quotation
+        final allItems = await db.query(
+          'quotation_items',
+          where: 'quotation_id = ?',
+          whereArgs: [quotationMap['id']],
+        );
+        
+        matchingQuotations.add(Quotation(
+          id: quotationMap['id'] as String,
+          quotationNumber: quotationMap['quotation_number'] as String,
+          quotationDate: DateTime.fromMillisecondsSinceEpoch(quotationMap['quotation_date'] as int),
+          validityDate: DateTime.fromMillisecondsSinceEpoch(quotationMap['validity_date'] as int),
+          customerName: quotationMap['customer_name'] as String,
+          customerAddress: quotationMap['customer_address'] as String?,
+          customerEmail: quotationMap['customer_email'] as String?,
+          customerPhone: quotationMap['customer_phone'] as String?,
+          totalAmount: quotationMap['total_amount'] as double,
+          currency: quotationMap['currency'] as String?,
+          terms: quotationMap['terms'] as String?,
+          notes: quotationMap['notes'] as String?,
+          pdfPath: quotationMap['pdf_path'] as String?,
+          status: quotationMap['status'] as String,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(quotationMap['created_at'] as int),
+          updatedAt: quotationMap['updated_at'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(quotationMap['updated_at'] as int)
+              : null,
+          inquiryId: quotationMap['inquiry_id'] as String?,
+          poId: quotationMap['po_id'] as String?,
+          items: allItems.map((item) => QuotationItem(
+                id: item['id'] as String?,
+                itemName: item['item_name'] as String,
+                itemCode: item['item_code'] as String?,
+                description: item['description'] as String?,
+                quantity: item['quantity'] as double,
+                unit: item['unit'] as String,
+                unitPrice: item['unit_price'] as double,
+                total: item['total'] as double,
+                manufacturerPart: item['manufacturer_part'] as String?,
+              )).toList(),
+        ));
+        
+        // Stop when we have enough
+        if (matchingQuotations.length >= limit) {
+          break;
+        }
+      }
+    }
+    
+    return matchingQuotations;
+  }
+
+  /// Get historical quotations for a specific material code (all customers)
+  /// Returns quotations matching the material code, sorted by date descending
+  Future<List<Quotation>> getHistoricalQuotationsByMaterialCode({
+    required String materialCode,
+    int limit = 10,
+  }) async {
+    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Checking quotations for Material Code: $materialCode');
+    
+    if (kIsWeb) {
+      final allQuotations = await _webStorage.getAllQuotations();
+      final filtered = allQuotations.where((qtn) {
+        final hasMaterial = qtn.items.any((item) => 
+          item.itemCode?.toLowerCase() == materialCode.toLowerCase()
+        );
+        return hasMaterial;
+      }).toList();
+      
+      // Sort by date descending and take limit
+      filtered.sort((a, b) => b.quotationDate.compareTo(a.quotationDate));
+      final result = filtered.take(limit).toList();
+      debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found ${result.length} quotations for Material Code: $materialCode');
+      return result;
+    }
+    
+    final db = await database as Database;
+    
+    // Query all quotations
+    final quotationMaps = await db.query(
+      'quotations',
+      orderBy: 'quotation_date DESC',
+    );
+    
+    final List<Quotation> matchingQuotations = [];
+    
+    // Normalize material code for comparison (trim and lowercase)
+    final normalizedMaterialCode = materialCode.trim().toLowerCase();
+    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Normalized Material Code: "$normalizedMaterialCode"');
+    
+    for (final quotationMap in quotationMaps) {
+      // Get all items for this quotation first
+      final allItems = await db.query(
+        'quotation_items',
+        where: 'quotation_id = ?',
+        whereArgs: [quotationMap['id']],
+      );
+      
+      // Check if any item matches the material code (case-insensitive, trimmed)
+      final matchingItems = allItems.where((item) {
+        final itemCode = (item['item_code'] as String? ?? '').trim().toLowerCase();
+        return itemCode == normalizedMaterialCode;
+      }).toList();
+      
+      // If this quotation has the material code, include it
+      if (matchingItems.isNotEmpty) {
+        debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found matching item in quotation: ${quotationMap['quotation_number']}');
+        
+        matchingQuotations.add(Quotation(
+          id: quotationMap['id'] as String,
+          quotationNumber: quotationMap['quotation_number'] as String,
+          quotationDate: DateTime.fromMillisecondsSinceEpoch(quotationMap['quotation_date'] as int),
+          validityDate: DateTime.fromMillisecondsSinceEpoch(quotationMap['validity_date'] as int),
+          customerName: quotationMap['customer_name'] as String,
+          customerAddress: quotationMap['customer_address'] as String?,
+          customerEmail: quotationMap['customer_email'] as String?,
+          customerPhone: quotationMap['customer_phone'] as String?,
+          totalAmount: quotationMap['total_amount'] as double,
+          currency: quotationMap['currency'] as String?,
+          terms: quotationMap['terms'] as String?,
+          notes: quotationMap['notes'] as String?,
+          pdfPath: quotationMap['pdf_path'] as String?,
+          status: quotationMap['status'] as String,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(quotationMap['created_at'] as int),
+          updatedAt: quotationMap['updated_at'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(quotationMap['updated_at'] as int)
+              : null,
+          inquiryId: quotationMap['inquiry_id'] as String?,
+          poId: quotationMap['po_id'] as String?,
+          items: allItems.map((item) => QuotationItem(
+                id: item['id'] as String?,
+                itemName: item['item_name'] as String,
+                itemCode: item['item_code'] as String?,
+                description: item['description'] as String?,
+                quantity: item['quantity'] as double,
+                unit: item['unit'] as String,
+                unitPrice: item['unit_price'] as double,
+                total: item['total'] as double,
+              )).toList(),
+        ));
+        
+        // Stop when we have enough
+        if (matchingQuotations.length >= limit) {
+          break;
+        }
+      }
+    }
+    
+    debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Returning ${matchingQuotations.length} quotations for Material Code: $materialCode');
+    return matchingQuotations;
+  }
+
+  /// Get Purchase Orders linked to a quotation by quotation reference or quotation ID
+  Future<List<PurchaseOrder>> getPurchaseOrdersByQuotation({
+    String? quotationNumber,
+    String? quotationId,
+  }) async {
+    debugPrint('🔍 [getPurchaseOrdersByQuotation] Checking POs for Quotation Number: $quotationNumber, Quotation ID: $quotationId');
+    
+    if (kIsWeb) {
+      final allPOs = await _webStorage.getAllPurchaseOrders();
+      final filtered = allPOs.where((po) {
+        if (quotationNumber != null && po.quotationReference != null) {
+          return po.quotationReference!.toLowerCase().contains(quotationNumber.toLowerCase());
+        }
+        return false;
+      }).toList();
+      
+      debugPrint('✅ [getPurchaseOrdersByQuotation] Found ${filtered.length} POs for Quotation: $quotationNumber');
+      return filtered;
+    }
+    
+    final db = await database as Database;
+    final List<PurchaseOrder> matchingPOs = [];
+    
+    // Query POs by quotation reference
+    if (quotationNumber != null) {
+      final poMaps = await db.query(
+        'purchase_orders',
+        where: 'quotation_reference LIKE ?',
+        whereArgs: ['%$quotationNumber%'],
+      );
+      
+      for (final poMap in poMaps) {
+        final lineItems = await db.query(
+          'line_items',
+          where: 'po_id = ?',
+          whereArgs: [poMap['id']],
+        );
+        
+        matchingPOs.add(PurchaseOrder(
+          id: poMap['id'] as String,
+          poNumber: poMap['po_number'] as String,
+          poDate: DateTime.fromMillisecondsSinceEpoch(poMap['po_date'] as int),
+          expiryDate: DateTime.fromMillisecondsSinceEpoch(poMap['expiry_date'] as int),
+          customerName: poMap['customer_name'] as String,
+          customerAddress: poMap['customer_address'] as String?,
+          customerEmail: poMap['customer_email'] as String?,
+          totalAmount: poMap['total_amount'] as double,
+          currency: poMap['currency'] as String?,
+          terms: poMap['terms'] as String?,
+          notes: poMap['notes'] as String?,
+          pdfPath: poMap['pdf_path'] as String?,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(poMap['created_at'] as int),
+          updatedAt: poMap['updated_at'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
+              : null,
+          status: poMap['status'] as String,
+          quotationReference: poMap['quotation_reference'] as String?,
+          lineItems: lineItems.map((item) => LineItem(
+                id: item['id'] as String?,
+                itemName: item['item_name'] as String,
+                itemCode: item['item_code'] as String?,
+                description: item['description'] as String?,
+                quantity: item['quantity'] as double,
+                unit: item['unit'] as String,
+                unitPrice: item['unit_price'] as double,
+                total: item['total'] as double,
+              )).toList(),
+        ));
+      }
+    }
+    
+    debugPrint('✅ [getPurchaseOrdersByQuotation] Returning ${matchingPOs.length} POs for Quotation: $quotationNumber');
+    return matchingPOs;
   }
 
   Future<Quotation?> getQuotationById(String id) async {

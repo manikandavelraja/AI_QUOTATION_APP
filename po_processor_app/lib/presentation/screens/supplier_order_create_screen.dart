@@ -195,6 +195,15 @@ class _SupplierOrderCreateScreenState extends ConsumerState<SupplierOrderCreateS
 
       final savedOrder = await ref.read(supplierOrderProvider.notifier).addSupplierOrder(order);
 
+      // Update PO status to awaiting_ordered if created from PO
+      if (widget.poId != null && _po != null) {
+        final updatedPO = _po!.copyWith(
+          status: 'awaiting_ordered',
+          updatedAt: DateTime.now(),
+        );
+        await ref.read(poProvider.notifier).updatePurchaseOrder(updatedPO);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -233,7 +242,7 @@ class _SupplierOrderCreateScreenState extends ConsumerState<SupplierOrderCreateS
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.poId != null ? 'Create Supplier Order from PO' : 'Create Supplier Order'),
+        title: Text(widget.poId != null ? 'Deliver Order' : 'Create Supplier Order'),
         actions: [
           IconButton(
             icon: _isSaving

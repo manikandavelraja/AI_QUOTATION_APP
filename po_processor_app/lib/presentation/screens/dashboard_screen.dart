@@ -15,6 +15,8 @@ import '../../domain/entities/customer_inquiry.dart';
 import '../../data/services/email_service.dart';
 import '../../data/services/pdf_service.dart';
 import '../../data/services/gemini_ai_service.dart';
+import '../../data/services/quotation_number_service.dart';
+import '../../data/services/database_service.dart';
 import '../providers/inquiry_provider.dart';
 import '../providers/quotation_provider.dart';
 import '../../data/services/catalog_service.dart';
@@ -35,6 +37,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   final _pdfService = PDFService();
   final _aiService = GeminiAIService();
   final _catalogService = CatalogService();
+  final _quotationNumberService = QuotationNumberService(DatabaseService.instance);
   bool _isFetchingInquiry = false;
   bool _isFetchingPO = false;
   int _processedCount = 0;
@@ -2025,7 +2028,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   /// Process a single email and create draft quotation
   Future<Quotation?> _processSingleEmail(EmailMessage email, int index, int total) async {
     try {
+      debugPrint('📧 [Process Email] ========================================');
       debugPrint('📧 Processing email ${index + 1}/$total: ${email.subject}');
+      debugPrint('📧 [Process Email] Email ID: ${email.id}');
+      debugPrint('📧 [Process Email] Email from: ${email.from}');
+      debugPrint('📧 [Process Email] Email.cc BEFORE processing: ${email.cc}');
+      debugPrint('📧 [Process Email] Email.cc length: ${email.cc.length}');
       
       // Find PDF attachment
       final pdfAttachment = email.attachments.firstWhere(
@@ -2121,9 +2129,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         grandTotal = subtotal + vat;
       }
 
+      // Generate quotation number using the new ALK format
+      final quotationNumber = await _quotationNumberService.generateNextQuotationNumber();
+      
+      // Extract CC emails from the email (filter out account email)
+      debugPrint('📧 [Process Email] Raw email.cc: ${email.cc}');
+      debugPrint('📧 [Process Email] email.cc length: ${email.cc.length}');
+      debugPrint('📧 [Process Email] accountEmail: $accountEmail');
+      
+      final ccEmails = email.cc
+          .where((ccEmail) {
+            final trimmed = ccEmail.trim();
+            final isValid = trimmed.isNotEmpty && 
+                           trimmed.toLowerCase() != accountEmail &&
+                           trimmed.contains('@');
+            if (!isValid && trimmed.isNotEmpty) {
+              debugPrint('📧 [Process Email] Filtered out CC: $trimmed (matches account or invalid)');
+            }
+            return isValid;
+          })
+          .map((ccEmail) => ccEmail.trim())
+          .toList();
+      
+      debugPrint('📧 [Process Email] Filtered CC emails: $ccEmails');
+      
+      // Build notes field with CC emails, threadId, originalMessageId, and originalSubject for reply support
+      final notesParts = <String>[];
+      
+      // Store threadId for email reply threading (REQUIRED for Gmail API reply)
+      if (email.threadId != null && email.threadId!.isNotEmpty) {
+        notesParts.add('THREAD_ID: ${email.threadId}');
+        debugPrint('📧 [Process Email] ✅ Storing threadId: ${email.threadId}');
+      }
+      
+      // Store original message ID for In-Reply-To header (for proper reply threading)
+      if (email.id.isNotEmpty) {
+        notesParts.add('ORIGINAL_MESSAGE_ID: ${email.id}');
+        debugPrint('📧 [Process Email] ✅ Storing originalMessageId: ${email.id}');
+      }
+      
+      // Store original subject for reply
+      if (email.subject.isNotEmpty) {
+        notesParts.add('ORIGINAL_SUBJECT: ${email.subject}');
+        debugPrint('📧 [Process Email] ✅ Storing originalSubject: ${email.subject}');
+      }
+      
+      // Store CC emails if they exist
+      if (ccEmails.isNotEmpty) {
+        notesParts.add('CC: ${ccEmails.join(', ')}');
+        debugPrint('📧 [Process Email] ✅ CC emails found: ${ccEmails.join(', ')}');
+      } else {
+        debugPrint('📧 [Process Email] ⚠️ No CC emails found or all filtered out');
+        debugPrint('📧 [Process Email] ⚠️ email.cc was: ${email.cc}');
+      }
+      
+      final notes = notesParts.isNotEmpty ? notesParts.join('\n') : null;
+      if (notes != null) {
+        debugPrint('📧 [Process Email] ✅ Final notes: "$notes"');
+      }
+      
       // Create draft quotation
       final quotation = Quotation(
-        quotationNumber: 'QTN-${DateTime.now().millisecondsSinceEpoch}-${index}',
+        quotationNumber: quotationNumber,
         quotationDate: DateTime.now(),
         validityDate: DateTime.now().add(const Duration(days: 30)),
         customerName: inquiry.customerName,
@@ -2133,15 +2200,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         items: quotationItems,
         totalAmount: grandTotal,
         currency: 'AED',
+        notes: notes, // Store CC emails in notes field
         status: 'draft', // Draft status
         createdAt: DateTime.now(),
         inquiryId: savedInquiry?.id,
       );
+      
+      debugPrint('📧 [Process Email] ========== QUOTATION CREATED ==========');
+      debugPrint('📧 [Process Email] Created quotation with notes: "${quotation.notes}"');
+      debugPrint('📧 [Process Email] Quotation number: ${quotation.quotationNumber}');
+      debugPrint('📧 [Process Email] Quotation notes is null: ${quotation.notes == null}');
+      debugPrint('📧 [Process Email] Quotation notes is empty: ${quotation.notes?.isEmpty ?? true}');
 
       // Save quotation
       final savedQuotation = await ref.read(quotationProvider.notifier).addQuotation(quotation);
       
+      debugPrint('📧 [Process Email] ========== QUOTATION SAVED ==========');
+      debugPrint('📧 [Process Email] Saved quotation ID: ${savedQuotation?.id}');
+      debugPrint('📧 [Process Email] Saved quotation notes: "${savedQuotation?.notes}"');
+      debugPrint('📧 [Process Email] Saved quotation notes is null: ${savedQuotation?.notes == null}');
+      debugPrint('📧 [Process Email] Saved quotation notes is empty: ${savedQuotation?.notes?.isEmpty ?? true}');
       debugPrint('✅ Successfully processed email ${index + 1}/$total and created draft quotation');
+      debugPrint('📧 [Process Email] ========================================');
       return savedQuotation;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
@@ -2589,8 +2669,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  /// Process a single PO email and add to list if not duplicate
-  Future<bool> _processSinglePOEmail(EmailMessage email, int index, int total, Set<String> existingPONumbers) async {
+  /// Process a single PO email
+  Future<bool> _processSinglePOEmail(EmailMessage email, int index, int total) async {
     try {
       debugPrint('📧 Processing PO email ${index + 1}/$total: ${email.subject}');
       
@@ -2615,11 +2695,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       // Extract PO data from PDF using existing parser
       final po = await _pdfService.extractPODataFromPDFBytes(pdfData, pdfAttachment.name);
 
-      // Check for duplicate PO number
-      if (existingPONumbers.contains(po.poNumber)) {
-        debugPrint('⚠️ Duplicate PO number found: ${po.poNumber}. Skipping...');
-        return false;
-      }
+      // Removed duplicate PO number check as per requirements
 
       // Save PDF file
       final platformFile = PlatformFile(
@@ -2635,8 +2711,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       final savedPO = await ref.read(poProvider.notifier).addPurchaseOrder(finalPO);
 
       if (savedPO != null) {
-        // Add to existing PO numbers set to prevent duplicates in same batch
-        existingPONumbers.add(po.poNumber);
         debugPrint('✅ Successfully processed PO email ${index + 1}/$total: ${po.poNumber}');
         return true;
       }
@@ -2698,10 +2772,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
       debugPrint('📧 Found ${emails.length} PO email(s). Processing in bulk...');
 
-      // Get existing PO numbers to avoid duplicates
-      final poState = ref.read(poProvider);
-      final existingPONumbers = poState.purchaseOrders.map((po) => po.poNumber).toSet();
-      
       // Process each email in a loop
       
       for (int i = 0; i < emails.length; i++) {
@@ -2723,7 +2793,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         }
 
         try {
-          final success = await _processSinglePOEmail(email, i, emails.length, existingPONumbers);
+          final success = await _processSinglePOEmail(email, i, emails.length);
           if (success) {
             setState(() => _poSuccessCount++);
           } else {

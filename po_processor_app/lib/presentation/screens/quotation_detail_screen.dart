@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../providers/quotation_provider.dart';
 import '../../domain/entities/quotation.dart';
 import '../../core/utils/currency_helper.dart';
 import '../../data/services/email_service.dart';
 import '../../data/services/quotation_pdf_service.dart';
+import '../../data/services/database_service.dart';
 
 class QuotationDetailScreen extends ConsumerStatefulWidget {
   final String quotationId;
@@ -23,8 +25,14 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   bool _isSaving = false;
   bool _autoSendEmail = true;
   late TextEditingController _recipientEmailController;
+  final TextEditingController _ccEmailController = TextEditingController();
+  final Map<int, TextEditingController> _itemCodeControllers = {};
+  final Map<int, TextEditingController> _quantityControllers = {};
+  final Map<int, TextEditingController> _unitPriceControllers = {};
+  final Map<int, FocusNode> _unitPriceFocusNodes = {};
   final _emailService = EmailService();
   final _pdfService = QuotationPDFService();
+  final _databaseService = DatabaseService.instance;
 
   @override
   void initState() {
@@ -36,18 +44,142 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   @override
   void dispose() {
     _recipientEmailController.dispose();
+    _ccEmailController.dispose();
+    for (var controller in _itemCodeControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _quantityControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _unitPriceControllers.values) {
+      controller.dispose();
+    }
+    for (var focusNode in _unitPriceFocusNodes.values) {
+      focusNode.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _loadQuotation() async {
     setState(() => _isLoading = true);
     final quotation = await ref.read(quotationProvider.notifier).getQuotationById(widget.quotationId);
+    
+    debugPrint('📧 [Load Quotation] ========================================');
+    debugPrint('📧 [Load Quotation] Loading quotation ID: ${widget.quotationId}');
+    debugPrint('📧 [Load Quotation] Quotation found: ${quotation != null}');
+    
+    // Load CC emails from quotation notes if stored there
+    List<String> ccEmails = [];
+    
     setState(() {
       _quotation = quotation;
-      if (quotation != null && quotation.customerEmail != null) {
-        _recipientEmailController.text = quotation.customerEmail!;
+      if (quotation != null) {
+        debugPrint('📧 [Load Quotation] Quotation number: ${quotation.quotationNumber}');
+        debugPrint('📧 [Load Quotation] Notes field value: ${quotation.notes}');
+        debugPrint('📧 [Load Quotation] Notes is null: ${quotation.notes == null}');
+        debugPrint('📧 [Load Quotation] Notes is empty: ${quotation.notes?.isEmpty ?? true}');
+        
+        if (quotation.customerEmail != null) {
+          _recipientEmailController.text = quotation.customerEmail!;
+        }
+        
+        // Load CC from notes if stored there (format: "CC: email1, email2")
+        if (quotation.notes != null && quotation.notes!.isNotEmpty) {
+          final notes = quotation.notes!;
+          debugPrint('📧 [Load Quotation] Notes content: "$notes"');
+          debugPrint('📧 [Load Quotation] Notes length: ${notes.length}');
+          debugPrint('📧 [Load Quotation] Contains "CC:": ${notes.contains('CC:')}');
+          debugPrint('📧 [Load Quotation] Contains "cc:": ${notes.contains('cc:')}');
+          
+          // Try multiple patterns to find CC emails
+          // Pattern 1: "CC: email1, email2" at the start or anywhere
+          if (notes.contains('CC:') || notes.contains('cc:')) {
+            // Match "CC:" or "cc:" followed by emails (case insensitive, match until newline or end)
+            final ccMatch = RegExp(r'[Cc][Cc]:\s*([^\n]+)', caseSensitive: false).firstMatch(notes);
+            if (ccMatch != null) {
+              final ccString = ccMatch.group(1)!.trim();
+              debugPrint('📧 [Load Quotation] ✅ Found CC string: "$ccString"');
+              ccEmails = ccString
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty && e.contains('@'))
+                  .toList();
+              debugPrint('📧 [Load Quotation] ✅ Extracted CC emails: $ccEmails');
+            } else {
+              debugPrint('📧 [Load Quotation] ⚠️ Regex match failed, trying line-by-line');
+              // Try matching the entire line if it starts with CC:
+              final lines = notes.split('\n');
+              for (final line in lines) {
+                final trimmedLine = line.trim();
+                if (trimmedLine.toLowerCase().startsWith('cc:')) {
+                  final ccString = trimmedLine.substring(trimmedLine.indexOf(':') + 1).trim();
+                  ccEmails = ccString
+                      .split(',')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty && e.contains('@'))
+                      .toList();
+                  debugPrint('📧 [Load Quotation] ✅ Found CC from line: "$trimmedLine" -> $ccEmails');
+                  break;
+                }
+              }
+            }
+          } else {
+            debugPrint('📧 [Load Quotation] ⚠️ Notes does not contain "CC:" or "cc:"');
+          }
+        } else {
+          debugPrint('📧 [Load Quotation] ⚠️ Notes is null or empty');
+        }
+        
+        if (ccEmails.isNotEmpty) {
+          _ccEmailController.text = ccEmails.join(', ');
+          debugPrint('📧 [Load Quotation] ✅ Set CC controller with: ${_ccEmailController.text}');
+        } else {
+          debugPrint('📧 [Load Quotation] ⚠️ No CC emails found or extracted');
+          debugPrint('📧 [Load Quotation] CC controller will remain empty');
+        }
+        
+        // Initialize controllers for items
+        for (int i = 0; i < quotation.items.length; i++) {
+          final item = quotation.items[i];
+          _itemCodeControllers[i] = TextEditingController(text: item.itemCode ?? '');
+          _quantityControllers[i] = TextEditingController(text: item.quantity.toStringAsFixed(2));
+          _unitPriceControllers[i] = TextEditingController(text: item.unitPrice.toStringAsFixed(2));
+          
+          // Initialize focus node for unit price field (no auto-trigger, only via History button)
+          _unitPriceFocusNodes[i] = FocusNode();
+        }
       }
       _isLoading = false;
+    });
+  }
+
+  void _calculateItemTotal(int index) {
+    if (_quotation == null || index >= _quotation!.items.length) return;
+    
+    final quantityText = _quantityControllers[index]?.text ?? '0';
+    final priceText = _unitPriceControllers[index]?.text ?? '0';
+    final quantity = double.tryParse(quantityText) ?? 0.0;
+    final price = double.tryParse(priceText) ?? 0.0;
+    
+    setState(() {
+      // Update the item in the quotation
+      final updatedItems = List<QuotationItem>.from(_quotation!.items);
+      updatedItems[index] = updatedItems[index].copyWith(
+        quantity: quantity,
+        unitPrice: price,
+        total: quantity * price,
+        itemCode: _itemCodeControllers[index]?.text ?? updatedItems[index].itemCode,
+      );
+      
+      // Recalculate grand total
+      final subtotal = updatedItems.fold<double>(0, (sum, item) => sum + item.total);
+      final vat = subtotal * 0.05;
+      final grandTotal = subtotal + vat;
+      
+      _quotation = _quotation!.copyWith(
+        items: updatedItems,
+        totalAmount: grandTotal,
+      );
     });
   }
 
@@ -57,8 +189,31 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
     setState(() => _isSaving = true);
 
     try {
+      // Update items with edited values
+      final updatedItems = <QuotationItem>[];
+      for (int i = 0; i < _quotation!.items.length; i++) {
+        final originalItem = _quotation!.items[i];
+        final quantity = double.tryParse(_quantityControllers[i]?.text ?? '0') ?? originalItem.quantity;
+        final unitPrice = double.tryParse(_unitPriceControllers[i]?.text ?? '0') ?? originalItem.unitPrice;
+        final itemCode = _itemCodeControllers[i]?.text ?? originalItem.itemCode;
+        
+        updatedItems.add(originalItem.copyWith(
+          quantity: quantity,
+          unitPrice: unitPrice,
+          total: quantity * unitPrice,
+          itemCode: itemCode?.isNotEmpty == true ? itemCode : originalItem.itemCode,
+        ));
+      }
+      
+      // Recalculate grand total
+      final subtotal = updatedItems.fold<double>(0, (sum, item) => sum + item.total);
+      final vat = subtotal * 0.05;
+      final grandTotal = subtotal + vat;
+      
       // Update quotation with email from controller
       final updatedQuotation = _quotation!.copyWith(
+        items: updatedItems,
+        totalAmount: grandTotal,
         customerEmail: _recipientEmailController.text.trim().isNotEmpty
             ? _recipientEmailController.text.trim()
             : _quotation!.customerEmail,
@@ -87,7 +242,52 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
             'total': item.total,
           }).toList();
 
-          // Send email using url_launcher (opens user's mail client)
+          // Parse CC emails
+          final ccEmails = _ccEmailController.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+          
+          // Extract threadId, originalMessageId, and originalSubject from notes for reply threading
+          String? threadId;
+          String? originalMessageId;
+          String? originalSubject;
+          
+          if (updatedQuotation.notes != null && updatedQuotation.notes!.isNotEmpty) {
+            final notes = updatedQuotation.notes!;
+            debugPrint('📧 [Send Quotation] Extracting thread info from notes: $notes');
+            
+            // Extract THREAD_ID (REQUIRED for Gmail API reply threading)
+            final threadIdMatch = RegExp(r'THREAD_ID:\s*([^\n]+)').firstMatch(notes);
+            if (threadIdMatch != null) {
+              threadId = threadIdMatch.group(1)?.trim();
+              debugPrint('📧 [Send Quotation] ✅ Found threadId: $threadId');
+            }
+            
+            // Extract ORIGINAL_MESSAGE_ID (for In-Reply-To header)
+            final messageIdMatch = RegExp(r'ORIGINAL_MESSAGE_ID:\s*([^\n]+)').firstMatch(notes);
+            if (messageIdMatch != null) {
+              originalMessageId = messageIdMatch.group(1)?.trim();
+              debugPrint('📧 [Send Quotation] ✅ Found originalMessageId: $originalMessageId');
+            }
+            
+            // Extract ORIGINAL_SUBJECT
+            final subjectMatch = RegExp(r'ORIGINAL_SUBJECT:\s*([^\n]+)').firstMatch(notes);
+            if (subjectMatch != null) {
+              originalSubject = subjectMatch.group(1)?.trim();
+              debugPrint('📧 [Send Quotation] ✅ Found originalSubject: $originalSubject');
+            }
+          }
+          
+          // Verify we have threadId for reply (required)
+          if (threadId == null || threadId.isEmpty) {
+            debugPrint('⚠️ [Send Quotation] WARNING: No threadId found! Email will be sent as NEW email, not reply!');
+          } else {
+            debugPrint('📧 [Send Quotation] ✅ Reply threading enabled - will reply to thread: $threadId');
+          }
+          
+          // Send email as reply to original thread if threadId exists
           emailSent = await _emailService.sendQuotationEmail(
             to: recipientEmail,
             quotationNumber: updatedQuotation.quotationNumber,
@@ -96,6 +296,10 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
             items: itemsData,
             grandTotal: updatedQuotation.totalAmount,
             currency: updatedQuotation.currency,
+            cc: ccEmails.isNotEmpty ? ccEmails : null,
+            threadId: threadId, // Pass threadId for reply threading (REQUIRED for Gmail API)
+            originalMessageId: originalMessageId, // Pass original message ID for In-Reply-To header
+            originalSubject: originalSubject, // Pass original subject for reply
           );
 
           if (emailSent) {
@@ -188,7 +392,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       if (mounted) {
         // Small delay to show success message
         await Future.delayed(const Duration(milliseconds: 500));
-        context.go('/dashboard');
+        context.pop();
       }
     } catch (e) {
       if (mounted) {
@@ -201,6 +405,326 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       }
     } finally {
       setState(() => _isSaving = false);
+    }
+  }
+
+  /// Show historical data bottom sheet when Unit Price field is focused
+  Future<void> _showHistoricalDataDialog(int index) async {
+    debugPrint('🚀 [Unit Price Focus] _showHistoricalDataDialog CALLED for index: $index');
+    
+    if (_quotation == null) {
+      debugPrint('⚠️ [Unit Price Focus] _quotation is null');
+      return;
+    }
+    
+    if (index >= _quotation!.items.length) {
+      debugPrint('⚠️ [Unit Price Focus] Invalid index: $index, items length: ${_quotation!.items.length}');
+      return;
+    }
+    
+    final item = _quotation!.items[index];
+    final materialCode = (_itemCodeControllers[index]?.text ?? item.itemCode ?? '').trim();
+    
+    debugPrint('🔍 [Unit Price Focus] Checking historical quotations for Material Code: "$materialCode"');
+    
+    if (materialCode.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter Material Code first to view historical data'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      debugPrint('📊 [Unit Price Focus] Starting database query...');
+      final historicalQuotations = await _databaseService.getHistoricalQuotationsByMaterialCode(
+        materialCode: materialCode,
+        limit: 10,
+      );
+      
+      debugPrint('✅ [Unit Price Focus] Found ${historicalQuotations.length} quotations for Material Code: $materialCode');
+      
+      if (!mounted) return;
+      
+      if (historicalQuotations.isEmpty) {
+        if (mounted) {
+          await showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => Container(
+              height: MediaQuery.of(context).size.height * 0.4,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Price History - Material Code: $materialCode',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.history, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No historical quotations found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No previous quotations found for Material Code: $materialCode',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      
+      final List<Map<String, dynamic>> quotationData = [];
+      for (final qtn in historicalQuotations) {
+        final qtnItem = qtn.items.firstWhere(
+          (i) => i.itemCode?.toLowerCase().trim() == materialCode.toLowerCase().trim(),
+          orElse: () => qtn.items.first,
+        );
+        
+        final linkedPOs = await _databaseService.getPurchaseOrdersByQuotation(
+          quotationNumber: qtn.quotationNumber,
+          quotationId: qtn.id,
+        );
+        
+        quotationData.add({
+          'quotation': qtn,
+          'item': qtnItem,
+          'poNumbers': linkedPOs.map((po) => po.poNumber).toList(),
+        });
+      }
+      
+      if (!mounted) return;
+      
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Price History - Material Code: $materialCode',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: quotationData.length,
+                  itemBuilder: (context, idx) {
+                    final data = quotationData[idx];
+                    final qtn = data['quotation'] as Quotation;
+                    final qtnItem = data['item'] as QuotationItem;
+                    final poNumbers = data['poNumbers'] as List<String>;
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      child: InkWell(
+                        onTap: () {
+                          _unitPriceControllers[index]?.text = qtnItem.unitPrice.toStringAsFixed(2);
+                          _calculateItemTotal(index);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Price copied: ${CurrencyHelper.formatAmount(qtnItem.unitPrice, qtn.currency ?? 'AED')}'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Quote: ${qtn.quotationNumber}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          CurrencyHelper.formatAmount(qtnItem.unitPrice, qtn.currency ?? 'AED'),
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.content_copy),
+                                    onPressed: () {
+                                      _unitPriceControllers[index]?.text = qtnItem.unitPrice.toStringAsFixed(2);
+                                      _calculateItemTotal(index);
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Price copied: ${CurrencyHelper.formatAmount(qtnItem.unitPrice, qtn.currency ?? 'AED')}'),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Use this price',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Divider(color: Colors.grey[300]),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DateFormat('MMM dd, yyyy').format(qtn.quotationDate),
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Icon(Icons.business, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      qtn.customerName,
+                                      style: TextStyle(color: Colors.grey[600]),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (poNumbers.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.description, size: 16, color: Colors.green[700]),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 4,
+                                        runSpacing: 4,
+                                        children: poNumbers.map((poNumber) {
+                                          return Chip(
+                                            label: Text(
+                                              'PO: $poNumber',
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                            backgroundColor: Colors.green[50],
+                                            labelStyle: TextStyle(color: Colors.green[900]),
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ [Unit Price Focus] Error fetching historical data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading historical data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -237,16 +761,21 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         return Colors.green;
       case 'sent':
         return Colors.blue;
-      case 'accepted':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
       case 'expired':
         return Colors.orange;
       case 'draft':
       default:
         return Colors.grey;
     }
+  }
+  
+  bool _shouldShowStatusChip(String status) {
+    final lowerStatus = status.toLowerCase();
+    // Hide Accepted and Rejected chips
+    if (lowerStatus == 'accepted' || lowerStatus == 'rejected') {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -272,17 +801,6 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         title: Text(_quotation!.quotationNumber),
         actions: [
           IconButton(
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save),
-            onPressed: _isSaving ? null : _saveQuotation,
-            tooltip: 'Save and Send Quotation',
-          ),
-          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _deleteQuotation,
           ),
@@ -293,6 +811,11 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Send Quotation Button at the top (only show if not already sent)
+            if (_quotation!.status.toLowerCase() != 'sent')
+              _buildSendQuotationButton(context),
+            if (_quotation!.status.toLowerCase() != 'sent')
+              const SizedBox(height: 16),
             _buildHeaderCard(context),
             const SizedBox(height: 16),
             _buildCustomerCard(context),
@@ -353,6 +876,22 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
               },
             ),
             const SizedBox(height: 12),
+            // CC Email Field
+            TextField(
+              controller: _ccEmailController,
+              decoration: InputDecoration(
+                labelText: 'CC (comma-separated)',
+                hintText: 'email1@example.com, email2@example.com',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: const OutlineInputBorder(),
+                helperText: 'Enter CC email addresses separated by commas',
+              ),
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (value) {
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 12),
             SwitchListTile(
               title: const Text('Automatically send quotation via email'),
               subtitle: _recipientEmailController.text.isNotEmpty
@@ -387,11 +926,12 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
                   'Quotation Details',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                Chip(
-                  label: Text(_quotation!.status),
-                  backgroundColor: _getStatusColor(_quotation!.status).withOpacity(0.2),
-                  labelStyle: TextStyle(color: _getStatusColor(_quotation!.status)),
-                ),
+                if (_shouldShowStatusChip(_quotation!.status))
+                  Chip(
+                    label: Text(_quotation!.status),
+                    backgroundColor: _getStatusColor(_quotation!.status).withOpacity(0.2),
+                    labelStyle: TextStyle(color: _getStatusColor(_quotation!.status)),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -461,23 +1001,24 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            ..._quotation!.items.map((item) => _buildItemRow(context, item)),
+            ..._quotation!.items.asMap().entries.map((entry) => 
+              _buildItemRow(context, entry.value, entry.key)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildItemRow(BuildContext context, item) {
+  Widget _buildItemRow(BuildContext context, QuotationItem item, int index) {
     final currencyCode = _quotation!.currency ?? 'AED';
     final currencySymbol = CurrencyHelper.getCurrencySymbol(currencyCode);
     
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
+    // Always show editable fields - items should always be editable
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -485,30 +1026,89 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
                   item.itemName,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                if (item.description != null)
+                if (item.description != null) ...[
+                  const SizedBox(height: 8),
                   Text(
                     item.description!,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                if (item.itemCode != null)
-                  Text(
-                    'Code: ${item.itemCode}',
-                    style: Theme.of(context).textTheme.bodySmall,
+                ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _itemCodeControllers[index],
+                  decoration: InputDecoration(
+                    labelText: 'Material Code',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
                   ),
-                Text(
-                  '${item.quantity} ${item.unit} × $currencySymbol${item.unitPrice.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  onChanged: (_) => _calculateItemTotal(index),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _quantityControllers[index],
+                        decoration: InputDecoration(
+                          labelText: 'Quantity',
+                          border: const OutlineInputBorder(),
+                          suffixText: item.unit,
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => _calculateItemTotal(index),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _unitPriceControllers[index],
+                        focusNode: _unitPriceFocusNodes[index],
+                        decoration: InputDecoration(
+                          labelText: 'Unit Price',
+                          border: const OutlineInputBorder(),
+                          prefixText: currencySymbol,
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        onTap: () { },
+                        onChanged: (_) => _calculateItemTotal(index),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // History button below Unit Price field
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      debugPrint('🔘 [History Button] Button pressed for index: $index');
+                      _showHistoricalDataDialog(index);
+                    },
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('View Price History'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total:'),
+                    Text(
+                      CurrencyHelper.formatAmount(item.total, currencyCode),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Text(
-            CurrencyHelper.formatAmount(item.total, currencyCode),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
+        ),
+      );
   }
 
   Widget _buildSummaryCard(BuildContext context) {
@@ -598,6 +1198,56 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSendQuotationButton(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.primary,
+      child: InkWell(
+        onTap: _isSaving ? null : () async {
+          await _sendQuotation();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isSaving)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              else
+                const Icon(Icons.send, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(
+                'Send Quotation',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendQuotation() async {
+    if (_quotation == null) return;
+    
+    // Set auto-send to true and call save quotation
+    setState(() {
+      _autoSendEmail = true;
+    });
+    
+    // Use existing _saveQuotation method which handles saving and sending
+    await _saveQuotation();
   }
 }
 

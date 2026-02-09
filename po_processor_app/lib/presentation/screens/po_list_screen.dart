@@ -13,26 +13,51 @@ class POListScreen extends ConsumerStatefulWidget {
   ConsumerState<POListScreen> createState() => _POListScreenState();
 }
 
-class _POListScreenState extends ConsumerState<POListScreen> {
+class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerProviderStateMixin {
   String _searchQuery = '';
   String _filterStatus = 'all';
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 5, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final poState = ref.watch(poProvider);
     final allPOs = poState.purchaseOrders;
 
-    final filteredPOs = allPOs.where((po) {
-      final matchesSearch = _searchQuery.isEmpty ||
+    // Filter by search query
+    final searchFiltered = allPOs.where((po) {
+      return _searchQuery.isEmpty ||
           po.poNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           po.customerName.toLowerCase().contains(_searchQuery.toLowerCase());
-      
-      final matchesFilter = _filterStatus == 'all' ||
-          (_filterStatus == 'active' && po.status == 'active') ||
-          (_filterStatus == 'expiring_soon' && po.status == 'expiring_soon') ||
-          (_filterStatus == 'expired' && po.status == 'expired');
-      
-      return matchesSearch && matchesFilter;
+    }).toList();
+
+    // Filter by tab selection
+    final filteredPOs = searchFiltered.where((po) {
+      switch (_tabController.index) {
+        case 0: // All
+          return true;
+        case 1: // Active
+          return po.status == 'active';
+        case 2: // Awaiting Ordered
+          return po.status == 'awaiting_ordered';
+        case 3: // Material Received
+          return po.status == 'material_received';
+        case 4: // Delivery Status
+          return po.status == 'delivery_status';
+        default:
+          return true;
+      }
     }).toList();
 
     return Scaffold(
@@ -49,39 +74,34 @@ class _POListScreenState extends ConsumerState<POListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'search'.tr(),
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'search'.tr(),
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('all', 'all'.tr()),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('active', 'active'.tr()),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('expiring_soon', 'expiring_soon'.tr()),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('expired', 'expired'.tr()),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
             ),
+          ),
+          TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabs: const [
+              Tab(text: 'All'),
+              Tab(text: 'Active'),
+              Tab(text: 'Awaiting Ordered'),
+              Tab(text: 'Material Received'),
+              Tab(text: 'Delivery Status'),
+            ],
+            onTap: (index) {
+              setState(() {});
+            },
           ),
           Expanded(
             child: poState.isLoading

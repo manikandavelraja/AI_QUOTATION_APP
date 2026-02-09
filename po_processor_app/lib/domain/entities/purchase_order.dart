@@ -16,7 +16,8 @@ class PurchaseOrder extends Equatable {
   final String? pdfPath;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  final String status; // 'active', 'expired', 'expiring_soon'
+  final String status; // 'active', 'expired', 'expiring_soon', 'awaiting_ordered', 'material_received', 'delivery_status'
+  final String? quotationReference; // Reference to quotation number
 
   const PurchaseOrder({
     this.id,
@@ -35,6 +36,7 @@ class PurchaseOrder extends Equatable {
     required this.createdAt,
     this.updatedAt,
     this.status = 'active',
+    this.quotationReference,
   });
 
   bool get isExpiringSoon {
@@ -63,6 +65,7 @@ class PurchaseOrder extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? status,
+    String? quotationReference,
   }) {
     return PurchaseOrder(
       id: id ?? this.id,
@@ -81,6 +84,7 @@ class PurchaseOrder extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
+      quotationReference: quotationReference ?? this.quotationReference,
     );
   }
 
@@ -102,6 +106,7 @@ class PurchaseOrder extends Equatable {
         createdAt,
         updatedAt,
         status,
+        quotationReference,
       ];
 }
 

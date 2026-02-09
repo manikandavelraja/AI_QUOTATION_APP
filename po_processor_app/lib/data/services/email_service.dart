@@ -438,6 +438,9 @@ class EmailService {
           // Parse message
           final email = _parseGmailMessage(fullMessage);
           
+          debugPrint('📧 [FetchInquiryEmails] Parsed email - CC: ${email.cc}');
+          debugPrint('📧 [FetchInquiryEmails] Parsed email - CC length: ${email.cc.length}');
+          
           // Filter for inquiry-related emails with PDF/DOC attachments
           // Also check if subject contains "Inquiry" (case-insensitive)
           final subjectLower = email.subject.toLowerCase();
@@ -446,6 +449,7 @@ class EmailService {
                subjectLower.contains('rfq') || 
                subjectLower.contains('quotation') ||
                subjectLower.contains('request'))) {
+            debugPrint('📧 [FetchInquiryEmails] Adding email with CC: ${email.cc}');
             emails.add(email);
           }
         } catch (e) {
@@ -575,7 +579,10 @@ class EmailService {
           
           // Only add email if it has PDF attachments
           if (pdfAttachments.isNotEmpty) {
-            emails.add(EmailMessage(
+            debugPrint('📧 [FetchInquiry] Before creating EmailMessage - email.cc: ${email.cc}');
+            debugPrint('📧 [FetchInquiry] email.cc length: ${email.cc.length}');
+            
+            final finalEmail = EmailMessage(
               id: email.id,
               from: email.from,
               to: email.to,
@@ -584,8 +591,20 @@ class EmailService {
               body: email.body,
               date: email.date,
               attachments: pdfAttachments,
-            ));
+              cc: email.cc, // Include CC recipients
+              threadId: email.threadId, // Include thread ID for reply support
+            );
+            
+            debugPrint('📧 [FetchInquiry] After creating EmailMessage - finalEmail.cc: ${finalEmail.cc}');
+            debugPrint('📧 [FetchInquiry] finalEmail.cc length: ${finalEmail.cc.length}');
+            
+            emails.add(finalEmail);
             debugPrint('✅ Processed inquiry email: ${email.subject} (${pdfAttachments.length} PDF attachments)');
+            if (finalEmail.cc.isNotEmpty) {
+              debugPrint('📧 ✅ CC recipients in final email: ${finalEmail.cc.join(", ")}');
+            } else {
+              debugPrint('📧 ⚠️ No CC recipients in final email');
+            }
           }
         } catch (e) {
           debugPrint('⚠️ Error processing email ${message.id}: $e');
@@ -743,6 +762,7 @@ class EmailService {
       String body = '';
       DateTime date = DateTime.now();
       final attachments = <EmailAttachment>[];
+      final ccRecipients = <String>[];
       
       // Extract headers
       debugPrint('📧 Parsing Gmail message headers...');
@@ -751,7 +771,7 @@ class EmailService {
         final headerValue = header.value ?? '';
         
         // Debug: Log all headers to see what we're getting
-        if (headerName == 'from' || headerName == 'to' || headerName == 'reply-to') {
+        if (headerName == 'from' || headerName == 'to' || headerName == 'reply-to' || headerName == 'cc') {
           debugPrint('📧 Header: ${header.name} = $headerValue');
         }
         
@@ -796,6 +816,41 @@ class EmailService {
               debugPrint('📧 Extracted To email: $to');
             }
           }
+        } else if (headerName == 'cc') {
+          debugPrint('📧 [ParseGmailMessage] ========== CC HEADER FOUND ==========');
+          debugPrint('📧 [ParseGmailMessage] CC header value: "$headerValue"');
+          
+          // Extract all CC recipients
+          // Handle multiple recipients separated by commas
+          final angleBracketMatches = RegExp(r'<([\w\.-]+@[\w\.-]+\.\w+)>').allMatches(headerValue);
+          if (angleBracketMatches.isNotEmpty) {
+            debugPrint('📧 [ParseGmailMessage] Found ${angleBracketMatches.length} CC emails in angle brackets');
+            for (final match in angleBracketMatches) {
+              final ccEmail = match.group(1)!;
+              if (!ccRecipients.contains(ccEmail)) {
+                ccRecipients.add(ccEmail);
+                debugPrint('📧 [ParseGmailMessage] ✅ Added CC email from brackets: $ccEmail');
+              } else {
+                debugPrint('📧 [ParseGmailMessage] ⚠️ Skipped duplicate CC: $ccEmail');
+              }
+            }
+          } else {
+            // Try to find emails without angle brackets
+            final emailMatches = RegExp(r'[\w\.-]+@[\w\.-]+\.\w+').allMatches(headerValue);
+            debugPrint('📧 [ParseGmailMessage] Found ${emailMatches.length} CC emails without brackets');
+            for (final match in emailMatches) {
+              final ccEmail = match.group(0)!;
+              if (!ccRecipients.contains(ccEmail)) {
+                ccRecipients.add(ccEmail);
+                debugPrint('📧 [ParseGmailMessage] ✅ Added CC email: $ccEmail');
+              } else {
+                debugPrint('📧 [ParseGmailMessage] ⚠️ Skipped duplicate CC: $ccEmail');
+              }
+            }
+          }
+          debugPrint('📧 [ParseGmailMessage] ✅ Total CC recipients after parsing: ${ccRecipients.length}');
+          debugPrint('📧 [ParseGmailMessage] ✅ CC recipients list: ${ccRecipients.join(", ")}');
+          debugPrint('📧 [ParseGmailMessage] ========================================');
         } else if (headerName == 'reply-to') {
           // Extract email address from Reply-To field
           final emailMatch = RegExp(r'[\w\.-]+@[\w\.-]+\.\w+').firstMatch(headerValue);
@@ -814,7 +869,9 @@ class EmailService {
         }
       }
       
-      debugPrint('📧 Final parsed email - From: $from, To: $to, Reply-To: $replyTo');
+      debugPrint('📧 Final parsed email - From: $from, To: $to, Reply-To: $replyTo, CC: ${ccRecipients.join(", ")}');
+      debugPrint('📧 [ParseGmailMessage] ccRecipients count: ${ccRecipients.length}');
+      debugPrint('📧 [ParseGmailMessage] ccRecipients list: $ccRecipients');
       
       // Extract body
       if (message.payload?.body?.data != null) {
@@ -831,7 +888,15 @@ class EmailService {
       // Extract attachments (handle nested parts)
       _extractAttachments(message.payload, attachments, message.id ?? '');
       
-      return EmailMessage(
+      // Create a copy of ccRecipients to ensure it's not modified
+      final finalCcRecipients = List<String>.from(ccRecipients);
+      debugPrint('📧 [ParseGmailMessage] ========== CREATING EMAILMESSAGE ==========');
+      debugPrint('📧 [ParseGmailMessage] ccRecipients before copy: $ccRecipients');
+      debugPrint('📧 [ParseGmailMessage] finalCcRecipients after copy: $finalCcRecipients');
+      debugPrint('📧 [ParseGmailMessage] finalCcRecipients count: ${finalCcRecipients.length}');
+      debugPrint('📧 [ParseGmailMessage] finalCcRecipients.isEmpty: ${finalCcRecipients.isEmpty}');
+      
+      final emailMessage = EmailMessage(
         id: message.id ?? '',
         from: from,
         to: to,
@@ -840,7 +905,22 @@ class EmailService {
         body: body,
         date: date,
         attachments: attachments,
+        cc: finalCcRecipients, // Use copy to ensure it's preserved
+        threadId: message.threadId,
       );
+      
+      debugPrint('📧 [ParseGmailMessage] ✅ EmailMessage created');
+      debugPrint('📧 [ParseGmailMessage] EmailMessage.cc (direct access): ${emailMessage.cc}');
+      debugPrint('📧 [ParseGmailMessage] EmailMessage.cc.length: ${emailMessage.cc.length}');
+      debugPrint('📧 [ParseGmailMessage] EmailMessage.cc.isEmpty: ${emailMessage.cc.isEmpty}');
+      if (emailMessage.cc.isNotEmpty) {
+        debugPrint('📧 [ParseGmailMessage] ✅ EmailMessage.cc values: ${emailMessage.cc.join(", ")}');
+      } else {
+        debugPrint('📧 [ParseGmailMessage] ⚠️ EmailMessage.cc is EMPTY!');
+      }
+      debugPrint('📧 [ParseGmailMessage] ========================================');
+      
+      return emailMessage;
     } catch (e) {
       debugPrint('Error parsing Gmail message: $e');
       return EmailMessage(
@@ -967,6 +1047,8 @@ class EmailService {
   }
 
   /// Send quotation email to customer using Gmail API (direct send, no mail client)
+  /// Supports reply threads and CC recipients
+  /// IMPORTANT: If threadId is provided, email will be sent as REPLY to that thread (not new email)
   Future<bool> sendQuotationEmail({
     required String to,
     required String quotationNumber,
@@ -975,6 +1057,10 @@ class EmailService {
     required List<Map<String, dynamic>> items, // List of items with name, quantity, unitPrice, total
     required double grandTotal,
     String? currency,
+    List<String>? cc, // CC recipients
+    String? threadId, // Gmail thread ID for reply (REQUIRED for reply threading)
+    String? originalMessageId, // Original message ID for In-Reply-To header
+    String? originalSubject, // Original subject for reply
   }) async {
     try {
       // Ensure Gmail API is initialized
@@ -994,8 +1080,12 @@ class EmailService {
       final currencyCode = currency ?? 'AED';
       final customerNameText = customerName ?? 'Valued Customer';
       
-      // Build subject
-      final subject = 'Quotation $quotationNumber';
+      // Build subject - use "Re: " prefix for replies
+      final subject = threadId != null && originalSubject != null
+          ? originalSubject.startsWith('Re: ') 
+              ? originalSubject 
+              : 'Re: $originalSubject'
+          : 'Quotation $quotationNumber';
       
       // Build email body with matched items and grand total
       final StringBuffer bodyBuffer = StringBuffer();
@@ -1034,9 +1124,107 @@ class EmailService {
       final pdfBase64 = base64Encode(quotationPdf);
       
       // Create email message in RFC 2822 format
-      final emailMessage = [
+      final headers = <String>[
         'To: $to',
         'Subject: $subject',
+      ];
+      
+      // Add CC recipients if provided
+      if (cc != null && cc.isNotEmpty) {
+        headers.add('Cc: ${cc.join(", ")}');
+      }
+      
+      // Add In-Reply-To and References headers for proper reply threading
+      if (threadId != null && threadId.isNotEmpty) {
+        debugPrint('📧 [Send Quotation] ========== SETTING UP REPLY ==========');
+        debugPrint('📧 [Send Quotation] ThreadId: $threadId');
+        debugPrint('📧 [Send Quotation] OriginalMessageId: $originalMessageId');
+        
+        // Get the Message-ID header from the original message for In-Reply-To
+        String? replyToMessageIdHeader;
+        
+        if (originalMessageId != null && originalMessageId.isNotEmpty) {
+          try {
+            // Fetch the original message to get its Message-ID header
+            final originalMessage = await _gmailApi!.users.messages.get(
+              'me',
+              originalMessageId,
+              format: 'full',
+            );
+            
+            // Extract Message-ID header from the original message
+            for (final header in originalMessage.payload?.headers ?? []) {
+              if (header.name?.toLowerCase() == 'message-id') {
+                replyToMessageIdHeader = header.value;
+                debugPrint('📧 [Send Quotation] ✅ Found Message-ID header: $replyToMessageIdHeader');
+                break;
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ [Send Quotation] Could not fetch original message: $e');
+          }
+        }
+        
+        // If we couldn't get Message-ID header, try to get latest message from thread
+        if (replyToMessageIdHeader == null || replyToMessageIdHeader.isEmpty) {
+          try {
+            // Fetch the latest message in the thread to get its Message-ID
+            final threadMessages = await _gmailApi!.users.messages.list(
+              'me',
+              q: 'thread:$threadId',
+              maxResults: 1,
+            );
+            
+            if (threadMessages.messages != null && threadMessages.messages!.isNotEmpty) {
+              final latestMessageId = threadMessages.messages!.first.id;
+              if (latestMessageId != null) {
+                final latestMessage = await _gmailApi!.users.messages.get(
+                  'me',
+                  latestMessageId,
+                  format: 'full',
+                );
+                
+                for (final header in latestMessage.payload?.headers ?? []) {
+                  if (header.name?.toLowerCase() == 'message-id') {
+                    replyToMessageIdHeader = header.value;
+                    debugPrint('📧 [Send Quotation] ✅ Found Message-ID from latest message: $replyToMessageIdHeader');
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ [Send Quotation] Could not fetch latest message from thread: $e');
+          }
+        }
+        
+        // Add In-Reply-To and References headers for proper email threading
+        if (replyToMessageIdHeader != null && replyToMessageIdHeader.isNotEmpty) {
+          // Message-ID header is already in the correct format (usually <id@domain>)
+          // If it's not wrapped in angle brackets, add them
+          String messageId = replyToMessageIdHeader.trim();
+          if (!messageId.startsWith('<')) {
+            messageId = '<$messageId>';
+          }
+          if (!messageId.endsWith('>')) {
+            messageId = '$messageId>';
+          }
+          
+          headers.add('In-Reply-To: $messageId');
+          headers.add('References: $messageId');
+          debugPrint('📧 [Send Quotation] ✅ Added In-Reply-To header: $messageId');
+          debugPrint('📧 [Send Quotation] ✅ Added References header: $messageId');
+        } else {
+          debugPrint('⚠️ [Send Quotation] Could not get Message-ID header, but threadId will still work for Gmail threading');
+        }
+        
+        debugPrint('📧 [Send Quotation] ========================================');
+      } else {
+        debugPrint('⚠️ [Send Quotation] ⚠️⚠️⚠️ WARNING: No threadId provided! Email will be sent as NEW email, not reply! ⚠️⚠️⚠️');
+      }
+      
+      final emailMessage = [
+        ...headers,
         'Content-Type: multipart/mixed; boundary="boundary123"',
         '',
         '--boundary123',
@@ -1060,13 +1248,26 @@ class EmailService {
       // Create Gmail message
       final message = gmail.Message(
         raw: encodedMessage,
+        threadId: threadId, // Set thread ID for reply support - Gmail will thread the reply automatically
       );
+      
+      if (threadId != null) {
+        debugPrint('📧 [Send Quotation] ✅ Sending as reply to thread: $threadId');
+        debugPrint('📧 [Send Quotation] Original subject: $originalSubject');
+        debugPrint('📧 [Send Quotation] Reply subject: $subject');
+      } else {
+        debugPrint('📧 [Send Quotation] Sending as new email (no threadId)');
+      }
       
       // Send the email via Gmail API
       final sentMessage = await _gmailApi!.users.messages.send(message, 'me');
       
       if (sentMessage.id != null) {
-        debugPrint('✅ Quotation email sent successfully via Gmail API. Message ID: ${sentMessage.id}');
+        if (threadId != null) {
+          debugPrint('✅ Quotation email sent successfully as REPLY via Gmail API. Message ID: ${sentMessage.id}, Thread ID: $threadId');
+        } else {
+          debugPrint('✅ Quotation email sent successfully via Gmail API. Message ID: ${sentMessage.id}');
+        }
         return true;
       } else {
         throw Exception('Failed to send email: No message ID returned');
@@ -1110,6 +1311,8 @@ class EmailMessage {
   final String body;
   final DateTime date;
   final List<EmailAttachment> attachments;
+  final List<String> cc; // CC recipients
+  final String? threadId; // Gmail thread ID for reply support
 
   EmailMessage({
     required this.id,
@@ -1120,7 +1323,9 @@ class EmailMessage {
     required this.body,
     required this.date,
     this.attachments = const [],
-  });
+    List<String>? cc,
+    this.threadId,
+  }) : cc = (cc != null && cc.isNotEmpty) ? List<String>.from(cc) : const [];
 }
 
 /// Email attachment model
