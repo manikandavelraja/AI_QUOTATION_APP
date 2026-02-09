@@ -1858,6 +1858,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             () => context.push('/delivery-document-list'),
             subtitle: 'Track deliveries',
           ),
+          SizedBox(height: isMobile ? 10 : 12),
+          // Material Forecast & Inventory Analysis
+          _buildModernActionButton(
+            context,
+            'Material Forecast & Analysis',
+            Icons.analytics,
+            () => context.push('/material-forecast'),
+            subtitle: 'Analyze material procurement patterns',
+          ),
         ],
       ),
     );

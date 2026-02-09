@@ -10,27 +10,29 @@ import 'presentation/providers/language_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables from .env file
   try {
     await dotenv.load(fileName: '.env');
     debugPrint('✅ Environment variables loaded successfully');
   } catch (e) {
     debugPrint('⚠️ Warning: Could not load .env file: $e');
-    debugPrint('⚠️ Make sure .env file exists in the po_processor_app directory');
+    debugPrint(
+      '⚠️ Make sure .env file exists in the po_processor_app directory',
+    );
     debugPrint('⚠️ You can copy .env.example to .env and fill in your values');
   }
-  
+
   // Initialize localization first
   await EasyLocalization.ensureInitialized();
-  
+
   // Initialize database/storage
   try {
     await DatabaseService.instance.database;
   } catch (e) {
     debugPrint('Database initialization error: $e');
   }
-  
+
   // Initialize email app password if not already set
   // NOTE: For production, remove this and let users configure via settings
   try {
@@ -44,16 +46,14 @@ void main() async {
   } catch (e) {
     debugPrint('Email password initialization error: $e');
   }
-  
+
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('en'), Locale('ta')],
       path: 'assets/locales',
       fallbackLocale: const Locale('en'),
       useOnlyLangCode: true,
-      child: const ProviderScope(
-        child: POProcessorApp(),
-      ),
+      child: const ProviderScope(child: POProcessorApp()),
     ),
   );
 }
@@ -69,10 +69,10 @@ class _POProcessorAppState extends ConsumerState<POProcessorApp> {
   @override
   Widget build(BuildContext context) {
     final language = ref.watch(languageProvider);
-    
+
     // Set locale based on language provider
     EasyLocalization.of(context)?.setLocale(Locale(language));
-    
+
     return MaterialApp.router(
       title: 'ELEVATEIONIX',
       debugShowCheckedModeBanner: false,
