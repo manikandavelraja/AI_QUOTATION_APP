@@ -19,6 +19,7 @@ import '../../presentation/screens/delivery_document_create_screen.dart';
 import '../../presentation/screens/quotation_list_screen.dart';
 import '../../presentation/screens/quotation_detail_screen.dart';
 import '../../presentation/screens/splash_screen.dart';
+import '../../presentation/screens/material_forecast_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -182,6 +183,12 @@ class AppRouter {
           final supplierOrderId = state.pathParameters['supplierOrderId']!;
           return DeliveryDocumentCreateScreen(supplierOrderId: supplierOrderId);
         },
+      ),
+      // Material Forecast route
+      GoRoute(
+        path: '/material-forecast',
+        name: 'material-forecast',
+        builder: (context, state) => const MaterialForecastScreen(),
       ),
     ],
   );
