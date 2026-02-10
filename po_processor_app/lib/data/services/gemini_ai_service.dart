@@ -2607,15 +2607,19 @@ This document may be in "Purchase Requisition" format with a table containing th
 
 EXTRACTION RULES:
 1. If document has "Purchase Requisition" table format:
-   - Extract "Purchase Requisition" number as inquiryNumber
+   - Extract "Purchase Requisition" number as inquiryNumber (use the first Purchase Requisition number found)
    - Extract "Plant" as customerName (if customer name not found elsewhere)
-   - For each row in the table, extract:
-     * "Short Text" → itemName
-     * "Material" → itemCode
-     * "Quantity Requested" → quantity
-     * "Unit of Measure" → unit
+   - For EACH row in the table (excluding header row), extract:
+     * "Short Text" or "Material Description" → itemName (REQUIRED - must extract for every row)
+     * "Material" or "Material Code" → itemCode
+     * "Quantity Requested" or "Quantity" → quantity (convert to number, default to 1.0 if missing)
+     * "Unit of Measure" or "Unit" or "UOM" → unit (default to "EA" or "PC" if not found)
+     * "VPN" or "Part Number" → manufacturerPart
      * "Class" → classCode
      * "Plant" → plant
+   - CRITICAL: Extract ALL rows from the table, even if some fields are missing or zero
+   - If "Short Text" is empty but "Material" has a value, use "Material" as itemName
+   - DO NOT skip any rows - extract every item in the table
 
 2. If document is in standard Inquiry/RFQ format:
    - Look for Inquiry/RFQ Number (RFQ#, Inquiry No, Request for Quotation, etc.)
@@ -2649,8 +2653,13 @@ RETURN DATA STRICTLY IN THIS JSON FORMAT:
 CRITICAL RULES:
 - Process the PDF visually - read it like a human would, identifying labels and values by their position and context
 - Extract ALL available information from the table/document
+- Extract EVERY row from the table - do not skip any items
+- If "Short Text" is empty, use "Material" code or description as itemName
+- If quantity is missing, use 1.0 as default
+- If unit is missing, use "EA" or "PC" as default based on context
 - If a field is not found, use null for optional fields or reasonable defaults
 - The PDF is provided as binary data - process it as a visual document, not as extracted text
+- IMPORTANT: The "items" array must contain ALL items from the table, even if some fields are missing
 ''';
 
       // Encode PDF bytes to base64
@@ -2739,10 +2748,18 @@ CRITICAL RULES:
 
       // Parse items
       final items = (jsonData['items'] as List? ?? []).map((item) {
+        // Ensure itemName is never empty - use itemCode or a default if missing
+        String itemName = item['itemName'] as String? ?? '';
+        if (itemName.isEmpty) {
+          itemName = item['itemCode'] as String? ?? 
+                     item['description'] as String? ?? 
+                     'Unknown Item';
+        }
+        
         return InquiryItem(
-          itemName: item['itemName'] as String? ?? 'Unknown Item',
+          itemName: itemName,
           itemCode: item['itemCode'] as String?,
-          description: item['description'] as String?,
+          description: item['description'] as String? ?? itemName,
           quantity: (item['quantity'] as num?)?.toDouble() ?? 1.0,
           unit: item['unit'] as String? ?? 'EA',
           manufacturerPart: item['manufacturerPart'] as String?,
@@ -2750,6 +2767,13 @@ CRITICAL RULES:
           plant: item['plant'] as String?,
         );
       }).toList();
+      
+      // Log warning if no items were extracted
+      if (items.isEmpty) {
+        debugPrint('⚠️ WARNING: No items extracted from PDF. JSON data: $jsonData');
+      } else {
+        debugPrint('✅ Successfully extracted ${items.length} items from PDF');
+      }
 
       // Parse inquiry date
       DateTime inquiryDate;

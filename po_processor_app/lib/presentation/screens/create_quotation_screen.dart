@@ -639,6 +639,10 @@ class _CreateQuotationScreenState extends ConsumerState<CreateQuotationScreen> {
         final total = double.tryParse(totalText) ?? 0.0;
         final quantity = double.tryParse(quantityText) ?? inquiryItem.quantity;
 
+        // Set status to pending if price is missing or zero
+        final isPriced = unitPrice > 0;
+        final status = isPriced ? 'ready' : 'pending';
+        
         items.add(QuotationItem(
           itemName: inquiryItem.itemName,
           itemCode: materialCodeText?.isNotEmpty == true ? materialCodeText : inquiryItem.itemCode,
@@ -648,6 +652,8 @@ class _CreateQuotationScreenState extends ConsumerState<CreateQuotationScreen> {
           unitPrice: unitPrice,
           total: total,
           manufacturerPart: inquiryItem.manufacturerPart,
+          isPriced: isPriced,
+          status: status,
         ));
       }
 
@@ -699,17 +705,35 @@ class _CreateQuotationScreenState extends ConsumerState<CreateQuotationScreen> {
       
       if (_autoSendEmail && recipientEmail.isNotEmpty && savedQuotation != null) {
         try {
-          // Generate quotation PDF file
-          final pdfBytes = await _pdfService.generateQuotationPDF(savedQuotation);
+          // Check if there are pending items
+          final hasPendingItems = savedQuotation.items.any((item) => item.status == 'pending');
           
-          // Prepare items data for email body
-          final itemsData = savedQuotation.items.map((item) => {
+          // Generate quotation PDF file - use partial PDF if there are pending items
+          final pdfBytes = hasPendingItems
+              ? await _pdfService.generatePartialQuotePDF(savedQuotation)
+              : await _pdfService.generateQuotationPDF(savedQuotation);
+          
+          // Prepare items data for email body - only include ready items
+          final readyItems = savedQuotation.items.where((item) => item.status == 'ready').toList();
+          final itemsData = readyItems.map((item) => {
             'itemName': item.itemName,
             'quantity': item.quantity,
             'unit': item.unit,
             'unitPrice': item.unitPrice,
             'total': item.total,
           }).toList();
+          
+          // Prepare pending items data for email body
+          final pendingItemsList = savedQuotation.items.where((item) => item.status == 'pending' || item.unitPrice == 0).toList();
+          final pendingItemsData = pendingItemsList.map((item) => {
+            'itemName': item.itemName,
+            'itemCode': item.itemCode ?? 'N/A',
+          }).toList();
+          
+          // Calculate grand total from ready items only
+          final readySubtotal = readyItems.fold<double>(0.0, (sum, item) => sum + item.total);
+          final readyVat = readySubtotal * 0.05;
+          final readyGrandTotal = readySubtotal + readyVat;
           
           // Send email using Gmail API with reply thread support
           emailSent = await _emailService.sendQuotationEmail(
@@ -718,11 +742,12 @@ class _CreateQuotationScreenState extends ConsumerState<CreateQuotationScreen> {
             quotationPdf: pdfBytes,
             customerName: savedQuotation.customerName,
             items: itemsData,
-            grandTotal: savedQuotation.totalAmount,
+            grandTotal: hasPendingItems ? readyGrandTotal : savedQuotation.totalAmount,
             currency: savedQuotation.currency,
             cc: _ccRecipients.isNotEmpty ? _ccRecipients : null,
             threadId: _emailThreadId,
             originalSubject: _originalEmailSubject,
+            pendingItems: hasPendingItems ? pendingItemsData : null, // Pass pending items for email body
           );
 
           if (emailSent) {

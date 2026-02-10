@@ -164,11 +164,18 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
     setState(() {
       // Update the item in the quotation
       final updatedItems = List<QuotationItem>.from(_quotation!.items);
+      
+      // Update status based on price - if price > 0, set to 'ready', otherwise 'pending'
+      final isPriced = price > 0;
+      final status = isPriced ? 'ready' : 'pending';
+      
       updatedItems[index] = updatedItems[index].copyWith(
         quantity: quantity,
         unitPrice: price,
         total: quantity * price,
         itemCode: _itemCodeControllers[index]?.text ?? updatedItems[index].itemCode,
+        isPriced: isPriced,
+        status: status,
       );
       
       // Recalculate grand total
@@ -197,11 +204,17 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         final unitPrice = double.tryParse(_unitPriceControllers[i]?.text ?? '0') ?? originalItem.unitPrice;
         final itemCode = _itemCodeControllers[i]?.text ?? originalItem.itemCode;
         
+        // Update status based on price - if price > 0, set to 'ready', otherwise 'pending'
+        final isPriced = unitPrice > 0;
+        final status = isPriced ? 'ready' : 'pending';
+        
         updatedItems.add(originalItem.copyWith(
           quantity: quantity,
           unitPrice: unitPrice,
           total: quantity * unitPrice,
           itemCode: itemCode?.isNotEmpty == true ? itemCode : originalItem.itemCode,
+          isPriced: isPriced,
+          status: status,
         ));
       }
       
@@ -230,17 +243,35 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
 
       if (_autoSendEmail && recipientEmail.isNotEmpty) {
         try {
-          // Generate quotation PDF file
-          final pdfBytes = await _pdfService.generateQuotationPDF(updatedQuotation);
+          // Check if there are pending items
+          final hasPendingItems = updatedQuotation.items.any((item) => item.status == 'pending');
+          
+          // Generate quotation PDF file - use partial PDF if there are pending items
+          final pdfBytes = hasPendingItems
+              ? await _pdfService.generatePartialQuotePDF(updatedQuotation)
+              : await _pdfService.generateQuotationPDF(updatedQuotation);
 
-          // Prepare items data for email body
-          final itemsData = updatedQuotation.items.map((item) => {
+          // Prepare items data for email body - only include ready items
+          final readyItems = updatedQuotation.items.where((item) => item.status == 'ready').toList();
+          final itemsData = readyItems.map((item) => {
             'itemName': item.itemName,
             'quantity': item.quantity,
             'unit': item.unit,
             'unitPrice': item.unitPrice,
             'total': item.total,
           }).toList();
+          
+          // Prepare pending items data for email body
+          final pendingItemsList = updatedQuotation.items.where((item) => item.status == 'pending' || item.unitPrice == 0).toList();
+          final pendingItemsData = pendingItemsList.map((item) => {
+            'itemName': item.itemName,
+            'itemCode': item.itemCode ?? 'N/A',
+          }).toList();
+          
+          // Calculate grand total from ready items only
+          final readySubtotal = readyItems.fold<double>(0.0, (sum, item) => sum + item.total);
+          final readyVat = readySubtotal * 0.05;
+          final readyGrandTotal = readySubtotal + readyVat;
 
           // Parse CC emails
           final ccEmails = _ccEmailController.text
@@ -294,12 +325,13 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
             quotationPdf: pdfBytes,
             customerName: updatedQuotation.customerName,
             items: itemsData,
-            grandTotal: updatedQuotation.totalAmount,
+            grandTotal: hasPendingItems ? readyGrandTotal : updatedQuotation.totalAmount,
             currency: updatedQuotation.currency,
             cc: ccEmails.isNotEmpty ? ccEmails : null,
             threadId: threadId, // Pass threadId for reply threading (REQUIRED for Gmail API)
             originalMessageId: originalMessageId, // Pass original message ID for In-Reply-To header
             originalSubject: originalSubject, // Pass original subject for reply
+            pendingItems: hasPendingItems ? pendingItemsData : null, // Pass pending items for email body
           );
 
           if (emailSent) {
@@ -763,6 +795,8 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         return Colors.blue;
       case 'expired':
         return Colors.orange;
+      case 'pending':
+        return Colors.yellow;
       case 'draft':
       default:
         return Colors.grey;
@@ -776,6 +810,33 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       return false;
     }
     return true;
+  }
+  
+  /// Check if quotation has any pending items
+  bool _hasPendingItems() {
+    if (_quotation == null) return false;
+    return _quotation!.items.any((item) => item.status == 'pending' || item.unitPrice == 0);
+  }
+  
+  /// Check if send button should be shown
+  /// Show button if: 
+  /// - Status is not 'sent' (normal case), OR
+  /// - Status is 'sent' and there are pending items (allows sending updates for pending items), OR
+  /// - Status is 'sent' and all items are ready (allows sending final complete quotation)
+  /// This ensures button shows when user enters prices for pending items
+  bool _shouldShowSendButton() {
+    if (_quotation == null) return false;
+    final status = _quotation!.status.toLowerCase();
+    final hasPending = _hasPendingItems();
+    final allItemsReady = _quotation!.items.isNotEmpty && !hasPending;
+    
+    // Show if not sent, OR if sent and has pending items (to send update), OR if sent and all ready (to send final)
+    if (status != 'sent') {
+      return true; // Always show for non-sent quotations
+    }
+    
+    // For sent quotations, show if there are pending items or all items are ready
+    return hasPending || allItemsReady;
   }
 
   @override
@@ -811,11 +872,6 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Send Quotation Button at the top (only show if not already sent)
-            if (_quotation!.status.toLowerCase() != 'sent')
-              _buildSendQuotationButton(context),
-            if (_quotation!.status.toLowerCase() != 'sent')
-              const SizedBox(height: 16),
             _buildHeaderCard(context),
             const SizedBox(height: 16),
             _buildCustomerCard(context),
@@ -829,7 +885,11 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
             ],
             const SizedBox(height: 16),
             _buildEmailOptionsCard(context),
-            const SizedBox(height: 80), // Bottom padding for email options
+            const SizedBox(height: 16),
+            // Send Quotation Button at the bottom (show if not sent OR has pending items)
+            if (_shouldShowSendButton())
+              _buildSendQuotationButton(context),
+            const SizedBox(height: 80), // Bottom padding
           ],
         ),
       ),
@@ -926,7 +986,18 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
                   'Quotation Details',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                if (_shouldShowStatusChip(_quotation!.status))
+                // Show pending chip if quotation has pending items
+                if (_hasPendingItems())
+                  Chip(
+                    label: const Text('Pending'),
+                    backgroundColor: Colors.yellow.withOpacity(0.2),
+                    labelStyle: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                // Otherwise show regular status chip (but not accepted/rejected)
+                else if (_shouldShowStatusChip(_quotation!.status))
                   Chip(
                     label: Text(_quotation!.status),
                     backgroundColor: _getStatusColor(_quotation!.status).withOpacity(0.2),
@@ -1013,18 +1084,44 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
     final currencyCode = _quotation!.currency ?? 'AED';
     final currencySymbol = CurrencyHelper.getCurrencySymbol(currencyCode);
     
+    // Check if item is pending
+    final isPending = item.status == 'pending' || item.unitPrice == 0;
+    
     // Always show editable fields - items should always be editable
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Card(
+          color: isPending ? Colors.yellow.shade50 : null,
           child: Padding(
             padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.itemName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.itemName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (isPending)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.yellow,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Pending',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 if (item.description != null) ...[
                   const SizedBox(height: 8),
@@ -1100,10 +1197,39 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
                     const Text('Total:'),
                     Text(
                       CurrencyHelper.formatAmount(item.total, currencyCode),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isPending ? Colors.grey : null,
+                      ),
                     ),
                   ],
                 ),
+                if (isPending) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Price pending - Enter unit price to complete this item',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1113,6 +1239,13 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
 
   Widget _buildSummaryCard(BuildContext context) {
     final currencyCode = _quotation!.currency ?? 'AED';
+    
+    // Check if there are pending items
+    final hasPendingItems = _quotation!.items.any((item) => item.status == 'pending' || item.unitPrice == 0);
+    final readyItems = _quotation!.items.where((item) => item.status == 'ready' && item.unitPrice > 0).toList();
+    final readySubtotal = readyItems.fold<double>(0.0, (sum, item) => sum + item.total);
+    final readyVat = readySubtotal * 0.05;
+    final readyGrandTotal = readySubtotal + readyVat;
     
     return Card(
       child: Padding(
@@ -1125,15 +1258,72 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
+            if (hasPendingItems) ...[
+              // Show ready items subtotal if there are pending items
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Subtotal (Ready Items)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Text(
+                    CurrencyHelper.formatAmount(readySubtotal, currencyCode),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'VAT (5%)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Text(
+                    CurrencyHelper.formatAmount(readyVat, currencyCode),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.yellow.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Partial Quotation - Some items are pending pricing',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Grand Total',
+                  hasPendingItems ? 'Grand Total (Ready Items)' : 'Grand Total',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Text(
-                  CurrencyHelper.formatAmount(_quotation!.totalAmount, currencyCode),
+                  CurrencyHelper.formatAmount(hasPendingItems ? readyGrandTotal : _quotation!.totalAmount, currencyCode),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,

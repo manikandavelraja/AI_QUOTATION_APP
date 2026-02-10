@@ -375,6 +375,8 @@ class DatabaseService {
             unit_price REAL NOT NULL,
             total REAL NOT NULL,
             manufacturer_part TEXT,
+            is_priced INTEGER NOT NULL DEFAULT 1,
+            status TEXT NOT NULL DEFAULT 'ready',
             FOREIGN KEY (quotation_id) REFERENCES quotations (id) ON DELETE CASCADE
           )
         ''');
@@ -500,6 +502,21 @@ class DatabaseService {
     }
     
     // Migration for version 3: Ensure sender_email column exists
+    if (oldVersion < 4) {
+      // Add is_priced and status columns to quotation_items table
+      try {
+        await db.execute('ALTER TABLE quotation_items ADD COLUMN is_priced INTEGER NOT NULL DEFAULT 1');
+      } catch (e) {
+        // Column might already exist, ignore error
+      }
+      
+      try {
+        await db.execute('ALTER TABLE quotation_items ADD COLUMN status TEXT NOT NULL DEFAULT \'ready\'');
+      } catch (e) {
+        // Column might already exist, ignore error
+      }
+    }
+    
     if (oldVersion < 3) {
       try {
         await db.execute('ALTER TABLE customer_inquiries ADD COLUMN sender_email TEXT');
@@ -1015,6 +1032,8 @@ class DatabaseService {
           'unit_price': item.unitPrice,
           'total': item.total,
           'manufacturer_part': item.manufacturerPart,
+          'is_priced': item.isPriced ? 1 : 0,
+          'status': item.status,
         });
       }
     });
@@ -1068,6 +1087,8 @@ class DatabaseService {
               unitPrice: item['unit_price'] as double,
               total: item['total'] as double,
               manufacturerPart: item['manufacturer_part'] as String?,
+              isPriced: (item['is_priced'] as int? ?? 1) == 1,
+              status: item['status'] as String? ?? 'ready',
             )).toList(),
       ));
     }
@@ -1157,6 +1178,8 @@ class DatabaseService {
                 unitPrice: item['unit_price'] as double,
                 total: item['total'] as double,
                 manufacturerPart: item['manufacturer_part'] as String?,
+                isPriced: (item['is_priced'] as int? ?? 1) == 1,
+                status: item['status'] as String? ?? 'ready',
               )).toList(),
         ));
         
@@ -1256,6 +1279,9 @@ class DatabaseService {
                 unit: item['unit'] as String,
                 unitPrice: item['unit_price'] as double,
                 total: item['total'] as double,
+                manufacturerPart: item['manufacturer_part'] as String?,
+                isPriced: (item['is_priced'] as int? ?? 1) == 1,
+                status: item['status'] as String? ?? 'ready',
               )).toList(),
         ));
         
@@ -1447,6 +1473,8 @@ class DatabaseService {
           'unit_price': item.unitPrice,
           'total': item.total,
           'manufacturer_part': item.manufacturerPart,
+          'is_priced': item.isPriced ? 1 : 0,
+          'status': item.status,
         });
       }
     });

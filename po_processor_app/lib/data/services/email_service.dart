@@ -1061,6 +1061,7 @@ class EmailService {
     String? threadId, // Gmail thread ID for reply (REQUIRED for reply threading)
     String? originalMessageId, // Original message ID for In-Reply-To header
     String? originalSubject, // Original subject for reply
+    List<Map<String, dynamic>>? pendingItems, // List of pending items with itemName and itemCode
   }) async {
     try {
       // Ensure Gmail API is initialized
@@ -1112,6 +1113,22 @@ class EmailService {
       
       bodyBuffer.writeln('');
       bodyBuffer.writeln('Grand Total: $currencyCode ${grandTotal.toStringAsFixed(2)}');
+      
+      // Add pending items note if there are pending items
+      if (pendingItems != null && pendingItems.isNotEmpty) {
+        bodyBuffer.writeln('');
+        bodyBuffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        bodyBuffer.writeln('Note: Some items from your inquiry are currently being priced and will be sent in a separate update.');
+        bodyBuffer.writeln('');
+        bodyBuffer.writeln('Pending Items:');
+        for (final pendingItem in pendingItems) {
+          final itemName = pendingItem['itemName'] as String? ?? 'Unknown Item';
+          final itemCode = pendingItem['itemCode'] as String? ?? 'N/A';
+          bodyBuffer.writeln('• $itemName (Code: $itemCode)');
+        }
+        bodyBuffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
+      
       bodyBuffer.writeln('');
       bodyBuffer.writeln('We look forward to your response.');
       bodyBuffer.writeln('');

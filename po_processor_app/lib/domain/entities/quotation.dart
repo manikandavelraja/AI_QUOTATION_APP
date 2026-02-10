@@ -130,6 +130,8 @@ class QuotationItem extends Equatable {
   final double unitPrice;
   final double total;
   final String? manufacturerPart;
+  final bool isPriced;
+  final String status; // 'pending' or 'ready'
 
   const QuotationItem({
     this.id,
@@ -141,6 +143,8 @@ class QuotationItem extends Equatable {
     required this.unitPrice,
     required this.total,
     this.manufacturerPart,
+    this.isPriced = true,
+    this.status = 'ready',
   });
 
   QuotationItem copyWith({
@@ -153,6 +157,8 @@ class QuotationItem extends Equatable {
     double? unitPrice,
     double? total,
     String? manufacturerPart,
+    bool? isPriced,
+    String? status,
   }) {
     return QuotationItem(
       id: id ?? this.id,
@@ -164,6 +170,8 @@ class QuotationItem extends Equatable {
       unitPrice: unitPrice ?? this.unitPrice,
       total: total ?? this.total,
       manufacturerPart: manufacturerPart ?? this.manufacturerPart,
+      isPriced: isPriced ?? this.isPriced,
+      status: status ?? this.status,
     );
   }
 
@@ -178,6 +186,8 @@ class QuotationItem extends Equatable {
         unitPrice,
         total,
         manufacturerPart,
+        isPriced,
+        status,
       ];
 }
 

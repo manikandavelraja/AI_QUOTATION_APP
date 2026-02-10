@@ -7,6 +7,83 @@ import '../../core/utils/number_to_words.dart';
 
 /// Service for generating quotation PDF files
 class QuotationPDFService {
+  /// Generate a partial PDF file from quotation data (only items with prices)
+  /// Filters out pending items and adds a disclaimer if items are missing
+  /// Returns PDF bytes that can be attached to emails
+  Future<Uint8List> generatePartialQuotePDF(Quotation quotation) async {
+    try {
+      // Filter out pending items - only include items with status 'ready'
+      final readyItems = quotation.items.where((item) => item.status == 'ready').toList();
+      final hasPendingItems = quotation.items.any((item) => item.status == 'pending');
+      
+      // Create a modified quotation with only ready items
+      final partialQuotation = quotation.copyWith(
+        items: readyItems,
+      );
+      
+      final pdf = pw.Document();
+      final currencyCode = partialQuotation.currency ?? 'AED';
+      final currencySymbol = CurrencyHelper.getCurrencySymbol(currencyCode);
+      
+      // Calculate subtotal and VAT from ready items only
+      final subtotal = readyItems.fold<double>(
+        0.0,
+        (sum, item) => sum + item.total,
+      );
+      final vat = subtotal * 0.05; // 5% VAT
+      final grandTotal = subtotal + vat;
+      
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Header with company name and quotation title
+              _buildHeader(partialQuotation),
+              pw.SizedBox(height: 15),
+              
+              // Greeting
+              pw.Text(
+                'Dear Sir/Mam,',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'We thank you for your inquiry and pleased to offer our best prices as below',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.SizedBox(height: 15),
+              
+              // Items Table (only ready items)
+              _buildItemsTable(partialQuotation, currencySymbol),
+              pw.SizedBox(height: 10),
+              
+              // Amount in words
+              _buildAmountInWords(grandTotal, currencyCode),
+              pw.SizedBox(height: 20),
+              
+              // Terms and Conditions
+              _buildTermsSection(partialQuotation.terms ?? ''),
+              pw.SizedBox(height: 20),
+              
+              // Disclaimer if items are missing
+              if (hasPendingItems) _buildPendingItemsDisclaimer(quotation),
+              pw.SizedBox(height: 20),
+              
+              // Footer
+              _buildFooter(),
+            ];
+          },
+        ),
+      );
+      
+      return pdf.save();
+    } catch (e) {
+      throw Exception('Failed to generate partial quotation PDF: $e');
+    }
+  }
+
   /// Generate a PDF file from quotation data
   /// Returns PDF bytes that can be attached to emails
   Future<Uint8List> generateQuotationPDF(Quotation quotation) async {
@@ -357,6 +434,59 @@ class QuotationPDFService {
     );
   }
   
+  pw.Widget _buildPendingItemsDisclaimer(Quotation quotation) {
+    // Get all pending items
+    final pendingItems = quotation.items.where((item) => item.status == 'pending' || item.unitPrice == 0).toList();
+    
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.yellow100,
+        border: pw.Border.all(color: PdfColors.orange, width: 1),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Note: Some items from your inquiry are currently being priced and will be sent in a separate update.',
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontStyle: pw.FontStyle.italic,
+              color: PdfColors.orange900,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          if (pendingItems.isNotEmpty) ...[
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'Pending Items:',
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.orange900,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            ...pendingItems.map((item) {
+              final itemCode = item.itemCode?.isNotEmpty == true ? item.itemCode! : 'N/A';
+              return pw.Padding(
+                padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
+                child: pw.Text(
+                  '• ${item.itemName} (Code: $itemCode)',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontStyle: pw.FontStyle.italic,
+                    color: PdfColors.orange900,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -2109,6 +2109,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         
         final lineTotal = unitPrice * inquiryItem.quantity;
         
+        // Set status to pending if price is missing or zero
+        final isPriced = unitPrice > 0;
+        final status = isPriced ? 'ready' : 'pending';
+        
         quotationItems.add(QuotationItem(
           itemName: inquiryItem.itemName,
           itemCode: inquiryItem.itemCode,
@@ -2118,6 +2122,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           unitPrice: unitPrice,
           total: lineTotal,
           manufacturerPart: inquiryItem.manufacturerPart,
+          isPriced: isPriced,
+          status: status,
         ));
       }
 
