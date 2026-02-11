@@ -18,7 +18,6 @@ class PODetailScreen extends ConsumerStatefulWidget {
 class _PODetailScreenState extends ConsumerState<PODetailScreen> {
   PurchaseOrder? _po;
   bool _isLoading = true;
-  bool _isEditing = false;
 
   @override
   void initState() {
@@ -98,12 +97,6 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
             tooltip: 'Create Supplier Order',
           ),
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
-            onPressed: () {
-              setState(() => _isEditing = !_isEditing);
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _deletePO,
           ),
@@ -161,6 +154,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
               ],
             ),
             const SizedBox(height: 12),
+              _buildInfoRow(context, 'quotation_number'.tr(), _po?.quotationReference?? ''),
             _buildInfoRow(context, 'po_date'.tr(), DateFormat('MMM dd, yyyy').format(_po!.poDate)),
             _buildInfoRow(context, 'expiry_date'.tr(), DateFormat('MMM dd, yyyy').format(_po!.expiryDate)),
           ],

@@ -21,6 +21,7 @@
   "processing": "செயலாக்குகிறது...",
   "extracting_data": "PDF இலிருந்து தரவைப் பிரித்தெடுக்கிறது...",
   "po_number": "PO எண்",
+  "quotation_number": "மேற்கோள் எண்",
   "po_date": "PO தேதி",
   "expiry_date": "காலாவதி தேதி",
   "customer_name": "வாடிக்கையாளர் பெயர்",

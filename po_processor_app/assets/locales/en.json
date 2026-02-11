@@ -21,6 +21,7 @@
   "processing": "Processing...",
   "extracting_data": "Extracting data from PDF...",
   "po_number": "PO Number",
+  "quotation_number": "Quotation Number",
   "po_date": "PO Date",
   "expiry_date": "Expiry Date",
   "customer_name": "Customer Name",

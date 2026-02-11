@@ -67,7 +67,8 @@ class DatabaseService {
         pdf_path TEXT,
         status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER
+        updated_at INTEGER,
+        quotation_reference TEXT
       )
     ''');
 
@@ -524,6 +525,17 @@ class DatabaseService {
         // Column might already exist, ignore error
       }
     }
+    
+    // Migration: Add quotation_reference column to purchase_orders table
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE purchase_orders ADD COLUMN quotation_reference TEXT');
+        debugPrint('✅ Added quotation_reference column to purchase_orders table');
+      } catch (e) {
+        // Column might already exist, ignore error
+        debugPrint('⚠️ quotation_reference column might already exist: $e');
+      }
+    }
   }
 
   // Purchase Order operations
@@ -606,6 +618,7 @@ class DatabaseService {
             ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
             : null,
         status: poMap['status'] as String,
+        quotationReference: poMap['quotation_reference'] as String?,
         lineItems: lineItems.map((item) => LineItem(
               id: item['id'] as String?,
               itemName: item['item_name'] as String,
@@ -661,6 +674,7 @@ class DatabaseService {
           ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
           : null,
       status: poMap['status'] as String,
+      quotationReference: poMap['quotation_reference'] as String?,
       lineItems: lineItems.map((item) => LineItem(
             id: item['id'] as String?,
             itemName: item['item_name'] as String,

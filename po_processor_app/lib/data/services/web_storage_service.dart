@@ -75,6 +75,7 @@ class WebStorageService {
       'status': po.status,
       'created_at': po.createdAt.millisecondsSinceEpoch,
       'updated_at': po.updatedAt?.millisecondsSinceEpoch,
+      'quotation_reference': po.quotationReference,
       'line_items': po.lineItems.map((item) => {
         'id': item.id ?? '${id}_${po.lineItems.indexOf(item)}',
         'item_name': item.itemName,
@@ -136,6 +137,7 @@ class WebStorageService {
             ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
             : null,
         status: status,
+        quotationReference: poMap['quotation_reference'] as String?,
         lineItems: lineItems,
       );
     }).toList();
@@ -173,6 +175,7 @@ class WebStorageService {
         'status': po.status,
         'created_at': pos[index]['created_at'],
         'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'quotation_reference': po.quotationReference,
         'line_items': po.lineItems.map((item) => {
           'id': item.id ?? '${po.id}_${po.lineItems.indexOf(item)}',
           'item_name': item.itemName,

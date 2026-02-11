@@ -78,6 +78,10 @@ dependencies:
   # PDF Generation
   pdf: ^3.11.1
   printing: ^5.13.2
+  
+  # PDF to Image & OCR (for SAP-encoded PDFs)
+  pdfx: ^2.9.2
+  google_mlkit_text_recognition: ^0.12.0
 
 dev_dependencies:
   flutter_test:
@@ -105,6 +109,7 @@ flutter:
     - assets/locales/
     - assets/locales/en.json
     - assets/locales/ta.json
+    - assets/templates/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
