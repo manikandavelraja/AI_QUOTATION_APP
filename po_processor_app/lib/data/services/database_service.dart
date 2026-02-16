@@ -1207,27 +1207,30 @@ class DatabaseService {
     return matchingQuotations;
   }
 
-  /// Get historical quotations for a specific material code (all customers)
-  /// Returns quotations matching the material code, sorted by date descending
+  /// Get historical quotations for a material code, optionally scoped to one customer.
+  /// One Customer Inquiry → multiple Quotations → multiple POs; this returns past quotes for reuse.
   Future<List<Quotation>> getHistoricalQuotationsByMaterialCode({
     required String materialCode,
+    String? customerName,
     int limit = 10,
   }) async {
-    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Checking quotations for Material Code: $materialCode');
+    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Material: $materialCode, customer: $customerName');
     
     if (kIsWeb) {
       final allQuotations = await _webStorage.getAllQuotations();
-      final filtered = allQuotations.where((qtn) {
+      var filtered = allQuotations.where((qtn) {
         final hasMaterial = qtn.items.any((item) => 
           item.itemCode?.toLowerCase() == materialCode.toLowerCase()
         );
         return hasMaterial;
       }).toList();
-      
-      // Sort by date descending and take limit
+      if (customerName != null && customerName.isNotEmpty) {
+        final cn = customerName.trim().toLowerCase();
+        filtered = filtered.where((q) => (q.customerName).trim().toLowerCase().contains(cn)).toList();
+      }
       filtered.sort((a, b) => b.quotationDate.compareTo(a.quotationDate));
       final result = filtered.take(limit).toList();
-      debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found ${result.length} quotations for Material Code: $materialCode');
+      debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found ${result.length} quotations');
       return result;
     }
     
@@ -1259,8 +1262,11 @@ class DatabaseService {
         return itemCode == normalizedMaterialCode;
       }).toList();
       
-      // If this quotation has the material code, include it
-      if (matchingItems.isNotEmpty) {
+      // If this quotation has the material code, include it (and optionally same customer)
+      final qCustomer = (quotationMap['customer_name'] as String? ?? '').trim().toLowerCase();
+      final customerMatch = customerName == null || customerName.isEmpty ||
+          qCustomer.contains(customerName.trim().toLowerCase());
+      if (matchingItems.isNotEmpty && customerMatch) {
         debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found matching item in quotation: ${quotationMap['quotation_number']}');
         
         matchingQuotations.add(Quotation(

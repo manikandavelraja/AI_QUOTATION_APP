@@ -7,6 +7,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/po_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/background_sync_provider.dart';
+import '../widgets/pulse_progress_bar.dart';
+import '../../core/utils/app_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive_helper.dart';
@@ -38,14 +41,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   final _aiService = GeminiAIService();
   final _catalogService = CatalogService();
   final _quotationNumberService = QuotationNumberService(DatabaseService.instance);
-  bool _isFetchingInquiry = false;
-  bool _isFetchingPO = false;
-  int _processedCount = 0;
-  int _successCount = 0;
-  int _errorCount = 0;
-  int _poProcessedCount = 0;
-  int _poSuccessCount = 0;
-  int _poErrorCount = 0;
 
   @override
   void initState() {
@@ -70,6 +65,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     final poState = ref.watch(poProvider);
+    final syncNotifier = ref.watch(backgroundSyncProvider);
+    final syncState = syncNotifier.state;
     final stats = poState.dashboardStats ?? {};
     final monthlyData = _getMonthlyStatistics(poState.purchaseOrders);
 
@@ -78,15 +75,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       appBar: AppBar(
         elevation: 0,
         flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryGreen,
-                AppTheme.primaryGreenLight,
-              ],
-            ),
+          decoration: const BoxDecoration(
+            gradient: AppTheme.brandGradient,
           ),
         ),
         title: Text(
@@ -184,8 +174,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ),
                       _buildWelcomeHeader(context),
                       SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
+                      // Background syncing indicator (non-intrusive, corner)
+                      if (syncState.isActive) _buildBackgroundSyncingIndicator(context, syncState.inquiryProgress, syncState.poProgress),
+                      if (syncState.isActive) SizedBox(height: ResponsiveHelper.responsiveSpacing(context) * 0.5),
                       // QuickActions moved to top
-                      _buildQuickActions(context),
+                      _buildQuickActions(context, syncState),
                       SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
                       _buildStatsGrid(context, stats),
                       SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
@@ -1496,192 +1489,114 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  /// Rich loader dialog for email fetching with progress
-  void _showRichLoaderDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: true, // Allow dismissing on mobile if stuck
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // Update message periodically if processing
-            if ((_isFetchingInquiry && _processedCount > 0) || 
-                (_isFetchingPO && _poProcessedCount > 0)) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && (_isFetchingInquiry || _isFetchingPO)) {
-                  setDialogState(() {});
-                }
-              });
-            }
-            
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child: Container(
-                padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white,
-                      Colors.grey.shade50,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                      spreadRadius: 5,
-          ),
-        ],
-      ),
-      child: Stack(
-                  children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Animated loader
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 6,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppTheme.primaryGreen,
-                            ),
-                            backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
-                          ),
-                        ),
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppTheme.primaryGreen,
-                                AppTheme.primaryGreenLight,
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryGreen.withOpacity(0.3),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.email,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-          Text(
-                      message,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                ),
-                      textAlign: TextAlign.center,
-          ),
-                    if (_processedCount > 0 || _poProcessedCount > 0) ...[
-                      const SizedBox(height: 16),
-          Text(
-                        _isFetchingInquiry
-                            ? 'Processed: $_processedCount | Success: $_successCount | Errors: $_errorCount'
-                            : 'Processed: $_poProcessedCount | Success: $_poSuccessCount | Errors: $_poErrorCount',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-                    const SizedBox(height: 12),
-                    Text(
-                      _isFetchingPO 
-                          ? 'Please wait while we process purchase orders...'
-                          : 'Please wait while we process inquiries...',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    // Animated dots
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (index) {
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 600 + (index * 200)),
-                          curve: Curves.easeInOut,
-                          builder: (context, value, child) {
-                            return Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryGreen.withOpacity(
-                                  0.3 + (value * 0.7),
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                            );
-                          },
-                          onEnd: () {
-                            // Restart animation if still loading
-                            if (mounted && (_isFetchingInquiry || _isFetchingPO)) {
-                              Future.delayed(const Duration(milliseconds: 100), () {
-                                if (mounted) setDialogState(() {});
-                              });
-                            }
-                          },
-                        );
-                      }),
-                    ),
-                      ],
-                    ),
-                    // Cancel button for stuck loading
-                    if (_isFetchingInquiry || _isFetchingPO)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.grey),
-                          onPressed: () {
-                            setState(() {
-                              _isFetchingInquiry = false;
-                              _isFetchingPO = false;
-                            });
-                            Navigator.of(context).pop();
-                          },
-                          tooltip: 'Cancel',
-                        ),
-                      ),
-                  ],
-                ),
+  Widget _buildBackgroundSyncingIndicator(
+    BuildContext context,
+    SyncProgress? inquiryProgress,
+    SyncProgress? poProgress,
+  ) {
+    final inquiryActive = inquiryProgress?.isActive ?? false;
+    final poActive = poProgress?.isActive ?? false;
+    final labels = <String>[];
+    if (inquiryActive) labels.add('Inquiry: ${inquiryProgress!.progressLabel}');
+    if (poActive) labels.add('PO: ${poProgress!.progressLabel}');
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: AppTheme.brandGradientSoft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.brandCharcoal.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.brandCharcoal.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-            );
-          },
-        );
-      },
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                labels.isEmpty ? 'Syncing...' : labels.join(' · '),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildPOFromMailAction(
+    BuildContext context,
+    bool isPOSyncing,
+    SyncProgress? poProgress,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildModernActionButton(
+          context,
+          isPOSyncing ? 'Fetching POs...' : 'Get PO from Mail',
+          Icons.email,
+          isPOSyncing ? () {} : _getPOFromMail,
+          subtitle: 'Fetch POs from Gmail',
+          isLoading: isPOSyncing,
+        ),
+        if (isPOSyncing && poProgress != null && poProgress.total > 0) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  poProgress.progressLabel,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                PulseProgressBar(
+                  value: poProgress.total > 0
+                      ? poProgress.current / poProgress.total
+                      : null,
+                  backgroundColor: Colors.white24,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context, BackgroundSyncState syncState) {
     final isMobile = ResponsiveHelper.isMobile(context);
+    final inquiryProgress = syncState.inquiryProgress;
+    final poProgress = syncState.poProgress;
+    final isInquirySyncing = inquiryProgress?.isActive ?? false;
+    final isPOSyncing = poProgress?.isActive ?? false;
     return Container(
       padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
@@ -1690,17 +1605,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.grey.shade50,
+            AppTheme.brandLight.withOpacity(0.08),
+            AppTheme.brandDark.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         border: Border.all(
-          color: Colors.grey.shade200,
+          color: AppTheme.brandDark.withOpacity(0.2),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: AppTheme.brandCharcoal.withOpacity(0.06),
             blurRadius: 24,
             offset: const Offset(0, 8),
             spreadRadius: 2,
@@ -1715,12 +1631,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               Container(
                 padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                  color: AppTheme.brandLight.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
                 child: Icon(
                   Icons.flash_on,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.brandDark,
                   size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
@@ -1749,13 +1665,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             subtitle: 'View all customer inquiries',
           ),
           SizedBox(height: isMobile ? 10 : 12),
-          _buildModernActionButton(
-            context,
-            _isFetchingInquiry ? 'Fetching Inquiries...' : 'Get Inquiry from Mail',
-            Icons.email,
-            _isFetchingInquiry ? () {} : _getInquiryFromMail,
-            subtitle: 'Fetch inquiries from Gmail',
-            isLoading: _isFetchingInquiry,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildModernActionButton(
+                context,
+                isInquirySyncing ? 'Fetching Inquiries...' : 'Get Inquiry from Mail',
+                Icons.email,
+                isInquirySyncing ? () {} : _getInquiryFromMail,
+                subtitle: 'Fetch inquiries from Gmail',
+                isLoading: isInquirySyncing,
+              ),
+              if (isInquirySyncing && inquiryProgress != null && inquiryProgress.total > 0) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        inquiryProgress.progressLabel,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      PulseProgressBar(
+                        value: inquiryProgress.total > 0
+                            ? inquiryProgress.current / inquiryProgress.total
+                            : null,
+                        backgroundColor: Colors.white24,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
           SizedBox(height: isMobile ? 10 : 12),
           // Stage 2: Quotation
@@ -1779,14 +1726,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       subtitle: 'Upload PO document',
                     ),
                     SizedBox(height: isMobile ? 10 : 12),
-                    _buildModernActionButton(
-                      context,
-                      _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
-                      Icons.email,
-                      _isFetchingPO ? () {} : _getPOFromMail,
-                      subtitle: 'Fetch POs from Gmail',
-                      isLoading: _isFetchingPO,
-                    ),
+                    _buildPOFromMailAction(context, isPOSyncing, poProgress),
                   ],
                 )
               : LayoutBuilder(
@@ -1803,14 +1743,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                             subtitle: 'Upload PO document',
                           ),
                           SizedBox(height: isMobile ? 10 : 12),
-                          _buildModernActionButton(
-                            context,
-                            _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
-                            Icons.email,
-                            _isFetchingPO ? () {} : _getPOFromMail,
-                            subtitle: 'Fetch POs from Gmail',
-                            isLoading: _isFetchingPO,
-                          ),
+                          _buildPOFromMailAction(context, isPOSyncing, poProgress),
                         ],
                       );
                     }
@@ -1830,14 +1763,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                         SizedBox(width: 12),
                         Expanded(
                           flex: 1,
-                          child: _buildModernActionButton(
-                            context,
-                            _isFetchingPO ? 'Fetching POs...' : 'Get PO from Mail',
-                            Icons.email,
-                            _isFetchingPO ? () {} : _getPOFromMail,
-                            subtitle: 'Fetch POs from Gmail',
-                            isLoading: _isFetchingPO,
-                          ),
+                          child: _buildPOFromMailAction(context, isPOSyncing, poProgress),
                         ),
                       ],
                     );
@@ -2238,13 +2164,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       debugPrint('✅ Successfully processed email ${index + 1}/$total and created draft quotation');
       debugPrint('📧 [Process Email] ========================================');
       return savedQuotation;
+    } on FormatException catch (e) {
+      debugPrint('❌ JSON FormatException at email ${index + 1}/$total: $e');
+      return null;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
       
       // Handle 429 rate limit errors - continue to next email
       if (errorStr.contains('429') || errorStr.contains('rate limit')) {
         debugPrint('⚠️ Rate limit error (429) for email ${index + 1}/$total. Continuing to next email...');
-        // Wait a bit before continuing
         await Future.delayed(const Duration(seconds: 2));
         return null;
       }
@@ -2255,27 +2183,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
   }
 
-  Future<void> _getInquiryFromMail() async {
-    // Close any existing dialogs first to prevent stacking
-    if (mounted) {
-      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-    }
-    
-    setState(() {
-      _isFetchingInquiry = true;
-      _processedCount = 0;
-      _successCount = 0;
-      _errorCount = 0;
+  /// Safe completion: show toast then redirect using root navigator context.
+  void _showCompletionAndRedirect(String message, String route) {
+    final ctx = rootNavigatorKey?.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: message.contains('failed') ? Colors.orange : AppTheme.primaryGreen,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final c = rootNavigatorKey?.currentContext;
+      if (c != null && c.mounted) {
+        GoRouter.of(c).go(route);
+      }
     });
+  }
 
-    // Show rich loading dialog with progress
-    if (mounted) {
-      _showRichLoaderDialog(context, 'Fetching Inquiries from Gmail...');
-    }
-    
-    try {
-      // Fetch up to 10 most recent inquiry emails with timeout for mobile
-      final emails = await _emailService.fetchInquiryEmails(maxResults: 10)
+  Future<void> _getInquiryFromMail() async {
+    final sync = ref.read(backgroundSyncProvider.notifier);
+    sync.startInquirySync();
+
+    Future(() async {
+      try {
+        final emails = await _emailService.fetchInquiryEmails(maxResults: 10)
           .timeout(
             const Duration(seconds: 60),
             onTimeout: () {
@@ -2283,270 +2217,150 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             },
           );
 
-      if (emails.isEmpty) {
-        setState(() => _isFetchingInquiry = false);
-        if (mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('No inquiry emails found in inbox'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      debugPrint('📧 Found ${emails.length} inquiry email(s). Processing in bulk...');
-
-      // Process each email in a loop
-      final processedQuotations = <Quotation>[];
-      
-      for (int i = 0; i < emails.length; i++) {
-        if (!mounted) break;
-        
-        final email = emails[i];
-        setState(() => _processedCount = i + 1);
-        
-        // Update loader message
-        if (mounted) {
-          // Close and reopen loader with updated message
-          try {
-            Navigator.of(context, rootNavigator: true).pop();
-          } catch (_) {}
-          _showRichLoaderDialog(
-            context, 
-            'Processing ${i + 1}/${emails.length}: ${email.subject}',
-          );
-        }
-
-        try {
-          final quotation = await _processSingleEmail(email, i, emails.length);
-          if (quotation != null) {
-            processedQuotations.add(quotation);
-            setState(() => _successCount++);
-          } else {
-            setState(() => _errorCount++);
-      }
-    } catch (e) {
-          debugPrint('❌ Failed to process email ${i + 1}: $e');
-          setState(() => _errorCount++);
-          // Continue to next email
-          continue;
-        }
-
-        // Small delay between emails to avoid rate limiting
-        if (i < emails.length - 1) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      }
-
-      setState(() => _isFetchingInquiry = false);
-      
-      // Dismiss loader dialog
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // Show summary
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Bulk processing complete: $_successCount draft quotation(s) created, $_errorCount failed',
-            ),
-            backgroundColor: _successCount > 0 ? AppTheme.primaryGreen : Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-
-      // Refresh quotations list
-      await ref.read(quotationProvider.notifier).loadQuotations();
-      
-    } catch (e) {
-      setState(() => _isFetchingInquiry = false);
-      
-      // Dismiss loader dialog on error
-      if (mounted) {
-        try {
-          Navigator.of(context, rootNavigator: true).pop();
-        } catch (_) {
-          // Dialog might already be closed, ignore error
-        }
-      }
-      if (mounted) {
-        String errorMsg = e.toString().replaceAll('Exception: ', '');
-        
-        // Handle blocked requests (ERR_BLOCKED_BY_CLIENT)
-        if (errorMsg.toLowerCase().contains('blocked') || 
-            errorMsg.toLowerCase().contains('err_blocked_by_client') ||
-            errorMsg.toLowerCase().contains('play.google.com') ||
-            errorMsg.toLowerCase().contains('browser extension') ||
-            errorMsg.toLowerCase().contains('ad blocker')) {
-          // Show a helpful dialog about disabling blockers
-          if (mounted) {
-            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-            showDialog(
-              context: context,
-              barrierDismissible: true,
-              builder: (dialogContext) => AlertDialog(
-                title: const Row(
-                  children: [
-                    Icon(Icons.block, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Browser Extension Blocking Gmail'),
-                  ],
-                ),
-                content: const Text(
-                  'Gmail sign-in is being blocked by your browser.\n\n'
-                  'This is usually caused by:\n'
-                  '• Ad blockers (uBlock Origin, AdBlock Plus)\n'
-                  '• Privacy extensions\n'
-                  '• Browser security settings\n\n'
-                  'To fix:\n'
-                  '1. Disable ad blockers temporarily\n'
-                  '2. Disable privacy extensions\n'
-                  '3. Allow popups for this website\n'
-                  '4. Try again\n\n'
-                  'Alternatively, use manual upload:\n'
-                  '• Download PDFs from Gmail\n'
-                  '• Use "Upload Customer Inquiry" button'
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('OK'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      context.push('/upload-inquiry');
-                    },
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text('Use Manual Upload'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
+        if (emails.isEmpty) {
+          sync.setInquiryError();
+          final ctx = rootNavigatorKey?.currentContext;
+          if (ctx != null && ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                content: Text('No inquiry emails found in inbox'),
+                backgroundColor: Colors.orange,
               ),
             );
           }
           return;
         }
-        
-        // Handle timeout errors specifically
-        if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
-          errorMsg = 'Request timed out. On mobile, please:\n'
-              '1. Check your internet connection\n'
-              '2. Allow popups in browser settings\n'
-              '3. Try again';
+
+        debugPrint('📧 Found ${emails.length} inquiry email(s). Processing in background...');
+        sync.setInquiryProgress(current: 0, total: emails.length, successCount: 0, failCount: 0);
+
+        int successCount = 0;
+        int failCount = 0;
+
+        for (int i = 0; i < emails.length; i++) {
+          final email = emails[i];
+          sync.setInquiryProgress(current: i + 1, total: emails.length, successCount: successCount, failCount: failCount);
+
+          try {
+            final quotation = await _processSingleEmail(email, i, emails.length);
+            if (quotation != null) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (e) {
+            debugPrint('❌ Failed to process email ${i + 1}: $e');
+            failCount++;
+          }
+
+          if (i < emails.length - 1) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
         }
-        
-        // Handle MissingPluginException for web
-        if (errorMsg.contains('MissingPluginException') || 
-            errorMsg.contains('No implementation found') ||
-            errorMsg.contains('OAuth2')) {
-          // Show a dialog to guide user through sign-in
-          if (mounted) {
-            // Close any existing dialogs first
-            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-            
-            showDialog(
-              context: context,
-              barrierDismissible: true,
-              builder: (dialogContext) => AlertDialog(
-                title: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Text('Gmail Access Setup'),
-                  ],
-                ),
-                content: const Text(
-                  'To automatically access your Gmail (kumarionix07@gmail.com), '
-                  'you need to sign in with your Google account.\n\n'
-                  'This is a one-time setup. After signing in, the app will automatically fetch Customer Inquiry PDFs.\n\n'
-                  'Click "Sign In" below to start.'
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                    },
-                    child: const Text('Cancel'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      // Close dialog first
-                      Navigator.of(dialogContext).pop();
-                      
-                      // Show loading indicator
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening Gmail sign-in...'),
-                            backgroundColor: Colors.blue,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                      
-                      // Small delay to ensure dialog is closed
-                      await Future.delayed(const Duration(milliseconds: 300));
-                      
-                      // Retry with sign-in prompt
-                      try {
-                        await _getInquiryFromMail();
-                      } catch (e) {
-                        debugPrint('Error after OAuth2 dialog: $e');
-                      }
-                    },
-                    icon: const Icon(Icons.login),
-                    label: const Text('Sign In with Gmail'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
+
+        await ref.read(quotationProvider.notifier).loadQuotations();
+        sync.setInquiryComplete(
+          total: emails.length,
+          successCount: successCount,
+          failCount: failCount,
+        );
+
+        final message = failCount > 0
+            ? '${emails.length} items processed, $successCount successful, $failCount failed.'
+            : 'Processing complete! $successCount item(s) have been successfully parsed.';
+        _showCompletionAndRedirect(message, '/inquiry-list');
+      } catch (e) {
+        sync.setInquiryError();
+        String errorMsg = e.toString().replaceAll('Exception: ', '');
+        final ctx = rootNavigatorKey?.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+
+        if (errorMsg.toLowerCase().contains('blocked') ||
+            errorMsg.toLowerCase().contains('err_blocked_by_client') ||
+            errorMsg.toLowerCase().contains('play.google.com') ||
+            errorMsg.toLowerCase().contains('browser extension') ||
+            errorMsg.toLowerCase().contains('ad blocker')) {
+          showDialog(
+            context: ctx,
+            barrierDismissible: true,
+            builder: (dialogContext) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.block, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Browser Extension Blocking Gmail'),
                 ],
               ),
-            );
-          }
-        } else if (errorMsg.contains('sign in') || 
-                   errorMsg.contains('authentication') || 
-                   errorMsg.contains('cancelled') ||
-                   errorMsg.contains('Please sign in')) {
-          // Close any existing dialogs first
-          if (mounted) {
-            Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-          }
-          // Show sign-in dialog with better messaging
-          _showGmailSignInDialog('inquiry');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 8),
-              action: errorMsg.contains('sign in') || errorMsg.contains('Gmail')
-                ? SnackBarAction(
-                    label: 'Sign In',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      _showGmailSignInDialog('inquiry');
-                    },
-                  )
-                : null,
+              content: const Text(
+                'Gmail sign-in is being blocked. Disable ad blockers or use manual upload.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('OK'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    GoRouter.of(ctx).push('/upload-inquiry');
+                  },
+                  child: const Text('Use Manual Upload'),
+                ),
+              ],
             ),
           );
+          return;
         }
+        if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
+          errorMsg = 'Request timed out. Check internet and try again.';
+        }
+        if (errorMsg.contains('MissingPluginException') ||
+            errorMsg.contains('No implementation found') ||
+            errorMsg.contains('OAuth2')) {
+          showDialog(
+            context: ctx,
+            barrierDismissible: true,
+            builder: (dialogContext) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Gmail Access Setup'),
+                ],
+              ),
+              content: const Text(
+                'Sign in with your Google account to fetch Customer Inquiry PDFs.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _getInquiryFromMail();
+                  },
+                  child: const Text('Sign In with Gmail'),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+        if (errorMsg.contains('sign in') || errorMsg.contains('authentication')) {
+          _showGmailSignInDialog('inquiry', ctx);
+          return;
+        }
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
-    }
+    });
   }
 
   Future<EmailMessage?> _showEmailSelectionDialog(List<EmailMessage> emails, String type) async {
@@ -2588,9 +2402,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  void _showGmailSignInDialog(String type) {
+  void _showGmailSignInDialog(String type, [BuildContext? useContext]) {
+    final ctx = useContext ?? context;
+    if (!ctx.mounted) return;
     showDialog(
-      context: context,
+      context: ctx,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
         title: const Row(
@@ -2610,7 +2426,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              setState(() => _isFetchingInquiry = false);
             },
             child: const Text('Cancel'),
           ),
@@ -2633,41 +2448,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               // Small delay to ensure dialog is closed
               await Future.delayed(const Duration(milliseconds: 500));
               
-              // Directly trigger Gmail API initialization with interactive sign-in
+              // Trigger Gmail sign-in then start background sync
               try {
-                setState(() => _isFetchingInquiry = true);
-                
-                // Force interactive sign-in by calling initialization directly
                 await _emailService.fetchInquiryEmails(maxResults: 10);
-                
-                // If successful, the method will continue and process emails
-                // If it fails, error will be caught below
+                if (type == 'inquiry') {
+                  _getInquiryFromMail();
+                } else {
+                  _getPOFromMail();
+                }
               } catch (e) {
-                setState(() => _isFetchingInquiry = false);
                 final errorStr = e.toString();
                 debugPrint('Error during sign-in: $e');
-                
-                // Don't show dialog again if it's a cancellation or OAuth2 setup issue
-                if (errorStr.contains('cancelled') || 
+                if (errorStr.contains('cancelled') ||
                     errorStr.contains('OAuth2') ||
                     errorStr.contains('MissingPluginException')) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(errorStr.contains('OAuth2') || errorStr.contains('MissingPluginException')
-                          ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
-                          : 'Sign-in was cancelled. Please try again.'),
+                            ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
+                            : 'Sign-in was cancelled. Please try again.'),
                         backgroundColor: Colors.orange,
                         duration: const Duration(seconds: 5),
                       ),
                     );
                   }
                 } else {
-                  // For other errors, let the normal error handling take over
                   if (type == 'inquiry') {
-                    await _getInquiryFromMail();
+                    _getInquiryFromMail();
                   } else {
-                    await _getPOFromMail();
+                    _getPOFromMail();
                   }
                 }
               }
@@ -2731,6 +2541,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       }
       
       return false;
+    } on FormatException catch (e) {
+      debugPrint('❌ JSON FormatException at PO email ${index + 1}/$total: $e');
+      return false;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
       
@@ -2748,147 +2561,88 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   }
 
   Future<void> _getPOFromMail() async {
-    // Close any existing dialogs first
-    if (mounted) {
-      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-    }
-    
-    setState(() {
-      _isFetchingPO = true;
-      _poProcessedCount = 0;
-      _poSuccessCount = 0;
-      _poErrorCount = 0;
-    });
+    final sync = ref.read(backgroundSyncProvider.notifier);
+    sync.startPOSync();
 
-    // Show rich loading dialog with progress
-    if (mounted) {
-      _showRichLoaderDialog(context, 'Fetching Purchase Orders from Gmail...');
-    }
+    Future(() async {
+      try {
+        final emails = await _emailService.fetchPOEmails(maxResults: 10);
 
-    try {
-      // Fetch up to 10 most recent PO emails
-      final emails = await _emailService.fetchPOEmails(maxResults: 10);
-
-      if (emails.isEmpty) {
-        setState(() => _isFetchingPO = false);
-        if (mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
+        if (emails.isEmpty) {
+          sync.setPOError();
+          final ctx = rootNavigatorKey?.currentContext;
+          if (ctx != null && ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                content: Text('No PO emails found in inbox'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
         }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('No PO emails found in inbox'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
 
-      debugPrint('📧 Found ${emails.length} PO email(s). Processing in bulk...');
+        debugPrint('📧 Found ${emails.length} PO email(s). Processing in background...');
+        sync.setPOProgress(current: 0, total: emails.length, successCount: 0, failCount: 0);
 
-      // Process each email in a loop
-      
-      for (int i = 0; i < emails.length; i++) {
-        if (!mounted) break;
-        
-        final email = emails[i];
-        setState(() => _poProcessedCount = i + 1);
-        
-        // Update loader message
-        if (mounted) {
-          // Close and reopen loader with updated message
+        int successCount = 0;
+        int failCount = 0;
+
+        for (int i = 0; i < emails.length; i++) {
+          final email = emails[i];
+          sync.setPOProgress(current: i + 1, total: emails.length, successCount: successCount, failCount: failCount);
+
           try {
-            Navigator.of(context, rootNavigator: true).pop();
-          } catch (_) {}
-          _showRichLoaderDialog(
-            context, 
-            'Processing ${i + 1}/${emails.length}: ${email.subject}',
-          );
+            final success = await _processSinglePOEmail(email, i, emails.length);
+            if (success) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (e) {
+            debugPrint('❌ Failed to process PO email ${i + 1}: $e');
+            failCount++;
+          }
+
+          if (i < emails.length - 1) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
         }
 
-        try {
-          final success = await _processSinglePOEmail(email, i, emails.length);
-          if (success) {
-            setState(() => _poSuccessCount++);
-          } else {
-            setState(() => _poErrorCount++);
-      }
-    } catch (e) {
-          debugPrint('❌ Failed to process PO email ${i + 1}: $e');
-          setState(() => _poErrorCount++);
-          // Continue to next email
-          continue;
+        await ref.read(poProvider.notifier).loadPurchaseOrders();
+        sync.setPOComplete(
+          total: emails.length,
+          successCount: successCount,
+          failCount: failCount,
+        );
+
+        final message = failCount > 0
+            ? '${emails.length} items processed, $successCount successful, $failCount failed.'
+            : 'Processing complete! $successCount PO(s) have been successfully parsed.';
+        _showCompletionAndRedirect(message, '/po-list');
+      } catch (e) {
+        sync.setPOError();
+        String errorMsg = e.toString().replaceAll('Exception: ', '');
+        final ctx = rootNavigatorKey?.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+
+        if (errorMsg.contains('MissingPluginException') ||
+            errorMsg.contains('No implementation found')) {
+          errorMsg = 'Gmail on web requires OAuth2. Use manual upload via "Upload PO".';
         }
-
-        // Small delay between emails to avoid rate limiting
-        if (i < emails.length - 1) {
-          await Future.delayed(const Duration(milliseconds: 500));
+        if (errorMsg.contains('sign in') || errorMsg.contains('authentication')) {
+          _showGmailSignInDialog('PO', ctx);
+          return;
         }
-      }
-
-      setState(() => _isFetchingPO = false);
-      
-      // Dismiss loader dialog
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // Refresh PO list
-      await ref.read(poProvider.notifier).loadPurchaseOrders();
-
-      // Show summary
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(
-            content: Text(
-              _poSuccessCount > 0
-                  ? 'New POs Found: $_poSuccessCount purchase order(s) added'
-                  : 'No new purchase orders found',
-            ),
-            backgroundColor: _poSuccessCount > 0 ? AppTheme.primaryGreen : Colors.orange,
-            duration: const Duration(seconds: 4),
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
           ),
         );
       }
-    } catch (e) {
-      setState(() => _isFetchingPO = false);
-      
-      // Dismiss loader dialog on error
-      if (mounted) {
-        try {
-          Navigator.of(context, rootNavigator: true).pop();
-        } catch (_) {
-          // Dialog might already be closed, ignore error
-        }
-      }
-      
-      if (mounted) {
-        String errorMsg = e.toString().replaceAll('Exception: ', '');
-        
-        // Handle MissingPluginException for web
-        if (errorMsg.contains('MissingPluginException') || 
-            errorMsg.contains('No implementation found')) {
-          errorMsg = 'Gmail email fetching on web requires OAuth2 setup.\n\n'
-              'Please use manual upload:\n'
-              '1. Download PDFs from your Gmail inbox\n'
-              '2. Use "Upload PO" button';
-        }
-        
-        if (errorMsg.contains('sign in') || errorMsg.contains('authentication')) {
-          // Show sign-in dialog
-          _showGmailSignInDialog('PO');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 8),
-            ),
-          );
-        }
-      }
-    }
+    });
   }
 
   Future<bool> _showEmailFetchInfoDialog(String title, String message) async {

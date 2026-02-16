@@ -74,19 +74,32 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              decoration: InputDecoration(
-                labelText: 'search'.tr(),
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'search'.tr(),
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                 ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+                const SizedBox(height: 8),
+                Text(
+                  '${filteredPOs.length} PO(s)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
           TabBar(
@@ -206,6 +219,14 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
                       ),
                 ),
               ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${po.lineItems.length} item(s)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
             ),
           ],
         ),

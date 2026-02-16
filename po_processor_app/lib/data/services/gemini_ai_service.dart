@@ -3388,6 +3388,7 @@ Provide a 2-3 sentence summary highlighting key information.
       final poNumber = jsonData['poNumber']?.toString().trim();
       String? quotationReference = jsonData['quotationReference']?.toString().trim();
       final vendorName = jsonData['vendorName']?.toString().trim();
+      String? customerNameFromJson = jsonData['customerName']?.toString().trim();
       String? customerAddress = jsonData['customerAddress']?.toString().trim();
       String? customerEmail = jsonData['customerEmail']?.toString().trim();
       
@@ -3438,15 +3439,21 @@ Provide a 2-3 sentence summary highlighting key information.
         }
       }
       
-      // Use vendorName as customerName, but try to extract from address or other fields if not found
+      // Extract customer name - PRIORITIZE customerName from JSON, NOT vendorName
       String finalCustomerName = '';
       
-      // First, try vendorName
-      if (vendorName != null && vendorName.isNotEmpty && vendorName != 'N/A' && vendorName.toLowerCase() != 'unknown') {
-        finalCustomerName = vendorName;
+      // First, try customerName from JSON (this is the correct field)
+      if (customerNameFromJson != null && 
+          customerNameFromJson.isNotEmpty && 
+          customerNameFromJson != 'N/A' && 
+          customerNameFromJson != 'null' &&
+          customerNameFromJson.toLowerCase() != 'unknown') {
+        finalCustomerName = customerNameFromJson;
+        debugPrint('✅ Using customerName from JSON: $finalCustomerName');
       }
       
       // If not found, try to extract from customerAddress (e.g., "Almarai Company Plant")
+      // This is better than using vendorName because the address usually contains the customer name
       if ((finalCustomerName.isEmpty || finalCustomerName == 'Unknown') && customerAddress != null && customerAddress.isNotEmpty) {
         // Look for company name patterns in address
         // Pattern: "Company Name" or "Company Name Plant" or "Company Name, Address"
@@ -3501,9 +3508,25 @@ Provide a 2-3 sentence summary highlighting key information.
         }
       }
       
-      // Final fallback
+      // Final fallback - Only use vendorName as absolute last resort if nothing else works
+      // But prefer to keep it as Unknown rather than showing vendor name as customer name
       if (finalCustomerName.isEmpty || finalCustomerName == 'Unknown') {
-        finalCustomerName = 'Unknown';
+        // Only use vendorName if it's clearly a customer name pattern (contains "Company", "LLC", etc.)
+        // Otherwise, keep as Unknown to avoid confusion
+        if (vendorName != null && 
+            vendorName.isNotEmpty && 
+            vendorName != 'N/A' && 
+            vendorName.toLowerCase() != 'unknown' &&
+            (vendorName.contains('Company') || 
+             vendorName.contains('LLC') || 
+             vendorName.contains('Ltd') ||
+             vendorName.contains('Corp'))) {
+          finalCustomerName = vendorName;
+          debugPrint('⚠️ Using vendorName as last resort for customerName: $finalCustomerName');
+        } else {
+          finalCustomerName = 'Unknown';
+          debugPrint('⚠️ Could not determine customer name, keeping as Unknown');
+        }
       }
       
       // Extract currency

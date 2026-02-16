@@ -78,7 +78,7 @@ dependencies:
   # PDF Generation
   pdf: ^3.11.1
   printing: ^5.13.2
-  
+
   # PDF to Image & OCR (for SAP-encoded PDFs)
   pdfx: ^2.9.2
   google_mlkit_text_recognition: ^0.12.0

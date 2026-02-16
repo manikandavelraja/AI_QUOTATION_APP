@@ -1,24 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Brand colors: 45B794 (light teal), 00614C (dark teal), 181717 (near black).
 class AppTheme {
-  // Colors - Green Tech Theme (Sustainability Focus)
-  static const Color primaryGreen = Color(0xFF2E7D32);
-  static const Color primaryGreenLight = Color(0xFF4CAF50);
-  static const Color primaryGreenDark = Color(0xFF1B5E20);
-  static const Color secondaryGreen = Color(0xFF66BB6A);
-  static const Color accentGreen = Color(0xFF81C784);
-  
+  // Primary palette from HEX: 45B794, 00614C, 181717
+  static const Color brandLight = Color(0xFF45B794);
+  static const Color brandDark = Color(0xFF00614C);
+  static const Color brandCharcoal = Color(0xFF181717);
+
+  // Aliases for compatibility
+  static const Color primaryGreen = Color(0xFF45B794);
+  static const Color primaryGreenLight = Color(0xFF45B794);
+  static const Color primaryGreenDark = Color(0xFF00614C);
+  static const Color secondaryGreen = Color(0xFF45B794);
+  static const Color accentGreen = Color(0xFF00614C);
+
+  /// Gradient using all three brand colors (light → dark → charcoal).
+  static const LinearGradient brandGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [brandLight, brandDark, brandCharcoal],
+  );
+
+  /// Lighter gradient for cards/buttons (no charcoal).
+  static const LinearGradient brandGradientSoft = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [brandLight, brandDark],
+  );
+
   static const Color errorRed = Color(0xFFD32F2F);
   static const Color warningOrange = Color(0xFFFF9800);
-  static const Color successGreen = Color(0xFF4CAF50);
+  static const Color successGreen = Color(0xFF45B794);
   static const Color infoBlue = Color(0xFF2196F3);
-  
+
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color backgroundDark = Color(0xFF121212);
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF1E1E1E);
-  
+
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
   static const Color textPrimaryDark = Color(0xFFFFFFFF);
@@ -31,14 +51,14 @@ class AppTheme {
       primaryColor: primaryGreen,
       colorScheme: ColorScheme.light(
         primary: primaryGreen,
-        secondary: secondaryGreen,
-        tertiary: accentGreen,
+        secondary: primaryGreenDark,
+        tertiary: brandCharcoal,
         error: errorRed,
         surface: surfaceLight,
       ),
       scaffoldBackgroundColor: backgroundLight,
       appBarTheme: AppBarTheme(
-        backgroundColor: primaryGreen,
+        backgroundColor: primaryGreenDark,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -137,8 +157,8 @@ class AppTheme {
       primaryColor: primaryGreenLight,
       colorScheme: ColorScheme.dark(
         primary: primaryGreenLight,
-        secondary: secondaryGreen,
-        tertiary: accentGreen,
+        secondary: primaryGreenDark,
+        tertiary: brandCharcoal,
         error: errorRed,
         surface: surfaceDark,
       ),
@@ -236,4 +256,3 @@ class AppTheme {
     );
   }
 }
-

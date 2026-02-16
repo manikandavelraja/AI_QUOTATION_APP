@@ -38,6 +38,11 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+          tooltip: 'Back',
+        ),
         title: const Text('Customer Inquiries'),
         actions: [
           IconButton(
@@ -47,80 +52,92 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search inquiries...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+      body: SafeArea(
+        child: RefreshIndicator(
+        onRefresh: () => ref.read(inquiryProvider.notifier).loadInquiries(),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search inquiries...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
                     ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('all', 'All'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('pending', 'Pending'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('reviewed', 'Reviewed'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('quoted', 'Quoted'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('converted_to_po', 'Converted to PO'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+              ),
+            ),
+            if (inquiryState.isLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (filteredInquiries.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildFilterChip('all', 'All'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('pending', 'Pending'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('reviewed', 'Reviewed'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('quoted', 'Quoted'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('converted_to_po', 'Converted to PO'),
+                      Icon(
+                        Icons.inbox,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No inquiries found',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: inquiryState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredInquiries.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inbox,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No inquiries found',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () =>
-                            ref.read(inquiryProvider.notifier).loadInquiries(),
-                        child: ListView.builder(
-                          itemCount: filteredInquiries.length,
-                          itemBuilder: (context, index) {
-                            final inquiry = filteredInquiries[index];
-                            return _buildInquiryListItem(context, inquiry);
-                          },
-                        ),
-                      ),
-          ),
-        ],
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.only(bottom: 80),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final inquiry = filteredInquiries[index];
+                      return _buildInquiryListItem(context, inquiry);
+                    },
+                    childCount: filteredInquiries.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/upload-inquiry'),
@@ -168,10 +185,11 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: AppTheme.primaryGreen.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
@@ -179,18 +197,26 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
           child: const Icon(
             Icons.description,
             color: AppTheme.primaryGreen,
+            size: 22,
           ),
         ),
         title: Text(
           inquiry.inquiryNumber,
           style: const TextStyle(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 4),
-            Text(inquiry.customerName),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
+            Text(
+              inquiry.customerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
             Text(
               '${inquiry.items.length} items',
               style: TextStyle(
@@ -200,28 +226,36 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
             ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Chip(
-              label: Text(
-                statusText,
-                style: const TextStyle(fontSize: 10),
+        trailing: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 100),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Chip(
+                label: Text(
+                  statusText,
+                  style: const TextStyle(fontSize: 10),
+                ),
+                backgroundColor: statusColor.withOpacity(0.2),
+                labelStyle: TextStyle(color: statusColor),
+                padding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              backgroundColor: statusColor.withOpacity(0.2),
-              labelStyle: TextStyle(color: statusColor),
-              padding: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              DateFormat('MMM dd, yyyy').format(inquiry.inquiryDate),
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
+              const SizedBox(height: 2),
+              Text(
+                DateFormat('MMM dd, yyyy').format(inquiry.inquiryDate),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         onTap: () {
           if (inquiry.id != null) {

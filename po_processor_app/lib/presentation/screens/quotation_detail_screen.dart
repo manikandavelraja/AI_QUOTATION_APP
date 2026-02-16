@@ -709,32 +709,36 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
                                   ),
                                 ],
                               ),
-                              if (poNumbers.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(Icons.description, size: 16, color: Colors.green[700]),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Wrap(
-                                        spacing: 4,
-                                        runSpacing: 4,
-                                        children: poNumbers.map((poNumber) {
-                                          return Chip(
-                                            label: Text(
-                                              'PO: $poNumber',
-                                              style: const TextStyle(fontSize: 12),
-                                            ),
-                                            backgroundColor: Colors.green[50],
-                                            labelStyle: TextStyle(color: Colors.green[900]),
-                                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                              const SizedBox(height: 8),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.description, size: 16, color: Colors.green[700]),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: poNumbers.isEmpty
+                                        ? Text(
+                                            'PO: —',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                          )
+                                        : Wrap(
+                                            spacing: 4,
+                                            runSpacing: 4,
+                                            children: poNumbers.map((poNumber) {
+                                              return Chip(
+                                                label: Text(
+                                                  'PO: $poNumber',
+                                                  style: const TextStyle(fontSize: 12),
+                                                ),
+                                                backgroundColor: Colors.green[50],
+                                                labelStyle: TextStyle(color: Colors.green[900]),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              );
+                                            }).toList(),
+                                          ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),

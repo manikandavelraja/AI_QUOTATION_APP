@@ -91,6 +91,10 @@
   "security": "Security",
   "secure_data_storage": "All data is encrypted and securely stored",
   "sustainability": "Sustainability",
-  "green_tech_enabled": "Green technology and sustainability features enabled"
+  "green_tech_enabled": "Green technology and sustainability features enabled",
+  "po_information": "PO Information",
+  "purchase_order": "Purchase Order",
+  "items": "items",
+  "terms": "Terms"
 }
 
