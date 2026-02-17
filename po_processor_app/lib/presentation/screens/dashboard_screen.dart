@@ -34,7 +34,6 @@ import '../../contract management _ personal assistant/providers/language_provid
 import '../../contract management _ personal assistant/providers/saved_results_provider.dart';
 import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
-import 'seasonal_trends_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -67,7 +66,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       // Rebuild when tab changes to update FAB visibility
       setState(() {});
@@ -111,43 +110,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          tooltip: 'menu'.tr(),
-        ),
         title: Text(
           'ELEVATEIONIX'.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.settings),
-        //     onPressed: () => context.push('/settings'),
-        //     tooltip: 'settings'.tr(),
-        //   ),
-        //   IconButton(
-        //     icon: const Icon(Icons.logout),
-        //     onPressed: () {
-        //       ref.read(authProvider.notifier).logout();
-        //       context.go('/login');
-        //     },
-        //     tooltip: 'logout'.tr(),
-        //   ),
-        // ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.push('/settings'),
+            tooltip: 'settings'.tr(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              ref.read(authProvider.notifier).logout();
+              context.go('/login');
+            },
+            tooltip: 'logout'.tr(),
+          ),
+        ],
       ),
-      drawer: _buildNavigationDrawer(context),
-      body: Row(
+      body: Column(
         children: [
-          // Left-side navigation drawer (always visible on desktop, drawer on mobile)
-          if (ResponsiveHelper.isDesktop(context) ||
-              ResponsiveHelper.isTablet(context))
-            Container(
-              width: 280,
-              color: Colors.white,
-              child: _buildSidebarNavigation(context),
+          // Sticky TabBar with Indigo/Deep Blue theme
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: false,
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.black,
+              indicatorWeight: 3,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 14,
+              ),
+              tabs: const [
+                Tab(icon: Icon(Icons.inventory_2), text: 'Supply Chain'),
+                Tab(icon: Icon(Icons.description), text: 'Contract Management'),
+                Tab(
+                  icon: Icon(Icons.analytics),
+                  text: ' Customer Call Insights',
+                ),
+                Tab(icon: Icon(Icons.assistant), text: 'Personal Assistant'),
+              ],
             ),
-          // Main content area
+          ),
+          // TabBarView content
           Expanded(
             child: poState.isLoading && _tabController.index == 0
                 ? const Center(child: CircularProgressIndicator())
@@ -311,8 +325,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ],
                         child: const VoiceMemoScreen(),
                       ),
-                      // Seasonal Trends Tab - Qumarionix GreenFlow
-                      const SeasonalTrendsScreen(),
                     ],
                   ),
           ),
@@ -3450,271 +3462,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             child: const Text('Close'),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Build navigation drawer for mobile devices
-  Widget _buildNavigationDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Navigation'.tr(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.inventory_2,
-            title: 'Supply Chain',
-            index: 0,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.description,
-            title: 'Contract Management',
-            index: 1,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.analytics,
-            title: 'Customer Call Insights',
-            index: 2,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.assistant,
-            title: 'Personal Assistant',
-            index: 3,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.trending_up,
-            title: 'Seasonal Trends',
-            index: 4,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: Text('settings'.tr()),
-            onTap: () {
-              Navigator.pop(context);
-              context.push('/settings');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: Text('logout'.tr()),
-            onTap: () {
-              Navigator.pop(context);
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build sidebar navigation for desktop/tablet
-  Widget _buildSidebarNavigation(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(2, 0),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Navigation'.tr(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Navigation items
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.inventory_2,
-                  title: 'Supply Chain',
-                  index: 0,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.description,
-                  title: 'Contract Management',
-                  index: 1,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.analytics,
-                  title: 'Customer Call Insights',
-                  index: 2,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.assistant,
-                  title: 'Personal Assistant',
-                  index: 3,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.trending_up,
-                  title: 'Seasonal Trends',
-                  index: 4,
-                ),
-              ],
-            ),
-          ),
-          // Footer actions
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: Text('settings'.tr()),
-            onTap: () => context.push('/settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: Text('logout'.tr()),
-            onTap: () {
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build drawer item for mobile
-  Widget _buildDrawerItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required int index,
-  }) {
-    final isSelected = _tabController.index == index;
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? AppTheme.primaryGreen : Colors.black87,
-        ),
-      ),
-      selected: isSelected,
-      selectedTileColor: AppTheme.primaryGreen.withOpacity(0.1),
-      onTap: () {
-        Navigator.pop(context);
-        _tabController.animateTo(index);
-        setState(() {});
-      },
-    );
-  }
-
-  /// Build sidebar item for desktop/tablet
-  Widget _buildSidebarItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required int index,
-  }) {
-    final isSelected = _tabController.index == index;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppTheme.primaryGreen.withOpacity(0.1)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: isSelected
-            ? Border.all(color: AppTheme.primaryGreen, width: 2)
-            : null,
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? AppTheme.primaryGreen : Colors.black87,
-            fontSize: 14,
-          ),
-        ),
-        onTap: () {
-          _tabController.animateTo(index);
-          setState(() {});
-        },
       ),
     );
   }
