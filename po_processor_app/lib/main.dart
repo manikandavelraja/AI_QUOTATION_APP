@@ -7,6 +7,7 @@ import 'core/utils/app_router.dart';
 import 'data/services/database_service.dart';
 import 'data/services/email_service.dart';
 import 'presentation/providers/language_provider.dart';
+import 'contract management _ personal assistant/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,9 @@ void main() async {
     );
     debugPrint('⚠️ You can copy .env.example to .env and fill in your values');
   }
+
+  // Initialize logger first
+  AppLogger.initialize();
 
   // Initialize localization first
   await EasyLocalization.ensureInitialized();

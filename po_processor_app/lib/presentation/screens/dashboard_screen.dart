@@ -25,6 +25,16 @@ import '../providers/quotation_provider.dart';
 import '../../data/services/catalog_service.dart';
 import '../../domain/entities/quotation.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart' as provider_pkg;
+import 'coming_soon_screen.dart';
+import '../../contract management _ personal assistant/screens/pdf_analysis_screen.dart';
+import '../../contract management _ personal assistant/screens/voice_memo_screen.dart';
+import '../../contract management _ personal assistant/providers/language_provider.dart'
+    as cm_lang;
+import '../../contract management _ personal assistant/providers/saved_results_provider.dart';
+import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
+import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
+import 'seasonal_trends_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -33,18 +43,35 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  late TabController _tabController;
   final _emailService = EmailService();
   final _pdfService = PDFService();
   final _aiService = GeminiAIService();
   final _catalogService = CatalogService();
-  final _quotationNumberService = QuotationNumberService(DatabaseService.instance);
+  final _quotationNumberService = QuotationNumberService(
+    DatabaseService.instance,
+  );
+  bool _isFetchingInquiry = false;
+  bool _isFetchingPO = false;
+  int _processedCount = 0;
+  int _successCount = 0;
+  int _errorCount = 0;
+  int _poProcessedCount = 0;
+  int _poSuccessCount = 0;
+  int _poErrorCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      // Rebuild when tab changes to update FAB visibility
+      setState(() {});
+    });
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -58,6 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   @override
   void dispose() {
+    _tabController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -79,154 +107,255 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryGreen,
-                AppTheme.primaryGreenLight,
-              ],
+              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
             ),
           ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          tooltip: 'menu'.tr(),
         ),
         title: Text(
-          'dashboard'.tr(),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
+          'ELEVATEIONIX'.tr(),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => context.push('/settings'),
-            tooltip: 'settings'.tr(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-            tooltip: 'logout'.tr(),
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.settings),
+        //     onPressed: () => context.push('/settings'),
+        //     tooltip: 'settings'.tr(),
+        //   ),
+        //   IconButton(
+        //     icon: const Icon(Icons.logout),
+        //     onPressed: () {
+        //       ref.read(authProvider.notifier).logout();
+        //       context.go('/login');
+        //     },
+        //     tooltip: 'logout'.tr(),
+        //   ),
+        // ],
       ),
-      body: poState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () => ref.read(poProvider.notifier).loadPurchaseOrders(),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SingleChildScrollView(
-                  padding: ResponsiveHelper.responsivePadding(context),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      drawer: _buildNavigationDrawer(context),
+      body: Row(
+        children: [
+          // Left-side navigation drawer (always visible on desktop, drawer on mobile)
+          if (ResponsiveHelper.isDesktop(context) ||
+              ResponsiveHelper.isTablet(context))
+            Container(
+              width: 280,
+              color: Colors.white,
+              child: _buildSidebarNavigation(context),
+            ),
+          // Main content area
+          Expanded(
+            child: poState.isLoading && _tabController.index == 0
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
                     children: [
-                      // Al-Kareem logo below app bar on the right - Rich container
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Container(
-                            margin: EdgeInsets.only(
-                              bottom: ResponsiveHelper.isMobile(context) ? 8 : 12,
-                              right: ResponsiveHelper.isMobile(context) ? 0 : 8,
+                      // Supply Chain Tab - All current features
+                      RefreshIndicator(
+                        onRefresh: () =>
+                            ref.read(poProvider.notifier).loadPurchaseOrders(),
+                        child: FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SingleChildScrollView(
+                            padding: ResponsiveHelper.responsivePadding(
+                              context,
                             ),
-                            padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 6 : 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                  spreadRadius: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Al-Kareem logo below app bar on the right - Rich container
+                                // Center(
+                                //   child: Container(
+                                //     //height: 200,
+                                //     height: 100,
+                                //     width: 300,
+                                //     padding: const EdgeInsets.all(8),
+                                //     child: Image.asset(
+                                //       'assets/icons/al-kareem.jpg',
+                                //       // width: double.infinity,
+                                //       // height: 300,
+                                //       fit: BoxFit.contain,
+                                //     ),
+                                //   ),
+                                // ),
+
+                                // Row(
+                                //   children: [
+                                //     Expanded(
+                                //       child: Container(
+                                //         margin: EdgeInsets.only(
+                                //           bottom:
+                                //               ResponsiveHelper.isMobile(context)
+                                //               ? 8
+                                //               : 12,
+                                //           right:
+                                //               ResponsiveHelper.isMobile(context)
+                                //               ? 0
+                                //               : 8,
+                                //         ),
+                                //         padding: const EdgeInsets.all(8),
+                                //         decoration: BoxDecoration(
+                                //           color: Colors.white,
+                                //           borderRadius: BorderRadius.circular(
+                                //             12,
+                                //           ),
+                                //           boxShadow: [
+                                //             BoxShadow(
+                                //               color: Colors.black.withOpacity(
+                                //                 0.1,
+                                //               ),
+                                //               blurRadius: 10,
+                                //               offset: const Offset(0, 3),
+                                //               spreadRadius: 1,
+                                //             ),
+                                //             BoxShadow(
+                                //               color: AppTheme.primaryGreen
+                                //                   .withOpacity(0.1),
+                                //               blurRadius: 15,
+                                //               offset: const Offset(0, 5),
+                                //             ),
+                                //           ],
+                                //           border: Border.all(
+                                //             color: AppTheme.primaryGreen
+                                //                 .withOpacity(0.2),
+                                //             width: 1.5,
+                                //           ),
+                                //         ),
+                                //         child: ClipRRect(
+                                //           borderRadius: BorderRadius.circular(
+                                //             8,
+                                //           ),
+                                //           child: Image.asset(
+                                //             'assets/icons/al-kareem.jpg',
+                                //             width: double.infinity,
+                                //             height: 120, // set as you need
+                                //             fit: BoxFit.cover, // or contain
+                                //           ),
+                                //         ),
+                                //       ),
+                                //     ),
+                                //   ],
+                                // ),
+                                _buildWelcomeHeader(context),
+                                SizedBox(
+                                  height: ResponsiveHelper.responsiveSpacing(
+                                    context,
+                                  ),
                                 ),
-                                BoxShadow(
-                                  color: AppTheme.primaryGreen.withOpacity(0.1),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 5),
-                                  spreadRadius: 0,
+                                // QuickActions moved to top
+                                _buildQuickActions(context,syncState),
+                                SizedBox(
+                                  height: ResponsiveHelper.responsiveSpacing(
+                                    context,
+                                  ),
+                                ),
+                                _buildStatsGrid(context, stats),
+                                SizedBox(
+                                  height: ResponsiveHelper.responsiveSpacing(
+                                    context,
+                                  ),
+                                ),
+                                _buildMonthlyUsageGraph(context, monthlyData),
+                                SizedBox(
+                                  height: ResponsiveHelper.responsiveSpacing(
+                                    context,
+                                  ),
+                                ),
+                                // Background syncing indicator (non-intrusive, corner)
+                                if (syncState.isActive) _buildBackgroundSyncingIndicator(context, syncState.inquiryProgress, syncState.poProgress),
+                                if (syncState.isActive) SizedBox(height: ResponsiveHelper.responsiveSpacing(context) * 0.5),
+                                _buildExpiringAlerts(context, poState),
+                                SizedBox(
+                                  height: ResponsiveHelper.responsiveSpacing(
+                                    context,
+                                  ),
+                                ),
+                                _buildDraftQuotationsList(context),
+                                SizedBox(
+                                  height: ResponsiveHelper.isMobile(context)
+                                      ? 60.0
+                                      : 80.0,
                                 ),
                               ],
-                              border: Border.all(
-                                color: AppTheme.primaryGreen.withOpacity(0.2),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                'assets/icons/al-kareem.jpg',
-                                width: ResponsiveHelper.isMobile(context) ? 70 : 85,
-                                height: ResponsiveHelper.isMobile(context) ? 70 : 85,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: ResponsiveHelper.isMobile(context) ? 70 : 85,
-                                    height: ResponsiveHelper.isMobile(context) ? 70 : 85,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.image, 
-                                      color: Colors.grey, 
-                                      size: ResponsiveHelper.isMobile(context) ? 35 : 40,
-                                    ),
-                                  );
-                                },
-                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      _buildWelcomeHeader(context),
-                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
-                      // Background syncing indicator (non-intrusive, corner)
-                      if (syncState.isActive) _buildBackgroundSyncingIndicator(context, syncState.inquiryProgress, syncState.poProgress),
-                      if (syncState.isActive) SizedBox(height: ResponsiveHelper.responsiveSpacing(context) * 0.5),
-                      // QuickActions moved to top
-                      _buildQuickActions(context, syncState),
-                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
-                      _buildStatsGrid(context, stats),
-                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
-                      _buildMonthlyUsageGraph(context, monthlyData),
-                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
-                      _buildExpiringAlerts(context, poState),
-                      SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
-                      _buildDraftQuotationsList(context),
-                      SizedBox(height: ResponsiveHelper.isMobile(context) ? 60.0 : 80.0),
+                      // Contract Management Tab - PDF Analysis
+                      provider_pkg.MultiProvider(
+                        providers: [
+                          provider_pkg.ChangeNotifierProvider(
+                            create: (_) => cm_lang.LanguageProvider(),
+                          ),
+                          provider_pkg.ChangeNotifierProvider(
+                            create: (_) => SavedResultsProvider(),
+                          ),
+                        ],
+                        child: const PDFAnalysisScreen(),
+                      ),
+                      // Post-Call Analyze Tab
+                      provider_pkg.ChangeNotifierProvider(
+                        create: (_) => CallRecordingsProvider(),
+                        child: const PostCallAnalyzeScreen(),
+                      ),
+                      // Personal Assistant Tab - Voice Recording
+                      provider_pkg.MultiProvider(
+                        providers: [
+                          provider_pkg.ChangeNotifierProvider(
+                            create: (_) => cm_lang.LanguageProvider(),
+                          ),
+                          provider_pkg.ChangeNotifierProvider(
+                            create: (_) => SavedResultsProvider(),
+                          ),
+                        ],
+                        child: const VoiceMemoScreen(),
+                      ),
+                      // Seasonal Trends Tab - Qumarionix GreenFlow
+                      const SeasonalTrendsScreen(),
                     ],
                   ),
-                ),
-              ),
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/upload'),
-        backgroundColor: AppTheme.primaryGreen,
-        icon: const Icon(Icons.add),
-        label: Text('upload_po'.tr()),
-        elevation: 4,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: AppTheme.primaryGreen,
-        unselectedItemColor: Colors.grey,
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.dashboard),
-            label: 'dashboard'.tr(),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.list),
-            label: 'po_list'.tr(),
           ),
         ],
-        onTap: (index) {
-          if (index == 1) {
-            context.push('/po-list');
+      ),
+      floatingActionButton: Builder(
+        builder: (context) {
+          // Only show FAB on Supply Chain tab (index 0)
+          if (_tabController.index == 0) {
+            return FloatingActionButton.extended(
+              onPressed: () => context.push('/upload'),
+              backgroundColor: AppTheme.primaryGreen,
+              icon: const Icon(Icons.add),
+              label: Text('upload_po'.tr()),
+              elevation: 4,
+            );
           }
+          return const SizedBox.shrink();
         },
       ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: 0,
+      //   selectedItemColor: AppTheme.primaryGreen,
+      //   unselectedItemColor: Colors.grey,
+      //   items: [
+      //     BottomNavigationBarItem(
+      //       icon: const Icon(Icons.dashboard),
+      //       label: 'dashboard'.tr(),
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: const Icon(Icons.list),
+      //       label: 'po_list'.tr(),
+      //     ),
+      //   ],
+      //   onTap: (index) {
+      //     if (index == 1) {
+      //       context.push('/po-list');
+      //     }
+      //   },
+      // ),
     );
   }
 
@@ -243,7 +372,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             AppTheme.primaryGreenLight.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
+        ),
         border: Border.all(
           color: AppTheme.primaryGreen.withOpacity(0.2),
           width: 1,
@@ -271,18 +402,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 Text(
                   'business_pulse'.tr(),
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
-                        fontSize: ResponsiveHelper.responsiveFontSize(context, 24),
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGreen,
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 24),
+                  ),
                 ),
                 SizedBox(height: isMobile ? 2 : 4),
                 Text(
                   'Real-time insights and analytics',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
-                      ),
+                    color: Colors.grey[600],
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1265,6 +1396,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                               ),
                             ),
                           ),
+                          // Partial Quote badge
+                          if (quotation.items.any(
+                            (item) => item.status == 'pending',
+                          ))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 14,
+                                      color: Colors.amber.shade900,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Partial Quote',
+                                      style: TextStyle(
+                                        color: Colors.amber.shade900,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -2482,6 +2649,271 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build navigation drawer for mobile devices
+  Widget _buildNavigationDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'ELEVATEIONIX'.tr(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Navigation'.tr(),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.inventory_2,
+            title: 'Supply Chain',
+            index: 0,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.description,
+            title: 'Contract Management',
+            index: 1,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.analytics,
+            title: 'Customer Call Insights',
+            index: 2,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.assistant,
+            title: 'Personal Assistant',
+            index: 3,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.trending_up,
+            title: 'Seasonal Trends',
+            index: 4,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: Text('settings'.tr()),
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/settings');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: Text('logout'.tr()),
+            onTap: () {
+              Navigator.pop(context);
+              ref.read(authProvider.notifier).logout();
+              context.go('/login');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build sidebar navigation for desktop/tablet
+  Widget _buildSidebarNavigation(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ELEVATEIONIX'.tr(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Navigation'.tr(),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Navigation items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.inventory_2,
+                  title: 'Supply Chain',
+                  index: 0,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.description,
+                  title: 'Contract Management',
+                  index: 1,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.analytics,
+                  title: 'Customer Call Insights',
+                  index: 2,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.assistant,
+                  title: 'Personal Assistant',
+                  index: 3,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.trending_up,
+                  title: 'Seasonal Trends',
+                  index: 4,
+                ),
+              ],
+            ),
+          ),
+          // Footer actions
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: Text('settings'.tr()),
+            onTap: () => context.push('/settings'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: Text('logout'.tr()),
+            onTap: () {
+              ref.read(authProvider.notifier).logout();
+              context.go('/login');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build drawer item for mobile
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required int index,
+  }) {
+    final isSelected = _tabController.index == index;
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? AppTheme.primaryGreen : Colors.black87,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: AppTheme.primaryGreen.withOpacity(0.1),
+      onTap: () {
+        Navigator.pop(context);
+        _tabController.animateTo(index);
+        setState(() {});
+      },
+    );
+  }
+
+  /// Build sidebar item for desktop/tablet
+  Widget _buildSidebarItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required int index,
+  }) {
+    final isSelected = _tabController.index == index;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppTheme.primaryGreen.withOpacity(0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: isSelected
+            ? Border.all(color: AppTheme.primaryGreen, width: 2)
+            : null,
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? AppTheme.primaryGreen : Colors.black87,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () {
+          _tabController.animateTo(index);
+          setState(() {});
+        },
       ),
     );
   }
