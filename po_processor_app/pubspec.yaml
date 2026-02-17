@@ -57,6 +57,7 @@ dependencies:
   equatable: ^2.0.5
   json_annotation: ^4.8.1
   logger: ^2.0.2+1
+  intl: ^0.20.2
   
   
   # Notifications & Alerts
@@ -79,7 +80,11 @@ dependencies:
   # PDF Generation
   pdf: ^3.11.1
   printing: ^5.13.2
-  
+
+  # PDF to Image & OCR (for SAP-encoded PDFs)
+  pdfx: ^2.9.2
+  google_mlkit_text_recognition: ^0.12.0
+
   # Voice & Audio (for Personal Assistant)
   record: ^5.1.2
   permission_handler: ^11.3.1
@@ -87,6 +92,8 @@ dependencies:
   flutter_tts: ^4.0.2
   image_picker: ^1.1.2
   just_audio: ^0.9.36
+
+
 
 dev_dependencies:
   flutter_test:
@@ -115,6 +122,7 @@ flutter:
     - assets/locales/en.json
     - assets/locales/ta.json
     - assets/audio/
+    - assets/templates/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

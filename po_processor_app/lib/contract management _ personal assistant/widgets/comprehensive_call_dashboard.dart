@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/call_recording.dart';
 import '../providers/call_recordings_provider.dart';
-import 'AI_Disclaimer.dart';
+import 'package:po_processor/presentation/widgets/ai_disclaimer.dart';
 
 /// Comprehensive dashboard showing all call analytics and insights
 class ComprehensiveCallDashboard extends StatelessWidget {
@@ -476,7 +476,7 @@ class ComprehensiveCallDashboard extends StatelessWidget {
                       ),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.indigo.withOpacity(0.1),
+                        color: Colors.indigo.withValues(alpha: 0.1),
                       ),
                     ),
                   ],
@@ -634,7 +634,7 @@ class ComprehensiveCallDashboard extends StatelessWidget {
                 RadarChartData(
                   dataSets: [
                     RadarDataSet(
-                      fillColor: Colors.indigo.withOpacity(0.3),
+                      fillColor: Colors.indigo.withValues(alpha: 0.3),
                       borderColor: Colors.indigo,
                       borderWidth: 2,
                       dataEntries: [
@@ -749,9 +749,9 @@ class ComprehensiveCallDashboard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.indigo.withOpacity(0.1),
+                    color: Colors.indigo.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.indigo.withOpacity(0.3)),
+                    border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     word.word,

@@ -48,6 +48,7 @@ class _VoiceMemoScreenState extends State<VoiceMemoScreen> {
     SavedResultsProvider provider,
     int index,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -71,17 +72,14 @@ class _VoiceMemoScreenState extends State<VoiceMemoScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
-      await provider.deleteResult(index);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Result deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
+    if (confirmed != true) return;
+    await provider.deleteResult(index);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Result deleted successfully'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override

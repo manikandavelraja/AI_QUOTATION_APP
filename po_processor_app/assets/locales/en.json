@@ -21,6 +21,7 @@
   "processing": "Processing...",
   "extracting_data": "Extracting data from PDF...",
   "po_number": "PO Number",
+  "quotation_number": "Quotation Number",
   "po_date": "PO Date",
   "expiry_date": "Expiry Date",
   "customer_name": "Customer Name",
@@ -90,6 +91,10 @@
   "security": "Security",
   "secure_data_storage": "All data is encrypted and securely stored",
   "sustainability": "Sustainability",
-  "green_tech_enabled": "Green technology and sustainability features enabled"
+  "green_tech_enabled": "Green technology and sustainability features enabled",
+  "po_information": "PO Information",
+  "purchase_order": "Purchase Order",
+  "items": "items",
+  "terms": "Terms"
 }
 

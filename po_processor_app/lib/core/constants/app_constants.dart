@@ -48,7 +48,7 @@ class AppConstants {
   
   // Database Configuration
   static const String databaseName = 'po_processor.db';
-  static const int databaseVersion = 4; // Incremented to add is_priced and status to quotation_items
+  static const int databaseVersion = 5; // Add inquiry_items.status for item-level quoted/pending
   
   // Supported Languages
   static const String defaultLanguage = 'en';

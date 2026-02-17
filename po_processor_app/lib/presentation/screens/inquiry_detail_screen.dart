@@ -91,11 +91,12 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
       appBar: AppBar(
         title: Text(_inquiry!.inquiryNumber),
         actions: [
-          if (_inquiry!.status == 'pending' || _inquiry!.status == 'reviewed')
+          if (_inquiry!.items.any((i) => i.status == 'pending') ||
+              _inquiry!.status == 'pending' || _inquiry!.status == 'reviewed')
             IconButton(
               icon: const Icon(Icons.create),
               onPressed: _createQuotation,
-              tooltip: 'Create Quotation',
+              tooltip: 'Create / Update Quotation',
             ),
           IconButton(
             icon: const Icon(Icons.delete),
@@ -138,6 +139,10 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
       case 'quoted':
         statusColor = Colors.green;
         statusText = 'Quoted';
+        break;
+      case 'partially_quoted':
+        statusColor = Colors.teal;
+        statusText = 'Partially Quoted';
         break;
       case 'converted_to_po':
         statusColor = Colors.purple;
@@ -266,6 +271,13 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
   }
 
   Widget _buildItemsCard(BuildContext context) {
+    final quotedCount = _inquiry!.items.where((i) => i.status == 'quoted').length;
+    final pendingCount = _inquiry!.items.length - quotedCount;
+    final summary = _inquiry!.items.isEmpty
+        ? 'Items (0)'
+        : (quotedCount > 0 && pendingCount > 0)
+            ? 'Items (${_inquiry!.items.length}) — $quotedCount quoted, $pendingCount pending'
+            : 'Items (${_inquiry!.items.length})';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -273,7 +285,7 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Items (${_inquiry!.items.length})',
+              summary,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
@@ -284,15 +296,34 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
     );
   }
 
-  Widget _buildItemRow(BuildContext context, item) {
+  Widget _buildItemRow(BuildContext context, InquiryItem item) {
+    final isQuoted = item.status == 'quoted';
+    final itemStatusColor = isQuoted ? Colors.green : Colors.orange;
+    final itemStatusText = isQuoted ? 'Quoted' : 'Pending';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            item.itemName,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.itemName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Chip(
+                label: Text(
+                  itemStatusText,
+                  style: const TextStyle(fontSize: 10),
+                ),
+                backgroundColor: itemStatusColor.withOpacity(0.2),
+                labelStyle: TextStyle(color: itemStatusColor),
+                padding: EdgeInsets.zero,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
           ),
           if (item.itemCode != null)
             Text(

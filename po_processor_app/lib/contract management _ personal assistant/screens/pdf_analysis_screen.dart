@@ -117,10 +117,12 @@ class _PDFAnalysisScreenState extends State<PDFAnalysisScreen> {
       });
 
       // Auto-save result
+      if (!mounted) return;
       final savedProvider =
           Provider.of<SavedResultsProvider>(context, listen: false);
       await savedProvider.saveImageResult(result, _selectedPdfPath!);
 
+      if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         const SnackBar(
@@ -182,6 +184,7 @@ class _PDFAnalysisScreenState extends State<PDFAnalysisScreen> {
     SavedResultsProvider provider,
     int index,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -205,17 +208,14 @@ class _PDFAnalysisScreenState extends State<PDFAnalysisScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
-      await provider.deleteResult(index);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Result deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
+    if (confirmed != true) return;
+    await provider.deleteResult(index);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Result deleted successfully'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override

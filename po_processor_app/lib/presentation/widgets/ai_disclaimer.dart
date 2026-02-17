@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Shared AI disclaimer widget for contract management and other AI-generated content.
 class AIDisclaimer extends StatelessWidget {
   final double? confidenceScore;
 

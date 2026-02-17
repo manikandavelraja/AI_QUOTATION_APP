@@ -8,7 +8,7 @@ import '../widgets/recording_gallery_item.dart';
 import '../widgets/transcript_chat_bubble.dart';
 import '../widgets/call_insights_dashboard.dart';
 import '../widgets/comprehensive_call_dashboard.dart';
-import '../widgets/AI_Disclaimer.dart';
+import 'package:po_processor/presentation/widgets/ai_disclaimer.dart';
 import '../utils/logger.dart';
 
 class PostCallAnalyzeScreen extends StatefulWidget {
@@ -223,12 +223,14 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
         analysis: null,
       );
 
+      if (!mounted) return;
       final provider = Provider.of<CallRecordingsProvider>(
         context,
         listen: false,
       );
       await provider.updateRecording(recording.id, updated);
 
+      if (!mounted) return;
       // Refresh selected recording with latest data from provider
       final refreshed = provider.getRecordingWithData(recording.id);
       if (refreshed != null) {
@@ -267,13 +269,14 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
       await _transcribeRecording(recording);
       // Wait a bit for state to update
       await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
       // After transcription, get the updated recording and analyze
       final provider = Provider.of<CallRecordingsProvider>(
         context,
         listen: false,
       );
       final refreshed = provider.getRecordingWithData(recording.id);
-      if (refreshed != null && refreshed.transcript != null && mounted) {
+      if (refreshed != null && refreshed.transcript != null) {
         // Now analyze with the transcript
         await _analyzeRecording(
           refreshed,
@@ -322,12 +325,14 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
         analysis: analysis,
       );
 
+      if (!mounted) return;
       final provider = Provider.of<CallRecordingsProvider>(
         context,
         listen: false,
       );
       await provider.updateRecording(recording.id, updated);
 
+      if (!mounted) return;
       // Refresh selected recording with latest data from provider
       final refreshed = provider.getRecordingWithData(recording.id);
 
@@ -378,19 +383,23 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
     if (analysis.keyHighlights.issue.isEmpty) return false;
     if (analysis.keyHighlights.resolution.isEmpty) return false;
     if (analysis.keyHighlights.summary.isEmpty) return false;
-    if (analysis.agentScore.rating < 1 || analysis.agentScore.rating > 10)
+    if (analysis.agentScore.rating < 1 || analysis.agentScore.rating > 10) {
       return false;
+    }
     if (analysis.sentimentTrend.dataPoints.isEmpty) return false;
     if (analysis.topics.isEmpty) return false;
     if (analysis.agentPerformance.greeting < 0 ||
-        analysis.agentPerformance.greeting > 10)
+        analysis.agentPerformance.greeting > 10) {
       return false;
+    }
     if (analysis.agentPerformance.problemSolving < 0 ||
-        analysis.agentPerformance.problemSolving > 10)
+        analysis.agentPerformance.problemSolving > 10) {
       return false;
+    }
     if (analysis.agentPerformance.closing < 0 ||
-        analysis.agentPerformance.closing > 10)
+        analysis.agentPerformance.closing > 10) {
       return false;
+    }
 
     // Optional but recommended fields
     // wordCloud and loudnessTrend can be empty but should exist
@@ -513,11 +522,13 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       final provider = Provider.of<CallRecordingsProvider>(
         context,
         listen: false,
       );
       await provider.deleteRecording(id);
+      if (!mounted) return;
       if (_selectedRecording?.id == id) {
         setState(() {
           _selectedRecording = null;
@@ -1074,7 +1085,7 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
                         decoration: BoxDecoration(
                           color: _getSentimentColor(
                             analysis.sentimentScore.overall,
-                          ).withOpacity(0.1),
+                          ).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: _getSentimentColor(

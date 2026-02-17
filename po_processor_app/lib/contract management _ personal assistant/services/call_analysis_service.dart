@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import '../models/call_recording.dart';
@@ -947,7 +946,7 @@ Determine if this was a first call resolution (issue resolved in single call).
       // If still empty, use first part of transcript
       if (issue.isEmpty || issue == 'Issue identified in call') {
         issue = transcript.length > 150
-            ? transcript.substring(0, 150).trim() + '...'
+            ? '${transcript.substring(0, 150).trim()}...'
             : transcript.trim();
       }
     }
@@ -982,7 +981,7 @@ Determine if this was a first call resolution (issue resolved in single call).
       if (resolution.isEmpty || resolution == 'Resolution discussed') {
         final midPoint = transcript.length ~/ 2;
         resolution = transcript.length > 150
-            ? transcript.substring(midPoint - 75, midPoint + 75).trim() + '...'
+            ? '${transcript.substring(midPoint - 75, midPoint + 75).trim()}...'
             : transcript.substring(midPoint).trim();
       }
     }
@@ -998,12 +997,13 @@ Determine if this was a first call resolution (issue resolved in single call).
         summary = '$firstPart. $lastPart.';
         // Limit length
         if (summary.length > 300) {
-          summary = summary.substring(0, 300).trim() + '...';
+          summary = '${summary.substring(0, 300).trim()}...';
         }
       } else if (transcript.length > 200) {
         // Use first and last parts
         summary =
-            '${transcript.substring(0, 150).trim()}... ${transcript.substring(transcript.length - 100).trim()}';
+            '${transcript.substring(0, 150).trim()}... '
+            '${transcript.substring(transcript.length - 100).trim()}';
       } else {
         summary = transcript.trim();
       }

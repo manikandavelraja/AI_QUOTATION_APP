@@ -21,8 +21,13 @@ import '../../presentation/screens/quotation_detail_screen.dart';
 import '../../presentation/screens/splash_screen.dart';
 import '../../presentation/screens/material_forecast_screen.dart';
 
+/// Global navigator key for safe navigation from background tasks (e.g. after
+/// inquiry/PO sync completes when the user may be on a different screen).
+final GlobalKey<NavigatorState>? rootNavigatorKey = GlobalKey<NavigatorState>();
+
 class AppRouter {
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     errorBuilder: (context, state) => Scaffold(
       body: Center(

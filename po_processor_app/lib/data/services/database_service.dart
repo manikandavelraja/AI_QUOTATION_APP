@@ -67,7 +67,8 @@ class DatabaseService {
         pdf_path TEXT,
         status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER
+        updated_at INTEGER,
+        quotation_reference TEXT
       )
     ''');
 
@@ -135,6 +136,7 @@ class DatabaseService {
         manufacturer_part TEXT,
         class_code TEXT,
         plant TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
         FOREIGN KEY (inquiry_id) REFERENCES customer_inquiries (id) ON DELETE CASCADE
       )
     ''');
@@ -524,6 +526,22 @@ class DatabaseService {
         // Column might already exist, ignore error
       }
     }
+    
+    // Migration: Add quotation_reference column to purchase_orders table
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE purchase_orders ADD COLUMN quotation_reference TEXT');
+        debugPrint('✅ Added quotation_reference column to purchase_orders table');
+      } catch (e) {
+        debugPrint('⚠️ quotation_reference column might already exist: $e');
+      }
+      try {
+        await db.execute("ALTER TABLE inquiry_items ADD COLUMN status TEXT DEFAULT 'pending'");
+        debugPrint('✅ Added status column to inquiry_items table');
+      } catch (e) {
+        debugPrint('⚠️ inquiry_items.status column might already exist: $e');
+      }
+    }
   }
 
   // Purchase Order operations
@@ -606,6 +624,7 @@ class DatabaseService {
             ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
             : null,
         status: poMap['status'] as String,
+        quotationReference: poMap['quotation_reference'] as String?,
         lineItems: lineItems.map((item) => LineItem(
               id: item['id'] as String?,
               itemName: item['item_name'] as String,
@@ -661,6 +680,7 @@ class DatabaseService {
           ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
           : null,
       status: poMap['status'] as String,
+      quotationReference: poMap['quotation_reference'] as String?,
       lineItems: lineItems.map((item) => LineItem(
             id: item['id'] as String?,
             itemName: item['item_name'] as String,
@@ -823,6 +843,7 @@ class DatabaseService {
           'manufacturer_part': item.manufacturerPart,
           'class_code': item.classCode,
           'plant': item.plant,
+          'status': item.status,
         });
       }
     });
@@ -873,6 +894,7 @@ class DatabaseService {
               manufacturerPart: item['manufacturer_part'] as String?,
               classCode: item['class_code'] as String?,
               plant: item['plant'] as String?,
+              status: item['status'] as String? ?? 'pending',
             )).toList(),
       ));
     }
@@ -929,6 +951,7 @@ class DatabaseService {
             manufacturerPart: item['manufacturer_part'] as String?,
             classCode: item['class_code'] as String?,
             plant: item['plant'] as String?,
+            status: item['status'] as String? ?? 'pending',
           )).toList(),
     );
   }
@@ -976,6 +999,7 @@ class DatabaseService {
           'manufacturer_part': item.manufacturerPart,
           'class_code': item.classCode,
           'plant': item.plant,
+          'status': item.status,
         });
       }
     });
@@ -1193,27 +1217,30 @@ class DatabaseService {
     return matchingQuotations;
   }
 
-  /// Get historical quotations for a specific material code (all customers)
-  /// Returns quotations matching the material code, sorted by date descending
+  /// Get historical quotations for a material code, optionally scoped to one customer.
+  /// One Customer Inquiry → multiple Quotations → multiple POs; this returns past quotes for reuse.
   Future<List<Quotation>> getHistoricalQuotationsByMaterialCode({
     required String materialCode,
+    String? customerName,
     int limit = 10,
   }) async {
-    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Checking quotations for Material Code: $materialCode');
+    debugPrint('🔍 [getHistoricalQuotationsByMaterialCode] Material: $materialCode, customer: $customerName');
     
     if (kIsWeb) {
       final allQuotations = await _webStorage.getAllQuotations();
-      final filtered = allQuotations.where((qtn) {
+      var filtered = allQuotations.where((qtn) {
         final hasMaterial = qtn.items.any((item) => 
           item.itemCode?.toLowerCase() == materialCode.toLowerCase()
         );
         return hasMaterial;
       }).toList();
-      
-      // Sort by date descending and take limit
+      if (customerName != null && customerName.isNotEmpty) {
+        final cn = customerName.trim().toLowerCase();
+        filtered = filtered.where((q) => (q.customerName).trim().toLowerCase().contains(cn)).toList();
+      }
       filtered.sort((a, b) => b.quotationDate.compareTo(a.quotationDate));
       final result = filtered.take(limit).toList();
-      debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found ${result.length} quotations for Material Code: $materialCode');
+      debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found ${result.length} quotations');
       return result;
     }
     
@@ -1245,8 +1272,11 @@ class DatabaseService {
         return itemCode == normalizedMaterialCode;
       }).toList();
       
-      // If this quotation has the material code, include it
-      if (matchingItems.isNotEmpty) {
+      // If this quotation has the material code, include it (and optionally same customer)
+      final qCustomer = (quotationMap['customer_name'] as String? ?? '').trim().toLowerCase();
+      final customerMatch = customerName == null || customerName.isEmpty ||
+          qCustomer.contains(customerName.trim().toLowerCase());
+      if (matchingItems.isNotEmpty && customerMatch) {
         debugPrint('✅ [getHistoricalQuotationsByMaterialCode] Found matching item in quotation: ${quotationMap['quotation_number']}');
         
         matchingQuotations.add(Quotation(

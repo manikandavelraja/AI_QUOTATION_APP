@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/call_recording.dart';
-import 'AI_Disclaimer.dart';
+import 'package:po_processor/presentation/widgets/ai_disclaimer.dart';
 
 class CallInsightsDashboard extends StatelessWidget {
   final CallAnalysis analysis;
@@ -477,7 +477,7 @@ class CallInsightsDashboard extends StatelessWidget {
                       ),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.indigo.withOpacity(0.1),
+                        color: Colors.indigo.withValues(alpha: 0.1),
                       ),
                     ),
                   ],
@@ -633,7 +633,7 @@ class CallInsightsDashboard extends StatelessWidget {
                 RadarChartData(
                   dataSets: [
                     RadarDataSet(
-                      fillColor: Colors.indigo.withOpacity(0.3),
+                      fillColor: Colors.indigo.withValues(alpha: 0.3),
                       borderColor: Colors.indigo,
                       borderWidth: 2,
                       dataEntries: [
