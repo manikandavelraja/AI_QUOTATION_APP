@@ -106,6 +106,8 @@ class InquiryItem extends Equatable {
   final String? manufacturerPart;
   final String? classCode;
   final String? plant;
+  /// Item-level status: 'pending' (no price / not quoted) or 'quoted' (price assigned and sent).
+  final String status;
 
   const InquiryItem({
     this.id,
@@ -117,6 +119,7 @@ class InquiryItem extends Equatable {
     this.manufacturerPart,
     this.classCode,
     this.plant,
+    this.status = 'pending',
   });
 
   InquiryItem copyWith({
@@ -129,6 +132,7 @@ class InquiryItem extends Equatable {
     String? manufacturerPart,
     String? classCode,
     String? plant,
+    String? status,
   }) {
     return InquiryItem(
       id: id ?? this.id,
@@ -140,6 +144,7 @@ class InquiryItem extends Equatable {
       manufacturerPart: manufacturerPart ?? this.manufacturerPart,
       classCode: classCode ?? this.classCode,
       plant: plant ?? this.plant,
+      status: status ?? this.status,
     );
   }
 
@@ -154,6 +159,7 @@ class InquiryItem extends Equatable {
         manufacturerPart,
         classCode,
         plant,
+        status,
       ];
 }
 

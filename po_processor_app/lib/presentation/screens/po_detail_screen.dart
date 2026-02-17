@@ -18,6 +18,14 @@ class PODetailScreen extends ConsumerStatefulWidget {
 class _PODetailScreenState extends ConsumerState<PODetailScreen> {
   PurchaseOrder? _po;
   bool _isLoading = true;
+  bool _isUpdatingStatus = false;
+
+  static const List<Map<String, String>> _statusOptions = [
+    {'value': 'active', 'label': 'Active'},
+    {'value': 'awaiting_ordered', 'label': 'Awaiting Ordered'},
+    {'value': 'material_received', 'label': 'Material Received'},
+    {'value': 'delivery_status', 'label': 'Delivered'},
+  ];
 
   @override
   void initState() {
@@ -66,6 +74,37 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
     
     if (mounted) {
       context.push('/supplier-order-create?poId=${_po!.id}');
+    }
+  }
+
+  Future<void> _updatePOStatus(String newStatus) async {
+    if (_po == null || _po!.id == null) return;
+    setState(() => _isUpdatingStatus = true);
+    try {
+      final updated = _po!.copyWith(
+        status: newStatus,
+        updatedAt: DateTime.now(),
+      );
+      await ref.read(poProvider.notifier).updatePurchaseOrder(updated);
+      if (mounted) {
+        setState(() {
+          _po = updated;
+          _isUpdatingStatus = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated to ${_statusOptions.firstWhere((e) => e['value'] == newStatus, orElse: () => {'label': newStatus})['label']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -175,6 +214,21 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
         statusColor = Colors.orange;
         statusIcon = Icons.warning_amber_rounded;
         statusText = 'expiring_soon'.tr();
+        break;
+      case 'awaiting_ordered':
+        statusColor = Colors.blue;
+        statusIcon = Icons.schedule;
+        statusText = 'Awaiting Ordered';
+        break;
+      case 'material_received':
+        statusColor = Colors.teal;
+        statusIcon = Icons.inventory_2_outlined;
+        statusText = 'Material Received';
+        break;
+      case 'delivery_status':
+        statusColor = Colors.purple;
+        statusIcon = Icons.local_shipping_outlined;
+        statusText = 'Delivered';
         break;
       default:
         statusColor = Colors.green;
@@ -348,6 +402,54 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                   DateFormat('MMM dd, yyyy').format(_po!.expiryDate),
                   colorScheme,
                   isExpiry: true,
+                ),
+                const Divider(height: 32),
+                Row(
+                  children: [
+                    Icon(Icons.flag_outlined, color: colorScheme.primary, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            value: _statusOptions.any((e) => e['value'] == _po!.status)
+                                ? _po!.status
+                                : 'active',
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            items: _statusOptions
+                                .map((e) => DropdownMenuItem<String>(
+                                      value: e['value'],
+                                      child: Text(e['label']!),
+                                    ))
+                                .toList(),
+                            onChanged: _isUpdatingStatus
+                                ? null
+                                : (String? value) {
+                                    if (value != null && value != _po!.status) {
+                                      _updatePOStatus(value);
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

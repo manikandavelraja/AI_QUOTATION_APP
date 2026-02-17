@@ -30,7 +30,8 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
       final matchesFilter = _filterStatus == 'all' ||
           (_filterStatus == 'pending' && inquiry.status == 'pending') ||
           (_filterStatus == 'reviewed' && inquiry.status == 'reviewed') ||
-          (_filterStatus == 'quoted' && inquiry.status == 'quoted') ||
+          (_filterStatus == 'quoted' && (inquiry.status == 'quoted' || inquiry.status == 'partially_quoted')) ||
+          (_filterStatus == 'partially_quoted' && inquiry.status == 'partially_quoted') ||
           (_filterStatus == 'converted_to_po' && inquiry.status == 'converted_to_po');
       
       return matchesSearch && matchesFilter;
@@ -40,8 +41,8 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-          tooltip: 'Back',
+          onPressed: () => context.go('/dashboard'),
+          tooltip: 'Back to Home',
         ),
         title: const Text('Customer Inquiries'),
         actions: [
@@ -89,6 +90,8 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
                           _buildFilterChip('reviewed', 'Reviewed'),
                           const SizedBox(width: 8),
                           _buildFilterChip('quoted', 'Quoted'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('partially_quoted', 'Partially Quoted'),
                           const SizedBox(width: 8),
                           _buildFilterChip('converted_to_po', 'Converted to PO'),
                         ],
@@ -175,6 +178,10 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
         statusColor = Colors.green;
         statusText = 'Quoted';
         break;
+      case 'partially_quoted':
+        statusColor = Colors.teal;
+        statusText = 'Partially Quoted';
+        break;
       case 'converted_to_po':
         statusColor = Colors.purple;
         statusText = 'Converted to PO';
@@ -183,6 +190,13 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
         statusColor = Colors.grey;
         statusText = inquiry.status;
     }
+    final quotedCount = inquiry.items.where((i) => i.status == 'quoted').length;
+    final pendingCount = inquiry.items.length - quotedCount;
+    final itemSummary = inquiry.items.isEmpty
+        ? '0 items'
+        : (inquiry.status == 'partially_quoted' && pendingCount > 0 && quotedCount > 0)
+            ? '${inquiry.items.length} items ($quotedCount quoted, $pendingCount pending)'
+            : '${inquiry.items.length} items';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -218,7 +232,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              '${inquiry.items.length} items',
+              itemSummary,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],

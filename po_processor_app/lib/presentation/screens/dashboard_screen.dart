@@ -75,8 +75,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       appBar: AppBar(
         elevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: AppTheme.brandGradient,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.primaryGreen,
+                AppTheme.primaryGreenLight,
+              ],
+            ),
           ),
         ),
         title: Text(
@@ -332,165 +339,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           return Container(
             width: ResponsiveHelper.responsiveStatCardWidth(context),
             margin: EdgeInsets.only(right: isMobile ? 12 : 16),
-            child: _buildStatCard(
-          context,
-              item['title'] as String,
-              item['value'] as String,
-              item['icon'] as IconData,
-              item['gradient'] as List<Color>,
-              item['iconBg'] as Color,
+            child: _DashboardStatCard(
+              title: item['title'] as String,
+              value: item['value'] as String,
+              icon: item['icon'] as IconData,
+              gradientColors: item['gradient'] as List<Color>,
+              iconBg: item['iconBg'] as Color,
             ),
           );
         },
       ),
-    );
-  }
-
-  Widget _buildStatCard(
-    BuildContext context,
-    String title,
-    String value,
-    IconData icon,
-    List<Color> gradientColors,
-    Color backgroundColor,
-  ) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
-      builder: (context, animValue, child) {
-        return Transform.scale(
-          scale: 0.8 + (animValue * 0.2),
-          child: Opacity(
-            opacity: animValue,
-            child: Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-                  colors: [
-                    gradientColors[0],
-                    gradientColors[1],
-                    gradientColors[1].withOpacity(0.9),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-                    color: gradientColors[0].withOpacity(0.5),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                    spreadRadius: 4,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-              child: Stack(
-                children: [
-                  // Decorative circles
-                  Positioned(
-                    top: -20,
-                    right: -20,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.1),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: -30,
-                    left: -30,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.08),
-                      ),
-                    ),
-                  ),
-                  // Content
-                  Padding(
-        padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 14 : 18),
-        child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-                          padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 8 : 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 12 : 16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            icon, 
-                            size: ResponsiveHelper.responsiveIconSize(context, 32), 
-                            color: Colors.white,
-                          ),
-            ),
-            const SizedBox(height: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              // Use FittedBox to auto-scale text for large numbers
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                value,
-                style: TextStyle(
-                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 38),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                                    letterSpacing: -1,
-                                    height: 1.0,
-                ),
-                                  maxLines: 1,
-              ),
-                              ),
-                              SizedBox(height: ResponsiveHelper.isMobile(context) ? 4 : 6),
-                              Flexible(
-                                child: Text(
-                title,
-                style: TextStyle(
-                                  fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
-                                  color: Colors.white.withOpacity(0.95),
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
-                                  height: 1.2,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-                              ),
-            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1504,16 +1362,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          gradient: AppTheme.brandGradientSoft,
+          color: AppTheme.primaryGreen.withOpacity(0.12),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.brandCharcoal.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.brandCharcoal.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1605,21 +1456,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            AppTheme.brandLight.withOpacity(0.08),
-            AppTheme.brandDark.withOpacity(0.05),
+            Colors.grey.shade50,
           ],
         ),
         borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
         border: Border.all(
-          color: AppTheme.brandDark.withOpacity(0.2),
+          color: Colors.grey.shade200,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.brandCharcoal.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-            spreadRadius: 2,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: AppTheme.primaryGreen.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1629,18 +1484,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isMobile ? 8 : 10),
+                padding: EdgeInsets.all(isMobile ? 10 : 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.brandLight.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.primaryGreen.withOpacity(0.15),
+                      AppTheme.primaryGreenLight.withOpacity(0.12),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryGreen.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   Icons.flash_on,
-                  color: AppTheme.brandDark,
-                  size: ResponsiveHelper.responsiveIconSize(context, 24),
+                  color: AppTheme.primaryGreen,
+                  size: ResponsiveHelper.responsiveIconSize(context, 26),
                 ),
               ),
-              SizedBox(width: isMobile ? 10 : 12),
+              SizedBox(width: isMobile ? 12 : 14),
               Expanded(
                 child: Text(
                   'quick_actions'.tr(),
@@ -1654,7 +1523,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ),
             ],
           ),
-          SizedBox(height: isMobile ? 12 : 16),
+          SizedBox(height: isMobile ? 14 : 18),
           // Modern Rich UI with consistent color scheme
           // Stage 1: Customer Inquiry
           _buildModernActionButton(
@@ -1750,17 +1619,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     // Otherwise, show side by side
                     return Row(
                       children: [
-                        Expanded(
-                          flex: 1,
-                          child: _buildModernActionButton(
-                            context,
-                            'upload_po'.tr(),
-                            Icons.upload_file,
-                            () => context.push('/upload'),
-                            subtitle: 'Upload PO document',
-                          ),
-                        ),
-                        SizedBox(width: 12),
+                       
                         Expanded(
                           flex: 1,
                           child: _buildPOFromMailAction(context, isPOSyncing, poProgress),
@@ -1777,7 +1636,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             () => context.push('/po-list'),
             subtitle: 'View all purchase orders',
           ),
-          
+          SizedBox(height: isMobile ? 10 : 12),
           SizedBox(height: isMobile ? 10 : 12),
           // Stage 5: Delivery Documents
           _buildModernActionButton(
@@ -1801,7 +1660,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  /// Modern action button with rich UI and consistent color scheme
+  /// Premium quick action card with hover micro-interactions and rich UI
   Widget _buildModernActionButton(
     BuildContext context,
     String label,
@@ -1810,128 +1669,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     String? subtitle,
     bool isLoading = false,
   }) {
-    final isMobile = ResponsiveHelper.isMobile(context);
-    // Use primary green theme for all buttons
-    final primaryColor = AppTheme.primaryGreen;
-    final secondaryColor = AppTheme.primaryGreenLight;
-    
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            primaryColor,
-            secondaryColor,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 14 : 16),
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(ResponsiveHelper.isMobile(context) ? 14 : 16),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              vertical: isMobile ? 16 : 18,
-              horizontal: isMobile ? 14 : 20,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icon container with better styling
-                Container(
-                  padding: EdgeInsets.all(isMobile ? 10 : 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: isLoading
-                      ? SizedBox(
-                          width: ResponsiveHelper.responsiveIconSize(context, 20),
-                          height: ResponsiveHelper.responsiveIconSize(context, 20),
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Icon(
-                          icon, 
-                          color: Colors.white, 
-                          size: ResponsiveHelper.responsiveIconSize(context, 26),
-                        ),
-                ),
-                SizedBox(width: isMobile ? 14 : 18),
-                // Text content with flexible layout
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Main label - allow wrapping
-                      Flexible(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 15 : 16),
-                            letterSpacing: 0.3,
-                            height: 1.2,
-                          ),
-                          maxLines: isMobile ? 2 : 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: true,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        SizedBox(height: isMobile ? 4 : 6),
-                        Flexible(
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.95),
-                              fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 11 : 12),
-                              fontWeight: FontWeight.w500,
-                              height: 1.3,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Arrow icon - smaller on mobile, can be hidden if needed
-                SizedBox(width: isMobile ? 8 : 12),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white.withOpacity(0.9),
-                  size: ResponsiveHelper.responsiveIconSize(context, isMobile ? 14 : 16),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _QuickActionCard(
+      label: label,
+      icon: icon,
+      onPressed: isLoading ? null : onPressed,
+      subtitle: subtitle,
+      isLoading: isLoading,
     );
   }
 
@@ -2739,6 +2482,346 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Dashboard stat card with same hover animation as QuickAction cards (scale + elevation).
+class _DashboardStatCard extends StatefulWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final Color iconBg;
+
+  const _DashboardStatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.gradientColors,
+    required this.iconBg,
+  });
+
+  @override
+  State<_DashboardStatCard> createState() => _DashboardStatCardState();
+}
+
+class _DashboardStatCardState extends State<_DashboardStatCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final scale = _hovered ? 1.02 : 1.0;
+    final elevationBlur = _hovered ? 28.0 : 24.0;
+    final elevationOffset = _hovered ? 16.0 : 12.0;
+    final spreadRadius = _hovered ? 6.0 : 4.0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          cursor: SystemMouseCursors.basic,
+          child: AnimatedScale(
+            scale: (0.8 + (animValue * 0.2)) * scale,
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            child: Opacity(
+              opacity: animValue,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOut,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.gradientColors[0],
+                      widget.gradientColors[1],
+                      widget.gradientColors[1].withOpacity(0.9),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.gradientColors[0].withOpacity(_hovered ? 0.55 : 0.5),
+                      blurRadius: elevationBlur,
+                      offset: Offset(0, elevationOffset),
+                      spreadRadius: spreadRadius,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(_hovered ? 0.15 : 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: -20,
+                      right: -20,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -30,
+                      left: -30,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(isMobile ? 14 : 18),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(isMobile ? 8 : 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              widget.icon,
+                              size: ResponsiveHelper.responsiveIconSize(context, 32),
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    widget.value,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveHelper.responsiveFontSize(context, 38),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      letterSpacing: -1,
+                                      height: 1.0,
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                SizedBox(height: isMobile ? 4 : 6),
+                                Flexible(
+                                  child: Text(
+                                    widget.title,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                      color: Colors.white.withOpacity(0.95),
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Premium quick action card with gradient, icon, and hover micro-interactions.
+class _QuickActionCard extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String? subtitle;
+  final bool isLoading;
+
+  const _QuickActionCard({
+    required this.label,
+    required this.icon,
+    this.onPressed,
+    this.subtitle,
+    this.isLoading = false,
+  });
+
+  @override
+  State<_QuickActionCard> createState() => _QuickActionCardState();
+}
+
+class _QuickActionCardState extends State<_QuickActionCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final primaryColor = AppTheme.primaryGreen;
+    final secondaryColor = AppTheme.primaryGreenLight;
+    final borderRadius = BorderRadius.circular(isMobile ? 14 : 18);
+    final elevation = _hovered && widget.onPressed != null ? 8.0 : 3.0;
+    final scale = _hovered && widget.onPressed != null ? 1.02 : 1.0;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: widget.onPressed != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: AnimatedPhysicalModel(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          shape: BoxShape.rectangle,
+          borderRadius: borderRadius,
+          elevation: elevation,
+          color: Colors.transparent,
+          shadowColor: primaryColor.withOpacity(0.35),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  primaryColor,
+                  secondaryColor,
+                  primaryColor.withOpacity(0.9),
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+              borderRadius: borderRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withOpacity(_hovered ? 0.45 : 0.3),
+                  blurRadius: _hovered ? 16 : 10,
+                  offset: Offset(0, _hovered ? 8 : 4),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onPressed,
+                borderRadius: borderRadius,
+                splashColor: Colors.white.withOpacity(0.3),
+                highlightColor: Colors.white.withOpacity(0.15),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isMobile ? 16 : 20,
+                    horizontal: isMobile ? 16 : 22,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isMobile ? 12 : 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.28),
+                          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: widget.isLoading
+                            ? SizedBox(
+                                width: ResponsiveHelper.responsiveIconSize(context, 22),
+                                height: ResponsiveHelper.responsiveIconSize(context, 22),
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(
+                                widget.icon,
+                                color: Colors.white,
+                                size: ResponsiveHelper.responsiveIconSize(context, 28),
+                              ),
+                      ),
+                      SizedBox(width: isMobile ? 14 : 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.label,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 15 : 16),
+                                letterSpacing: 0.3,
+                              ),
+                              maxLines: isMobile ? 2 : 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (widget.subtitle != null) ...[
+                              SizedBox(height: isMobile ? 4 : 6),
+                              Text(
+                                widget.subtitle!,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.92),
+                                  fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 11 : 12),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white.withOpacity(0.9),
+                        size: ResponsiveHelper.responsiveIconSize(context, isMobile ? 14 : 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -263,6 +263,7 @@ class WebStorageService {
         'manufacturer_part': item.manufacturerPart,
         'class_code': item.classCode,
         'plant': item.plant,
+        'status': item.status,
       }).toList(),
     });
     
@@ -287,6 +288,7 @@ class WebStorageService {
                 manufacturerPart: item['manufacturer_part'] as String?,
                 classCode: item['class_code'] as String?,
                 plant: item['plant'] as String?,
+                status: item['status'] as String? ?? 'pending',
               ))
           .toList() ?? [];
       
@@ -355,6 +357,7 @@ class WebStorageService {
           'manufacturer_part': item.manufacturerPart,
           'class_code': item.classCode,
           'plant': item.plant,
+          'status': item.status,
         }).toList(),
       };
       

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../providers/quotation_provider.dart';
+import '../providers/inquiry_provider.dart';
 import '../../domain/entities/quotation.dart';
+import '../../domain/entities/customer_inquiry.dart';
 import '../../core/utils/currency_helper.dart';
 import '../../data/services/email_service.dart';
 import '../../data/services/quotation_pdf_service.dart';
@@ -338,6 +340,35 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
             // Update quotation status to 'sent'
             final sentQuotation = updatedQuotation.copyWith(status: 'sent');
             await ref.read(quotationProvider.notifier).updateQuotation(sentQuotation);
+
+            // Item-level status: update inquiry items — quoted where price > 0, pending otherwise
+            if (updatedQuotation.inquiryId != null &&
+                updatedQuotation.inquiryId!.isNotEmpty) {
+              final inquiry =
+                  await ref.read(inquiryProvider.notifier).getInquiryById(updatedQuotation.inquiryId!);
+              if (inquiry != null && inquiry.items.isNotEmpty) {
+                final qItems = updatedQuotation.items;
+                final updatedItems = <InquiryItem>[];
+                for (int i = 0; i < inquiry.items.length; i++) {
+                  final inqItem = inquiry.items[i];
+                  final qItem = i < qItems.length ? qItems[i] : null;
+                  final isQuoted = qItem != null && (qItem.unitPrice > 0);
+                  updatedItems.add(
+                    inqItem.copyWith(status: isQuoted ? 'quoted' : 'pending'),
+                  );
+                }
+                final quotedCount = updatedItems.where((e) => e.status == 'quoted').length;
+                final pendingCount = updatedItems.length - quotedCount;
+                final inquiryStatus = pendingCount == 0
+                    ? 'quoted'
+                    : quotedCount == 0
+                        ? 'pending'
+                        : 'partially_quoted';
+                await ref.read(inquiryProvider.notifier).updateInquiry(
+                      inquiry.copyWith(items: updatedItems, status: inquiryStatus),
+                    );
+              }
+            }
             
             // Reload quotation to reflect changes
             await _loadQuotation();
@@ -820,6 +851,18 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   bool _hasPendingItems() {
     if (_quotation == null) return false;
     return _quotation!.items.any((item) => item.status == 'pending' || item.unitPrice == 0);
+  }
+
+  /// True when at least one item has unit price > 0 (from current controllers or items).
+  /// Used to enable "Send Quotation" button.
+  bool _hasAtLeastOnePricedItem() {
+    if (_quotation == null || _quotation!.items.isEmpty) return false;
+    for (int i = 0; i < _quotation!.items.length; i++) {
+      final priceText = _unitPriceControllers[i]?.text.trim();
+      final price = double.tryParse(priceText ?? '') ?? _quotation!.items[i].unitPrice;
+      if (price > 0) return true;
+    }
+    return false;
   }
   
   /// Check if send button should be shown
@@ -1395,10 +1438,13 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   }
 
   Widget _buildSendQuotationButton(BuildContext context) {
+    final canSend = _hasAtLeastOnePricedItem();
     return Card(
-      color: Theme.of(context).colorScheme.primary,
+      color: canSend
+          ? Theme.of(context).colorScheme.primary
+          : Colors.grey.shade400,
       child: InkWell(
-        onTap: _isSaving ? null : () async {
+        onTap: (_isSaving || !canSend) ? null : () async {
           await _sendQuotation();
         },
         child: Padding(

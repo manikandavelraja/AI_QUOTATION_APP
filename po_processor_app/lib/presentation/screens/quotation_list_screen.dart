@@ -18,6 +18,8 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
   String _filterStatus = 'all';
   bool _isSelectionMode = false;
   final Set<String> _selectedIds = {};
+  /// null = all months; otherwise filter by this month (quotationDate)
+  DateTime? _selectedMonth;
 
   void _exitSelectionMode() {
     setState(() {
@@ -78,7 +80,15 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
     final quotationState = ref.watch(quotationProvider);
     final allQuotations = quotationState.quotations;
 
-    final filteredQuotations = allQuotations.where((quotation) {
+    // Month filter by quotationDate
+    final monthFiltered = _selectedMonth == null
+        ? allQuotations
+        : allQuotations.where((q) {
+            return q.quotationDate.year == _selectedMonth!.year &&
+                q.quotationDate.month == _selectedMonth!.month;
+          }).toList();
+
+    final filteredQuotations = monthFiltered.where((quotation) {
       final matchesSearch = _searchQuery.isEmpty ||
           quotation.quotationNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           quotation.customerName.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -157,6 +167,34 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                     });
                   },
                 ),
+                const SizedBox(height: 10),
+                InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Filter by month',
+                    prefixIcon: const Icon(Icons.calendar_month, size: 22),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<DateTime?>(
+                      value: _selectedMonth,
+                      isExpanded: true,
+                      hint: const Text('All months'),
+                      items: [
+                        const DropdownMenuItem<DateTime?>(
+                          value: null,
+                          child: Text('All months'),
+                        ),
+                        ..._buildMonthDropdownItems(allQuotations),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _selectedMonth = value);
+                      },
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -232,6 +270,20 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
         ],
       ),
     );
+  }
+
+  List<DropdownMenuItem<DateTime?>> _buildMonthDropdownItems(List<Quotation> list) {
+    final months = <DateTime>{};
+    for (final q in list) {
+      months.add(DateTime(q.quotationDate.year, q.quotationDate.month));
+    }
+    final sorted = months.toList()..sort((a, b) => b.compareTo(a));
+    return sorted
+        .map((d) => DropdownMenuItem<DateTime?>(
+              value: d,
+              child: Text(DateFormat('MMMM yyyy').format(d)),
+            ))
+        .toList();
   }
 
   Widget _buildFilterChip(String value, String label) {

@@ -15,8 +15,9 @@ class POListScreen extends ConsumerStatefulWidget {
 
 class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerProviderStateMixin {
   String _searchQuery = '';
-  String _filterStatus = 'all';
   late TabController _tabController;
+  /// null = all months; otherwise filter by this month
+  DateTime? _selectedMonth;
 
   @override
   void initState() {
@@ -35,8 +36,19 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
     final poState = ref.watch(poProvider);
     final allPOs = poState.purchaseOrders;
 
+    // Exclude Test PO entries from the list
+    final withoutTestPOs = allPOs.where((po) => !po.poNumber.startsWith('TEST-PO-')).toList();
+
+    // Filter by month (poDate)
+    final monthFiltered = _selectedMonth == null
+        ? withoutTestPOs
+        : withoutTestPOs.where((po) {
+            return po.poDate.year == _selectedMonth!.year &&
+                po.poDate.month == _selectedMonth!.month;
+          }).toList();
+
     // Filter by search query
-    final searchFiltered = allPOs.where((po) {
+    final searchFiltered = monthFiltered.where((po) {
       return _searchQuery.isEmpty ||
           po.poNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           po.customerName.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -91,6 +103,34 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
                     });
                   },
                 ),
+                const SizedBox(height: 10),
+                InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Filter by month',
+                    prefixIcon: const Icon(Icons.calendar_month, size: 22),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<DateTime?>(
+                      value: _selectedMonth,
+                      isExpanded: true,
+                      hint: const Text('All months'),
+                      items: [
+                        const DropdownMenuItem<DateTime?>(
+                          value: null,
+                          child: Text('All months'),
+                        ),
+                        ..._buildMonthDropdownItems(withoutTestPOs),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _selectedMonth = value);
+                      },
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   '${filteredPOs.length} PO(s)',
@@ -110,7 +150,7 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
               Tab(text: 'Active'),
               Tab(text: 'Awaiting Ordered'),
               Tab(text: 'Material Received'),
-              Tab(text: 'Delivery Status'),
+              Tab(text: 'Delivered'),
             ],
             onTap: (index) {
               setState(() {});
@@ -158,17 +198,27 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildFilterChip(String value, String label) {
-    final isSelected = _filterStatus == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _filterStatus = value;
-        });
-      },
-    );
+  List<DropdownMenuItem<DateTime?>> _buildMonthDropdownItems(List<PurchaseOrder> list) {
+    final months = <DateTime>{};
+    for (final po in list) {
+      months.add(DateTime(po.poDate.year, po.poDate.month));
+    }
+    final sorted = months.toList()..sort((a, b) => b.compareTo(a));
+    return sorted
+        .map((d) => DropdownMenuItem<DateTime?>(
+              value: d,
+              child: Text(DateFormat('MMMM yyyy').format(d)),
+            ))
+        .toList();
+  }
+
+  String _statusDisplayLabel(String status) {
+    switch (status) {
+      case 'delivery_status':
+        return 'Delivered';
+      default:
+        return status.tr();
+    }
   }
 
   Widget _buildPOListItem(BuildContext context, PurchaseOrder po) {
@@ -183,6 +233,18 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
       case 'expiring_soon':
         statusColor = Colors.orange;
         statusIcon = Icons.warning;
+        break;
+      case 'awaiting_ordered':
+        statusColor = Colors.blue;
+        statusIcon = Icons.schedule;
+        break;
+      case 'material_received':
+        statusColor = Colors.teal;
+        statusIcon = Icons.inventory_2_outlined;
+        break;
+      case 'delivery_status':
+        statusColor = Colors.purple;
+        statusIcon = Icons.local_shipping_outlined;
         break;
       default:
         statusColor = Colors.green;
@@ -242,7 +304,7 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
               ),
             ),
             Text(
-              po.status.tr(),
+              _statusDisplayLabel(po.status),
               style: TextStyle(
                 color: statusColor,
                 fontSize: 12,
