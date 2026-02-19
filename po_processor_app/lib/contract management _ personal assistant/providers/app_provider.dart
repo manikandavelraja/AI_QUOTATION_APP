@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../models/analysis_result.dart';
 import '../services/gemini_service.dart';
 import '../utils/logger.dart';
@@ -89,14 +90,17 @@ class AppProvider extends ChangeNotifier {
   }
 
   String _getUserFriendlyError(dynamic error) {
+    // 403 = invalid API key, quota, or API not enabled
+    if (error is DioException && error.response?.statusCode == 403) {
+      return 'Access denied (403). Check your .env: set GEMINI_API_KEY to a valid key and ensure the Gemini API is enabled in Google AI Studio / Google Cloud.';
+    }
     final errorString = error.toString().toLowerCase();
-    
     if (errorString.contains('network') || errorString.contains('connection')) {
-      return 'Unable to connect to the server. Please check your internet connection and try again.';
-    } else if (errorString.contains('api') || errorString.contains('key')) {
-      return 'There was an issue with the service configuration. Please contact support if this continues.';
+      return 'Unable to connect to the server. Check your internet connection and try again.';
+    } else if (errorString.contains('api') || errorString.contains('key') || errorString.contains('403')) {
+      return 'Invalid API key or access denied. Set GEMINI_API_KEY in .env and enable the Gemini API in Google AI Studio.';
     } else if (errorString.contains('timeout')) {
-      return 'The request took too long to process. Please try again with a smaller image or check your connection.';
+      return 'The request took too long. Try a smaller image or check your connection.';
     } else if (errorString.contains('permission')) {
       return 'Please grant the necessary permissions to access your images.';
     } else {

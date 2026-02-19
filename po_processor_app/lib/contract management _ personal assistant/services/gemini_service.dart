@@ -5,13 +5,15 @@ import 'package:dio/dio.dart';
 import '../models/analysis_result.dart';
 import '../models/meeting_analysis_result.dart';
 import '../utils/logger.dart';
-import '../utils/config.dart';
+import '../../../core/constants/app_constants.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class GeminiService {
   final Dio _dio = Dio();
-  final String _apiKey = Config.geminiApiKey;
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+
+  String get _apiKey => AppConstants.geminiApiKey;
+  String get _model => AppConstants.geminiModel;
 
   GeminiService() {
     // Set longer timeouts for AI operations which can take time
@@ -130,7 +132,7 @@ Instructions:
       };
 
       final response = await _dio.post(
-        '$_baseUrl/models/gemini-2.5-flash:generateContent?key=$_apiKey',
+        '$_baseUrl/models/$_model:generateContent?key=$_apiKey',
         data: requestBody,
         options: Options(
           headers: {
@@ -371,7 +373,7 @@ Instructions:
       };
 
       final response = await _dio.post(
-        '$_baseUrl/models/gemini-2.5-flash:generateContent?key=$_apiKey',
+        '$_baseUrl/models/$_model:generateContent?key=$_apiKey',
         data: requestBody,
         options: Options(
           headers: {
@@ -597,7 +599,7 @@ Instructions:
       };
 
       final response = await _dio.post(
-        '$_baseUrl/models/gemini-2.5-flash:generateContent?key=$_apiKey',
+        '$_baseUrl/models/$_model:generateContent?key=$_apiKey',
         data: requestBody,
         options: Options(
           headers: {
@@ -736,7 +738,7 @@ Instructions:
       };
 
       final response = await _dio.post(
-        '$_baseUrl/models/gemini-2.5-flash:generateContent?key=$_apiKey',
+        '$_baseUrl/models/$_model:generateContent?key=$_apiKey',
         data: requestBody,
         options: Options(
           headers: {
@@ -865,7 +867,7 @@ Instructions:
       };
 
       final response = await _dio.post(
-        '$_baseUrl/models/gemini-2.5-flash:generateContent?key=$_apiKey',
+        '$_baseUrl/models/$_model:generateContent?key=$_apiKey',
         data: requestBody,
         options: Options(
           headers: {

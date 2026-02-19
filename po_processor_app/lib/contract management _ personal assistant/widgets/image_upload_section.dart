@@ -44,7 +44,7 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
         setState(() {
           _selectedImages.add(imagePath);
         });
-        widget.onImagesSelected([imagePath]);
+        widget.onImagesSelected(List.from(_selectedImages));
       }
     } catch (e) {
       if (mounted) {

@@ -27,11 +27,12 @@ import '../../domain/entities/quotation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart' as provider_pkg;
 import 'coming_soon_screen.dart';
-import '../../contract management _ personal assistant/screens/pdf_analysis_screen.dart';
+import '../../contract management _ personal assistant/screens/contract_management_hub_screen.dart';
 import '../../contract management _ personal assistant/screens/voice_memo_screen.dart';
 import '../../contract management _ personal assistant/providers/language_provider.dart'
     as cm_lang;
 import '../../contract management _ personal assistant/providers/saved_results_provider.dart';
+import '../../contract management _ personal assistant/providers/app_provider.dart';
 import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
 import 'seasonal_trends_screen.dart';
@@ -285,7 +286,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           ),
                         ),
                       ),
-                      // Contract Management Tab - PDF Analysis
+                      // Contract Management Tab - Hub with PDF Analysis & Image Analysis buttons
                       provider_pkg.MultiProvider(
                         providers: [
                           provider_pkg.ChangeNotifierProvider(
@@ -294,8 +295,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           provider_pkg.ChangeNotifierProvider(
                             create: (_) => SavedResultsProvider(),
                           ),
+                          provider_pkg.ChangeNotifierProvider(
+                            create: (_) => AppProvider(),
+                          ),
                         ],
-                        child: const PDFAnalysisScreen(),
+                        child: const ContractManagementHubScreen(),
                       ),
                       // Post-Call Analyze Tab
                       provider_pkg.ChangeNotifierProvider(

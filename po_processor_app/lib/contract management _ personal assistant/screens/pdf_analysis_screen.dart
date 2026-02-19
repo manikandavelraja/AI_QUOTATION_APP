@@ -14,7 +14,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
 class PDFAnalysisScreen extends StatefulWidget {
-  const PDFAnalysisScreen({super.key});
+  /// When false, no app bar is shown (e.g. when embedded in hub with its own app bar).
+  final bool showAppBar;
+
+  const PDFAnalysisScreen({super.key, this.showAppBar = true});
 
   @override
   State<PDFAnalysisScreen> createState() => _PDFAnalysisScreenState();
@@ -220,19 +223,7 @@ class _PDFAnalysisScreenState extends State<PDFAnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: false,
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.picture_as_pdf),
-            SizedBox(width: 8),
-            Text('PDF Analysis'),
-          ],
-        ),
-      ),
-      body: Consumer2<LanguageProvider, SavedResultsProvider>(
+    final body = Consumer2<LanguageProvider, SavedResultsProvider>(
         builder: (context, languageProvider, savedProvider, _) {
           final targetLang = languageProvider.locale.languageCode;
           // Filter saved results to show only PDF/image results
@@ -528,7 +519,22 @@ class _PDFAnalysisScreenState extends State<PDFAnalysisScreen> {
             ),
           );
         },
-      ),
+      );
+    return Scaffold(
+      appBar: widget.showAppBar
+          ? AppBar(
+              centerTitle: false,
+              title: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.picture_as_pdf),
+                  SizedBox(width: 8),
+                  Text('PDF Analysis'),
+                ],
+              ),
+            )
+          : null,
+      body: body,
     );
   }
 }
