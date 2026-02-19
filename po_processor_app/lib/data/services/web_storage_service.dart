@@ -113,10 +113,13 @@ class WebStorageService {
       
       String status = poMap['status'] as String? ?? 'active';
       final expiryDate = DateTime.fromMillisecondsSinceEpoch(poMap['expiry_date'] as int);
-      if (expiryDate.isBefore(DateTime.now())) {
-        status = 'expired';
-      } else if (expiryDate.difference(DateTime.now()).inDays <= 7) {
-        status = 'expiring_soon';
+      // Only override with expiry state when status is still 'active'; preserve user-set status (e.g. material_received, delivery_status)
+      if (status == 'active') {
+        if (expiryDate.isBefore(DateTime.now())) {
+          status = 'expired';
+        } else if (expiryDate.difference(DateTime.now()).inDays <= 7) {
+          status = 'expiring_soon';
+        }
       }
       
       return PurchaseOrder(

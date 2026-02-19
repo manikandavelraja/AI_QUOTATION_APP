@@ -16,6 +16,62 @@ class InquiryListScreen extends ConsumerStatefulWidget {
 class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all';
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelectAll(List<CustomerInquiry> list) {
+    final ids = list.map((q) => q.id).whereType<String>().toSet();
+    setState(() {
+      if (_selectedIds.length == ids.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.addAll(ids);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete inquiries?'),
+        content: Text(
+          'Delete ${_selectedIds.length} inquiry(ies)? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final count = _selectedIds.length;
+    final notifier = ref.read(inquiryProvider.notifier);
+    for (final id in _selectedIds) {
+      await notifier.deleteInquiry(id);
+    }
+    if (mounted) {
+      _exitSelectionMode();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count inquiry(ies) deleted')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,18 +95,54 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
-          tooltip: 'Back to Home',
-        ),
-        title: const Text('Customer Inquiries'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+                tooltip: 'Cancel',
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go('/dashboard'),
+                tooltip: 'Back to Home',
+              ),
+        title: Text(_isSelectionMode ? 'Select inquiries' : 'Customer Inquiries'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: () => context.push('/upload-inquiry'),
-            tooltip: 'Upload Inquiry',
-          ),
+          if (_isSelectionMode) ...[
+            TextButton.icon(
+              onPressed: () => _toggleSelectAll(filteredInquiries),
+              icon: const Icon(Icons.select_all, size: 20),
+              label: Text(
+                _selectedIds.length == filteredInquiries.length && filteredInquiries.isNotEmpty
+                    ? 'Deselect All'
+                    : 'Select All',
+              ),
+            ),
+            IconButton(
+              icon: Badge(
+                isLabelVisible: _selectedIds.isNotEmpty,
+                label: Text('${_selectedIds.length}'),
+                child: const Icon(Icons.delete_outline),
+              ),
+              onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+              tooltip: 'Delete selected',
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.read(inquiryProvider.notifier).loadInquiries(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.upload_file),
+              onPressed: () => context.push('/upload-inquiry'),
+              tooltip: 'Upload Inquiry',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => setState(() => _isSelectionMode = true),
+              tooltip: 'Delete inquiries',
+            ),
+          ],
         ],
       ),
       body: SafeArea(
@@ -132,7 +224,26 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final inquiry = filteredInquiries[index];
-                      return _buildInquiryListItem(context, inquiry);
+                      final isSelected = inquiry.id != null && _selectedIds.contains(inquiry.id);
+                      return _buildInquiryListItem(
+                        context,
+                        inquiry,
+                        isSelected: isSelected,
+                        isSelectionMode: _isSelectionMode,
+                        onTap: () {
+                          if (_isSelectionMode && inquiry.id != null) {
+                            setState(() {
+                              if (_selectedIds.contains(inquiry.id)) {
+                                _selectedIds.remove(inquiry.id);
+                              } else {
+                                _selectedIds.add(inquiry.id!);
+                              }
+                            });
+                          } else if (inquiry.id != null) {
+                            context.push('/inquiry-detail/${inquiry.id}');
+                          }
+                        },
+                      );
                     },
                     childCount: filteredInquiries.length,
                   ),
@@ -162,7 +273,13 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
     );
   }
 
-  Widget _buildInquiryListItem(BuildContext context, CustomerInquiry inquiry) {
+  Widget _buildInquiryListItem(
+    BuildContext context,
+    CustomerInquiry inquiry, {
+    required bool isSelected,
+    required bool isSelectionMode,
+    required VoidCallback onTap,
+  }) {
     Color statusColor;
     String statusText;
     switch (inquiry.status) {
@@ -200,19 +317,35 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      color: isSelected ? statusColor.withOpacity(0.08) : null,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryGreen.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(
-            Icons.description,
-            color: AppTheme.primaryGreen,
-            size: 22,
-          ),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelectionMode) ...[
+              Checkbox(
+                value: isSelected,
+                onChanged: inquiry.id == null
+                    ? null
+                    : (_) => onTap(),
+                activeColor: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.description,
+                color: AppTheme.primaryGreen,
+                size: 22,
+              ),
+            ),
+          ],
         ),
         title: Text(
           inquiry.inquiryNumber,
@@ -271,11 +404,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
             ],
           ),
         ),
-        onTap: () {
-          if (inquiry.id != null) {
-            context.push('/inquiry-detail/${inquiry.id}');
-          }
-        },
+        onTap: onTap,
       ),
     );
   }

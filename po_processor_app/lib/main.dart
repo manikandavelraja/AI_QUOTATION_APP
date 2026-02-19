@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
+// Force-include app widget library for Flutter web (prevents "Library not defined" / tree-shaking)
+import 'package:easy_localization/src/easy_localization_app.dart' show EasyLocalization;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_router.dart';
 import 'data/services/database_service.dart';
@@ -27,7 +30,10 @@ void main() async {
   // Initialize logger first
   AppLogger.initialize();
 
-  // Initialize localization first
+  // Initialize intl locale data (required for Flutter web with easy_localization)
+  await initializeDateFormatting();
+
+  // Initialize localization
   await EasyLocalization.ensureInitialized();
 
   // Initialize database/storage

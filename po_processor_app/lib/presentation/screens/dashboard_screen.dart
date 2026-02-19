@@ -1315,86 +1315,75 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ],
           ),
           SizedBox(height: isMobile ? 12 : 16),
-          ...expiringPOs
-              .take(5)
-              .map(
-                (po) => Container(
-                  margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
-                  padding: EdgeInsets.all(isMobile ? 10 : 12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                    border: Border.all(color: Colors.orange.withOpacity(0.2)),
-                  ),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: EdgeInsets.all(isMobile ? 6 : 8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
-                      ),
-                      child: Icon(
-                        Icons.description,
-                        color: Colors.orange,
-                        size: ResponsiveHelper.responsiveIconSize(context, 20),
-                      ),
-                    ),
-                    title: Text(
-                      po.poNumber,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: ResponsiveHelper.responsiveFontSize(
-                          context,
-                          14,
-                        ),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      po.customerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: ResponsiveHelper.responsiveFontSize(
-                          context,
-                          12,
-                        ),
-                      ),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          DateFormat('MMM dd').format(po.expiryDate),
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveHelper.responsiveFontSize(
-                              context,
-                              12,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          DateFormat('yyyy').format(po.expiryDate),
-                          style: TextStyle(
-                            fontSize: ResponsiveHelper.responsiveFontSize(
-                              context,
-                              10,
-                            ),
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    onTap: () => context.push('/po-detail/${po.id}'),
+          ...expiringPOs.take(5).map((po) => Container(
+                margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+                padding: EdgeInsets.all(isMobile ? 10 : 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                  border: Border.all(
+                    color: Colors.orange.withOpacity(0.2),
                   ),
                 ),
-              ),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: EdgeInsets.all(isMobile ? 6 : 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
+                    ),
+                    child: Icon(
+                      Icons.description, 
+                      color: Colors.orange,
+                      size: ResponsiveHelper.responsiveIconSize(context, 20),
+                    ),
+                  ),
+                  title: Text(
+                    po.poNumber,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    po.customerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                    ),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('MMM dd').format(po.expiryDate),
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                        ),
+                      ),
+                      Text(
+                        DateFormat('yyyy').format(po.expiryDate),
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 10),
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    await context.push('/po-detail/${po.id}');
+                    if (mounted) ref.read(poProvider.notifier).loadPurchaseOrders();
+                  },
+                ),
+              )),
           if (expiringPOs.length > 5)
             Center(
               child: TextButton(
@@ -1751,7 +1740,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 Text(
                   poProgress.progressLabel,
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1761,7 +1750,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   value: poProgress.total > 0
                       ? poProgress.current / poProgress.total
                       : null,
-                  backgroundColor: Colors.white24,
+                  backgroundColor: Colors.lightBlue,
                 ),
               ],
             ),
@@ -1887,7 +1876,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       Text(
                         inquiryProgress.progressLabel,
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Colors.black,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1897,7 +1886,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         value: inquiryProgress.total > 0
                             ? inquiryProgress.current / inquiryProgress.total
                             : null,
-                        backgroundColor: Colors.white24,
+                        backgroundColor: Colors.black,
                       ),
                     ],
                   ),
@@ -1919,14 +1908,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           isMobile
               ? Column(
                   children: [
-                    _buildModernActionButton(
-                      context,
-                      'upload_po'.tr(),
-                      Icons.upload_file,
-                      () => context.push('/upload'),
-                      subtitle: 'Upload PO document',
-                    ),
-                    SizedBox(height: isMobile ? 10 : 12),
                     _buildPOFromMailAction(context, isPOSyncing, poProgress),
                   ],
                 )
@@ -2345,16 +2326,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     Future(() async {
       try {
-        final emails = await _emailService
-            .fetchInquiryEmails(maxResults: 10)
-            .timeout(
-              const Duration(seconds: 60),
-              onTimeout: () {
-                throw Exception(
-                  'Request timed out. Please check your internet connection and try again.',
-                );
-              },
-            );
+        final emails = await _emailService.fetchInquiryEmails()
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timed out. Please check your internet connection and try again.');
+            },
+          );
 
         if (emails.isEmpty) {
           sync.setInquiryError();
@@ -2606,10 +2584,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
               // Small delay to ensure dialog is closed
               await Future.delayed(const Duration(milliseconds: 500));
-
-              // Trigger Gmail sign-in then start background sync
+              
+              // Only wait for Gmail authentication; then start fetch+process so it runs automatically after sign-in
               try {
-                await _emailService.fetchInquiryEmails(maxResults: 10);
+                await _emailService.ensureGmailAuthenticated();
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Signed in. Fetching and processing emails...'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
                 if (type == 'inquiry') {
                   _getInquiryFromMail();
                 } else {
@@ -2618,29 +2604,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               } catch (e) {
                 final errorStr = e.toString();
                 debugPrint('Error during sign-in: $e');
-                if (errorStr.contains('cancelled') ||
-                    errorStr.contains('OAuth2') ||
-                    errorStr.contains('MissingPluginException')) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          errorStr.contains('OAuth2') ||
-                                  errorStr.contains('MissingPluginException')
-                              ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
-                              : 'Sign-in was cancelled. Please try again.',
-                        ),
-                        backgroundColor: Colors.orange,
-                        duration: const Duration(seconds: 5),
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        errorStr.contains('cancelled')
+                            ? 'Sign-in was cancelled. Please try again.'
+                            : errorStr.contains('OAuth2') || errorStr.contains('MissingPluginException')
+                                ? 'Gmail on web requires OAuth2. Use manual upload.'
+                                : 'Sign-in failed. Please try again.',
                       ),
-                    );
-                  }
-                } else {
-                  if (type == 'inquiry') {
-                    _getInquiryFromMail();
-                  } else {
-                    _getPOFromMail();
-                  }
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
                 }
               }
             },
@@ -2748,7 +2725,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     Future(() async {
       try {
-        final emails = await _emailService.fetchPOEmails(maxResults: 10);
+        final emails = await _emailService.fetchPOEmails();
 
         if (emails.isEmpty) {
           sync.setPOError();
