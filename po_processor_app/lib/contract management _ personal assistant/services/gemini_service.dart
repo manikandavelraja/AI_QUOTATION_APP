@@ -5,15 +5,15 @@ import 'package:dio/dio.dart';
 import '../models/analysis_result.dart';
 import '../models/meeting_analysis_result.dart';
 import '../utils/logger.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../core/constants/app_constants.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class GeminiService {
   final Dio _dio = Dio();
+  final String _apiKey = AppConstants.geminiApiKey;
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+  final String _model = AppConstants.geminiModel;
 
-  String get _apiKey => AppConstants.geminiApiKey;
-  String get _model => AppConstants.geminiModel;
 
   GeminiService() {
     // Set longer timeouts for AI operations which can take time

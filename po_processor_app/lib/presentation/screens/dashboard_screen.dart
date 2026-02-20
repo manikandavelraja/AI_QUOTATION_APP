@@ -68,7 +68,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _tabController.addListener(() {
       // Rebuild when tab changes to update FAB visibility
       setState(() {});
@@ -248,7 +248,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   ),
                                 ),
                                 // QuickActions moved to top
-                                _buildQuickActions(context,syncState),
+                                _buildQuickActions(context, syncState),
                                 SizedBox(
                                   height: ResponsiveHelper.responsiveSpacing(
                                     context,
@@ -267,8 +267,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   ),
                                 ),
                                 // Background syncing indicator (non-intrusive, corner)
-                                if (syncState.isActive) _buildBackgroundSyncingIndicator(context, syncState.inquiryProgress, syncState.poProgress),
-                                if (syncState.isActive) SizedBox(height: ResponsiveHelper.responsiveSpacing(context) * 0.5),
+                                if (syncState.isActive)
+                                  _buildBackgroundSyncingIndicator(
+                                    context,
+                                    syncState.inquiryProgress,
+                                    syncState.poProgress,
+                                  ),
+                                if (syncState.isActive)
+                                  SizedBox(
+                                    height:
+                                        ResponsiveHelper.responsiveSpacing(
+                                          context,
+                                        ) *
+                                        0.5,
+                                  ),
                                 _buildExpiringAlerts(context, poState),
                                 SizedBox(
                                   height: ResponsiveHelper.responsiveSpacing(
@@ -301,10 +313,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ],
                         child: const ContractManagementHubScreen(),
                       ),
-                      // Post-Call Analyze Tab
-                      provider_pkg.ChangeNotifierProvider(
-                        create: (_) => CallRecordingsProvider(),
-                        child: const PostCallAnalyzeScreen(),
+                      // Seasonal Trends Tab - Qumarionix GreenFlow
+                      const SeasonalTrendsScreen(),
+                      // Inventory Management Tab
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inventory,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Inventory Management',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Coming Soon',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       // Personal Assistant Tab - Voice Recording
                       provider_pkg.MultiProvider(
@@ -318,8 +357,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         ],
                         child: const VoiceMemoScreen(),
                       ),
-                      // Seasonal Trends Tab - Qumarionix GreenFlow
-                      const SeasonalTrendsScreen(),
+                      // Customer Call Insights Tab
+                      provider_pkg.ChangeNotifierProvider(
+                        create: (_) => CallRecordingsProvider(),
+                        child: const PostCallAnalyzeScreen(),
+                      ),
                     ],
                   ),
           ),
@@ -490,19 +532,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   /// Format currency value with commas and handle large numbers
   String _formatCurrencyValue(dynamic value) {
     if (value == null) return '₹0';
-    
+
     double numValue = 0.0;
     if (value is num) {
       numValue = value.toDouble();
     } else if (value is String) {
       numValue = double.tryParse(value) ?? 0.0;
     }
-    
+
     // Format with commas for readability
     final formatted = numValue.toStringAsFixed(0);
     final parts = formatted.split('.');
     final integerPart = parts[0];
-    
+
     // Add commas every 3 digits
     String formattedInteger = '';
     for (int i = integerPart.length - 1; i >= 0; i--) {
@@ -511,40 +553,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         formattedInteger = ',' + formattedInteger;
       }
     }
-    
+
     return '₹$formattedInteger';
   }
 
-  Map<String, Map<String, dynamic>> _getMonthlyStatistics(List<PurchaseOrder> pos) {
+  Map<String, Map<String, dynamic>> _getMonthlyStatistics(
+    List<PurchaseOrder> pos,
+  ) {
     final now = DateTime.now();
     final Map<String, Map<String, dynamic>> monthlyData = {};
-    
+
     // Get last 6 months
     for (int i = 5; i >= 0; i--) {
       final month = DateTime(now.year, now.month - i, 1);
-      final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+      final monthKey =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}';
       final monthName = DateFormat('MMM').format(month);
-      
+
       final monthPOs = pos.where((po) {
         return po.poDate.year == month.year && po.poDate.month == month.month;
       }).toList();
-      
+
       final monthValue = monthPOs.fold<double>(
         0,
         (sum, po) => sum + po.totalAmount,
       );
-      
+
       monthlyData[monthKey] = {
         'name': monthName,
         'count': monthPOs.length,
         'value': monthValue,
       };
     }
-    
+
     return monthlyData;
   }
 
-  Widget _buildMonthlyUsageGraph(BuildContext context, Map<String, Map<String, dynamic>> monthlyData) {
+  Widget _buildMonthlyUsageGraph(
+    BuildContext context,
+    Map<String, Map<String, dynamic>> monthlyData,
+  ) {
     if (monthlyData.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -553,20 +601,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final maxValue = monthlyData.values.isEmpty
         ? 0.0
         : monthlyData.values
-            .map((e) => e['value'] as double)
-            .reduce((a, b) => a > b ? a : b);
+              .map((e) => e['value'] as double)
+              .reduce((a, b) => a > b ? a : b);
     final maxCount = monthlyData.values.isEmpty
         ? 0
         : monthlyData.values
-            .map((e) => e['count'] as int)
-            .reduce((a, b) => a > b ? a : b);
+              .map((e) => e['count'] as int)
+              .reduce((a, b) => a > b ? a : b);
 
     final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
       padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -600,9 +650,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     Text(
                       'Monthly Usage Statistics',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
-                          ),
+                        fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveHelper.responsiveFontSize(
+                          context,
+                          18,
+                        ),
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -610,9 +663,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     Text(
                       'PO count and value over time',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                            fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
-                          ),
+                        color: Colors.grey[600],
+                        fontSize: ResponsiveHelper.responsiveFontSize(
+                          context,
+                          12,
+                        ),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -624,7 +680,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           SizedBox(height: isMobile ? 16 : 24),
           SizedBox(
             height: ResponsiveHelper.responsiveChartHeight(context),
-            child: isMobile 
+            child: isMobile
                 ? Column(
                     children: [
                       // Value Chart (Bar Chart) - Full width on mobile
@@ -634,10 +690,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           children: [
                             Text(
                               'Total Value (₹)',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.w500,
-                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                    fontSize:
+                                        ResponsiveHelper.responsiveFontSize(
+                                          context,
+                                          12,
+                                        ),
                                   ),
                             ),
                             const SizedBox(height: 8),
@@ -652,15 +713,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       tooltipBgColor: AppTheme.primaryGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
-                                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                        return BarTooltipItem(
-                                          '₹${rod.toY.toStringAsFixed(0)}',
-                                          const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        );
-                                      },
+                                      getTooltipItem:
+                                          (group, groupIndex, rod, rodIndex) {
+                                            return BarTooltipItem(
+                                              '₹${rod.toY.toStringAsFixed(0)}',
+                                              const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            );
+                                          },
                                     ),
                                   ),
                                   titlesData: FlTitlesData(
@@ -670,11 +732,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         getTitlesWidget: (value, meta) {
                                           final index = value.toInt();
-                                          if (index >= 0 && index < spots.length) {
+                                          if (index >= 0 &&
+                                              index < spots.length) {
                                             return Padding(
-                                              padding: const EdgeInsets.only(top: 8),
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
                                               child: Text(
-                                                spots[index].value['name'] as String,
+                                                spots[index].value['name']
+                                                    as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: Colors.grey,
@@ -692,8 +758,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         reservedSize: 50,
                                         getTitlesWidget: (value, meta) {
-                                          final interval = maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5;
-                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                          final interval = maxValue > 0
+                                              ? (maxValue * 1.2) / 4
+                                              : 2.5;
+                                          if (interval > 0 &&
+                                              value % interval <
+                                                  interval * 0.1) {
                                             return Text(
                                               '₹${(value / 1000).toStringAsFixed(0)}K',
                                               style: const TextStyle(
@@ -717,7 +787,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   gridData: FlGridData(
                                     show: true,
                                     drawVerticalLine: false,
-                                    horizontalInterval: maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5,
+                                    horizontalInterval: maxValue > 0
+                                        ? (maxValue * 1.2) / 4
+                                        : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
                                         color: Colors.grey.withOpacity(0.1),
@@ -735,9 +807,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                           toY: spot.value['value'] as double,
                                           color: AppTheme.primaryGreen,
                                           width: 20,
-                                          borderRadius: const BorderRadius.vertical(
-                                            top: Radius.circular(4),
-                                          ),
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                top: Radius.circular(4),
+                                              ),
                                         ),
                                       ],
                                     );
@@ -756,10 +829,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           children: [
                             Text(
                               'PO Count',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.w500,
-                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                    fontSize:
+                                        ResponsiveHelper.responsiveFontSize(
+                                          context,
+                                          12,
+                                        ),
                                   ),
                             ),
                             const SizedBox(height: 8),
@@ -770,7 +848,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   gridData: FlGridData(
                                     show: true,
                                     drawVerticalLine: false,
-                                    horizontalInterval: maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5,
+                                    horizontalInterval: maxCount > 0
+                                        ? (maxCount * 1.2) / 4
+                                        : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
                                         color: Colors.grey.withOpacity(0.1),
@@ -785,8 +865,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         reservedSize: 40,
                                         getTitlesWidget: (value, meta) {
-                                          final interval = maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5;
-                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                          final interval = maxCount > 0
+                                              ? (maxCount * 1.2) / 4
+                                              : 2.5;
+                                          if (interval > 0 &&
+                                              value % interval <
+                                                  interval * 0.1) {
                                             return Text(
                                               value.toInt().toString(),
                                               style: const TextStyle(
@@ -804,11 +888,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         getTitlesWidget: (value, meta) {
                                           final index = value.toInt();
-                                          if (index >= 0 && index < spots.length) {
+                                          if (index >= 0 &&
+                                              index < spots.length) {
                                             return Padding(
-                                              padding: const EdgeInsets.only(top: 8),
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
                                               child: Text(
-                                                spots[index].value['name'] as String,
+                                                spots[index].value['name']
+                                                    as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: Colors.grey,
@@ -834,7 +922,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       spots: spots.asMap().entries.map((entry) {
                                         return FlSpot(
                                           entry.key.toDouble(),
-                                          (entry.value.value['count'] as int).toDouble(),
+                                          (entry.value.value['count'] as int)
+                                              .toDouble(),
                                         );
                                       }).toList(),
                                       isCurved: true,
@@ -853,17 +942,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       tooltipBgColor: Colors.blue,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
-                                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                        return touchedSpots.map((LineBarSpot touchedSpot) {
-                                          return LineTooltipItem(
-                                            '${touchedSpot.y.toInt()} POs',
-                                            const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          );
-                                        }).toList();
-                                      },
+                                      getTooltipItems:
+                                          (List<LineBarSpot> touchedSpots) {
+                                            return touchedSpots.map((
+                                              LineBarSpot touchedSpot,
+                                            ) {
+                                              return LineTooltipItem(
+                                                '${touchedSpot.y.toInt()} POs',
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              );
+                                            }).toList();
+                                          },
                                     ),
                                   ),
                                 ),
@@ -884,10 +976,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           children: [
                             Text(
                               'Total Value (₹)',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.w500,
-                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                    fontSize:
+                                        ResponsiveHelper.responsiveFontSize(
+                                          context,
+                                          12,
+                                        ),
                                   ),
                             ),
                             const SizedBox(height: 8),
@@ -902,15 +999,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       tooltipBgColor: AppTheme.primaryGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
-                                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                        return BarTooltipItem(
-                                          '₹${rod.toY.toStringAsFixed(0)}',
-                                          const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        );
-                                      },
+                                      getTooltipItem:
+                                          (group, groupIndex, rod, rodIndex) {
+                                            return BarTooltipItem(
+                                              '₹${rod.toY.toStringAsFixed(0)}',
+                                              const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            );
+                                          },
                                     ),
                                   ),
                                   titlesData: FlTitlesData(
@@ -920,11 +1018,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         getTitlesWidget: (value, meta) {
                                           final index = value.toInt();
-                                          if (index >= 0 && index < spots.length) {
+                                          if (index >= 0 &&
+                                              index < spots.length) {
                                             return Padding(
-                                              padding: const EdgeInsets.only(top: 8),
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
                                               child: Text(
-                                                spots[index].value['name'] as String,
+                                                spots[index].value['name']
+                                                    as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: Colors.grey,
@@ -942,8 +1044,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         reservedSize: 50,
                                         getTitlesWidget: (value, meta) {
-                                          final interval = maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5;
-                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                          final interval = maxValue > 0
+                                              ? (maxValue * 1.2) / 4
+                                              : 2.5;
+                                          if (interval > 0 &&
+                                              value % interval <
+                                                  interval * 0.1) {
                                             return Text(
                                               '₹${(value / 1000).toStringAsFixed(0)}K',
                                               style: const TextStyle(
@@ -967,7 +1073,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   gridData: FlGridData(
                                     show: true,
                                     drawVerticalLine: false,
-                                    horizontalInterval: maxValue > 0 ? (maxValue * 1.2) / 4 : 2.5,
+                                    horizontalInterval: maxValue > 0
+                                        ? (maxValue * 1.2) / 4
+                                        : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
                                         color: Colors.grey.withOpacity(0.1),
@@ -985,9 +1093,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                           toY: spot.value['value'] as double,
                                           color: AppTheme.primaryGreen,
                                           width: 20,
-                                          borderRadius: const BorderRadius.vertical(
-                                            top: Radius.circular(4),
-                                          ),
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                top: Radius.circular(4),
+                                              ),
                                         ),
                                       ],
                                     );
@@ -1007,10 +1116,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           children: [
                             Text(
                               'PO Count',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.w500,
-                                    fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                    fontSize:
+                                        ResponsiveHelper.responsiveFontSize(
+                                          context,
+                                          12,
+                                        ),
                                   ),
                             ),
                             const SizedBox(height: 8),
@@ -1021,7 +1135,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   gridData: FlGridData(
                                     show: true,
                                     drawVerticalLine: false,
-                                    horizontalInterval: maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5,
+                                    horizontalInterval: maxCount > 0
+                                        ? (maxCount * 1.2) / 4
+                                        : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
                                         color: Colors.grey.withOpacity(0.1),
@@ -1036,8 +1152,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         reservedSize: 40,
                                         getTitlesWidget: (value, meta) {
-                                          final interval = maxCount > 0 ? (maxCount * 1.2) / 4 : 2.5;
-                                          if (interval > 0 && value % interval < interval * 0.1) {
+                                          final interval = maxCount > 0
+                                              ? (maxCount * 1.2) / 4
+                                              : 2.5;
+                                          if (interval > 0 &&
+                                              value % interval <
+                                                  interval * 0.1) {
                                             return Text(
                                               value.toInt().toString(),
                                               style: const TextStyle(
@@ -1055,11 +1175,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         showTitles: true,
                                         getTitlesWidget: (value, meta) {
                                           final index = value.toInt();
-                                          if (index >= 0 && index < spots.length) {
+                                          if (index >= 0 &&
+                                              index < spots.length) {
                                             return Padding(
-                                              padding: const EdgeInsets.only(top: 8),
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
                                               child: Text(
-                                                spots[index].value['name'] as String,
+                                                spots[index].value['name']
+                                                    as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
                                                   color: Colors.grey,
@@ -1085,7 +1209,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       spots: spots.asMap().entries.map((entry) {
                                         return FlSpot(
                                           entry.key.toDouble(),
-                                          (entry.value.value['count'] as int).toDouble(),
+                                          (entry.value.value['count'] as int)
+                                              .toDouble(),
                                         );
                                       }).toList(),
                                       isCurved: true,
@@ -1104,17 +1229,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       tooltipBgColor: Colors.blue,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
-                                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                        return touchedSpots.map((LineBarSpot touchedSpot) {
-                                          return LineTooltipItem(
-                                            '${touchedSpot.y.toInt()} POs',
-                                            const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          );
-                                        }).toList();
-                                      },
+                                      getTooltipItems:
+                                          (List<LineBarSpot> touchedSpots) {
+                                            return touchedSpots.map((
+                                              LineBarSpot touchedSpot,
+                                            ) {
+                                              return LineTooltipItem(
+                                                '${touchedSpot.y.toInt()} POs',
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              );
+                                            }).toList();
+                                          },
                                     ),
                                   ),
                                 ),
@@ -1133,7 +1261,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Widget _buildExpiringAlerts(BuildContext context, POState poState) {
     final expiringPOs = poState.expiringPOs;
-    
+
     if (expiringPOs.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1143,11 +1271,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
-        border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
-          width: 1,
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
         ),
+        border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1168,8 +1295,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
                 child: Icon(
-                  Icons.warning, 
-                  color: Colors.orange, 
+                  Icons.warning,
+                  color: Colors.orange,
                   size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
@@ -1178,9 +1305,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 child: Text(
                   'expiring_soon'.tr(),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
-                      ),
+                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1188,72 +1315,86 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ],
           ),
           SizedBox(height: isMobile ? 12 : 16),
-          ...expiringPOs.take(5).map((po) => Container(
-                margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
-                padding: EdgeInsets.all(isMobile ? 10 : 12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                  border: Border.all(
-                    color: Colors.orange.withOpacity(0.2),
+          ...expiringPOs
+              .take(5)
+              .map(
+                (po) => Container(
+                  margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+                  padding: EdgeInsets.all(isMobile ? 10 : 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.2)),
                   ),
-                ),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: EdgeInsets.all(isMobile ? 6 : 8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: EdgeInsets.all(isMobile ? 6 : 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
+                      ),
+                      child: Icon(
+                        Icons.description,
+                        color: Colors.orange,
+                        size: ResponsiveHelper.responsiveIconSize(context, 20),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.description, 
-                      color: Colors.orange,
-                      size: ResponsiveHelper.responsiveIconSize(context, 20),
-                    ),
-                  ),
-                  title: Text(
-                    po.poNumber,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    po.customerName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
-                    ),
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('MMM dd').format(po.expiryDate),
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                          fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                    title: Text(
+                      po.poNumber,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: ResponsiveHelper.responsiveFontSize(
+                          context,
+                          14,
                         ),
                       ),
-                      Text(
-                        DateFormat('yyyy').format(po.expiryDate),
-                        style: TextStyle(
-                          fontSize: ResponsiveHelper.responsiveFontSize(context, 10),
-                          color: Colors.grey[600],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      po.customerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.responsiveFontSize(
+                          context,
+                          12,
                         ),
                       ),
-                    ],
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('MMM dd').format(po.expiryDate),
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveHelper.responsiveFontSize(
+                              context,
+                              12,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          DateFormat('yyyy').format(po.expiryDate),
+                          style: TextStyle(
+                            fontSize: ResponsiveHelper.responsiveFontSize(
+                              context,
+                              10,
+                            ),
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    onTap: () => context.push('/po-detail/${po.id}'),
                   ),
-                  onTap: () => context.push('/po-detail/${po.id}'),
                 ),
-              )),
+              ),
           if (expiringPOs.length > 5)
             Center(
               child: TextButton(
@@ -1269,10 +1410,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   /// Build draft quotations list
   Widget _buildDraftQuotationsList(BuildContext context) {
     final quotationState = ref.watch(quotationProvider);
-    final draftQuotations = quotationState.quotations
-        .where((q) => q.status == 'draft')
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Most recent first
+    final draftQuotations =
+        quotationState.quotations.where((q) => q.status == 'draft').toList()
+          ..sort(
+            (a, b) => b.createdAt.compareTo(a.createdAt),
+          ); // Most recent first
 
     if (draftQuotations.isEmpty) {
       return const SizedBox.shrink();
@@ -1283,7 +1425,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1301,16 +1445,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      AppTheme.primaryGreen,
-                      AppTheme.primaryGreenLight,
-                    ],
+                    colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
                   ),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
                 child: Icon(
-                  Icons.description, 
-                  color: Colors.white, 
+                  Icons.description,
+                  color: Colors.white,
                   size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
@@ -1319,9 +1460,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 child: Text(
                   'Draft Quotations',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
-                      ),
+                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1329,10 +1470,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Text(
                 '${draftQuotations.length}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.primaryGreen,
-                      fontWeight: FontWeight.bold,
-                      fontSize: ResponsiveHelper.responsiveFontSize(context, 16),
-                    ),
+                  color: AppTheme.primaryGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: ResponsiveHelper.responsiveFontSize(context, 16),
+                ),
               ),
             ],
           ),
@@ -1346,48 +1487,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               itemBuilder: (context, index) {
                 final quotation = draftQuotations[index];
                 return Container(
-                  width: isMobile ? ResponsiveHelper.screenWidth(context) * 0.85 : 320,
-                  margin: EdgeInsets.only(right: index == draftQuotations.length - 1 ? 0 : (isMobile ? 12 : 16)),
+                  width: isMobile
+                      ? ResponsiveHelper.screenWidth(context) * 0.85
+                      : 320,
+                  margin: EdgeInsets.only(
+                    right: index == draftQuotations.length - 1
+                        ? 0
+                        : (isMobile ? 12 : 16),
+                  ),
                   padding: EdgeInsets.all(isMobile ? 12 : 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
                         Colors.blue.shade50,
                         Colors.blue.shade100.withOpacity(0.5),
-          ],
-        ),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(16),
-        border: Border.all(
+                    border: Border.all(
                       color: Colors.blue.withOpacity(0.2),
                       width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
+                    ),
+                    boxShadow: [
+                      BoxShadow(
                         color: Colors.blue.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
                           Expanded(
                             child: Text(
                               quotation.quotationNumber,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.blue.shade900,
                                   ),
                             ),
                           ),
-              Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -1443,22 +1594,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         children: [
                           Icon(Icons.person, size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 6),
-              Expanded(
-                child: Text(
+                          Expanded(
+                            child: Text(
                               quotation.customerName,
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontSize: 14,
                               ),
                               overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 8),
-          Row(
-            children: [
-                          Icon(Icons.shopping_cart, size: 16, color: Colors.grey[600]),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.shopping_cart,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             '${quotation.items.length} item(s)',
@@ -1502,7 +1657,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryGreen,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                             ),
                           ),
                         ],
@@ -1613,7 +1771,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, BackgroundSyncState syncState) {
+  Widget _buildQuickActions(
+    BuildContext context,
+    BackgroundSyncState syncState,
+  ) {
     final isMobile = ResponsiveHelper.isMobile(context);
     final inquiryProgress = syncState.inquiryProgress;
     final poProgress = syncState.poProgress;
@@ -1625,16 +1786,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
+          colors: [Colors.white, Colors.grey.shade50],
         ),
-        borderRadius: BorderRadius.circular(ResponsiveHelper.responsiveBorderRadius(context)),
-        border: Border.all(
-          color: Colors.grey.shade200,
-          width: 1.5,
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
         ),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -1685,9 +1842,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 child: Text(
                   'quick_actions'.tr(),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
-                      ),
+                    fontWeight: FontWeight.bold,
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1710,13 +1867,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             children: [
               _buildModernActionButton(
                 context,
-                isInquirySyncing ? 'Fetching Inquiries...' : 'Get Inquiry from Mail',
+                isInquirySyncing
+                    ? 'Fetching Inquiries...'
+                    : 'Get Inquiry from Mail',
                 Icons.email,
                 isInquirySyncing ? () {} : _getInquiryFromMail,
                 subtitle: 'Fetch inquiries from Gmail',
                 isLoading: isInquirySyncing,
               ),
-              if (isInquirySyncing && inquiryProgress != null && inquiryProgress.total > 0) ...[
+              if (isInquirySyncing &&
+                  inquiryProgress != null &&
+                  inquiryProgress.total > 0) ...[
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1783,17 +1944,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             subtitle: 'Upload PO document',
                           ),
                           SizedBox(height: isMobile ? 10 : 12),
-                          _buildPOFromMailAction(context, isPOSyncing, poProgress),
+                          _buildPOFromMailAction(
+                            context,
+                            isPOSyncing,
+                            poProgress,
+                          ),
                         ],
                       );
                     }
                     // Otherwise, show side by side
                     return Row(
                       children: [
-                       
                         Expanded(
                           flex: 1,
-                          child: _buildPOFromMailAction(context, isPOSyncing, poProgress),
+                          child: _buildPOFromMailAction(
+                            context,
+                            isPOSyncing,
+                            poProgress,
+                          ),
                         ),
                       ],
                     );
@@ -1816,15 +1984,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             Icons.receipt_long,
             () => context.push('/delivery-document-list'),
             subtitle: 'Track deliveries',
-          ),
-          SizedBox(height: isMobile ? 10 : 12),
-          // Material Forecast & Inventory Analysis
-          _buildModernActionButton(
-            context,
-            'Material Forecast & Analysis',
-            Icons.analytics,
-            () => context.push('/material-forecast'),
-            subtitle: 'Analyze material procurement patterns',
           ),
         ],
       ),
@@ -1849,7 +2008,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-
   /// Extract customer email from Gmail message headers
   String? _extractCustomerEmailFromGmail({
     required String senderEmail,
@@ -1860,22 +2018,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     // First, try to use "From" email (the sender is the customer)
     if (senderEmail.isNotEmpty && senderEmail.toLowerCase() != accountEmail) {
       return senderEmail;
-    } 
+    }
     // If "From" is account email (parsing error), try Reply-To
-    else if (replyToEmail != null && replyToEmail.isNotEmpty && 
-             replyToEmail.toLowerCase() != accountEmail) {
+    else if (replyToEmail != null &&
+        replyToEmail.isNotEmpty &&
+        replyToEmail.toLowerCase() != accountEmail) {
       return replyToEmail;
     }
-    // If "From" is account email and "To" is not account email, use "To" 
-    else if (toEmail != null && toEmail.isNotEmpty && 
-             toEmail.toLowerCase() != accountEmail) {
+    // If "From" is account email and "To" is not account email, use "To"
+    else if (toEmail != null &&
+        toEmail.isNotEmpty &&
+        toEmail.toLowerCase() != accountEmail) {
       return toEmail;
     }
     return null;
   }
 
   /// Process a single email and create draft quotation
-  Future<Quotation?> _processSingleEmail(EmailMessage email, int index, int total) async {
+  Future<Quotation?> _processSingleEmail(
+    EmailMessage email,
+    int index,
+    int total,
+  ) async {
     try {
       debugPrint('📧 [Process Email] ========================================');
       debugPrint('📧 Processing email ${index + 1}/$total: ${email.subject}');
@@ -1883,19 +2047,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       debugPrint('📧 [Process Email] Email from: ${email.from}');
       debugPrint('📧 [Process Email] Email.cc BEFORE processing: ${email.cc}');
       debugPrint('📧 [Process Email] Email.cc length: ${email.cc.length}');
-      
+
       // Find PDF attachment
       final pdfAttachment = email.attachments.firstWhere(
-        (att) => att.name.toLowerCase().endsWith('.pdf') || 
-                 att.name.toLowerCase().endsWith('.doc') ||
-                 att.name.toLowerCase().endsWith('.docx'),
-        orElse: () => throw Exception('No PDF or DOC attachment found in email'),
+        (att) =>
+            att.name.toLowerCase().endsWith('.pdf') ||
+            att.name.toLowerCase().endsWith('.doc') ||
+            att.name.toLowerCase().endsWith('.docx'),
+        orElse: () =>
+            throw Exception('No PDF or DOC attachment found in email'),
       );
 
       // Fetch attachment data if not already loaded
       Uint8List pdfData;
-      if (pdfAttachment.data.isEmpty && pdfAttachment.attachmentId != null && pdfAttachment.messageId != null) {
-        pdfData = await _emailService.fetchAttachmentData(pdfAttachment.messageId!, pdfAttachment.attachmentId!);
+      if (pdfAttachment.data.isEmpty &&
+          pdfAttachment.attachmentId != null &&
+          pdfAttachment.messageId != null) {
+        pdfData = await _emailService.fetchAttachmentData(
+          pdfAttachment.messageId!,
+          pdfAttachment.attachmentId!,
+        );
       } else {
         pdfData = pdfAttachment.data;
       }
@@ -1907,9 +2078,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       // Extract inquiry data from PDF
       CustomerInquiry inquiry;
       if (pdfAttachment.name.toLowerCase().endsWith('.pdf')) {
-        inquiry = await _aiService.extractInquiryFromPDFBytes(pdfData, pdfAttachment.name);
+        inquiry = await _aiService.extractInquiryFromPDFBytes(
+          pdfData,
+          pdfAttachment.name,
+        );
       } else {
-        throw Exception('DOC file processing not yet implemented. Please use PDF files.');
+        throw Exception(
+          'DOC file processing not yet implemented. Please use PDF files.',
+        );
       }
 
       // Extract customer email from Gmail headers
@@ -1922,11 +2098,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       );
 
       // Determine final customer email
-      String? finalCustomerEmail = inquiry.customerEmail ?? customerEmailFromGmail;
-      if (finalCustomerEmail == null || finalCustomerEmail.isEmpty || 
+      String? finalCustomerEmail =
+          inquiry.customerEmail ?? customerEmailFromGmail;
+      if (finalCustomerEmail == null ||
+          finalCustomerEmail.isEmpty ||
           finalCustomerEmail.toLowerCase() == accountEmail) {
-        finalCustomerEmail = email.from.isNotEmpty && email.from.toLowerCase() != accountEmail 
-            ? email.from 
+        finalCustomerEmail =
+            email.from.isNotEmpty && email.from.toLowerCase() != accountEmail
+            ? email.from
             : null;
       }
 
@@ -1938,14 +2117,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         path: null,
       );
       final savedPath = await _pdfService.savePDFFile(platformFile);
-      
+
       // Save inquiry
       final finalInquiry = inquiry.copyWith(
         pdfPath: savedPath,
         senderEmail: email.from,
         customerEmail: finalCustomerEmail,
       );
-      final savedInquiry = await ref.read(inquiryProvider.notifier).addInquiry(finalInquiry);
+      final savedInquiry = await ref
+          .read(inquiryProvider.notifier)
+          .addInquiry(finalInquiry);
 
       // Auto-match prices from catalog and create quotation items
       final quotationItems = <QuotationItem>[];
@@ -1955,94 +2136,111 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           inquiryItem.itemName,
           description: inquiryItem.description,
         );
-        
+
         final lineTotal = unitPrice * inquiryItem.quantity;
-        
+
         // Set status to pending if price is missing or zero
         final isPriced = unitPrice > 0;
         final status = isPriced ? 'ready' : 'pending';
-        
-        quotationItems.add(QuotationItem(
-          itemName: inquiryItem.itemName,
-          itemCode: inquiryItem.itemCode,
-          description: inquiryItem.description,
-          quantity: inquiryItem.quantity,
-          unit: inquiryItem.unit,
-          unitPrice: unitPrice,
-          total: lineTotal,
-          manufacturerPart: inquiryItem.manufacturerPart,
-          isPriced: isPriced,
-          status: status,
-        ));
+
+        quotationItems.add(
+          QuotationItem(
+            itemName: inquiryItem.itemName,
+            itemCode: inquiryItem.itemCode,
+            description: inquiryItem.description,
+            quantity: inquiryItem.quantity,
+            unit: inquiryItem.unit,
+            unitPrice: unitPrice,
+            total: lineTotal,
+            manufacturerPart: inquiryItem.manufacturerPart,
+            isPriced: isPriced,
+            status: status,
+          ),
+        );
       }
 
       // Calculate totals (only if items exist)
       double grandTotal = 0.0;
       if (quotationItems.isNotEmpty) {
-        final subtotal = quotationItems.fold<double>(0, (sum, item) => sum + item.total);
+        final subtotal = quotationItems.fold<double>(
+          0,
+          (sum, item) => sum + item.total,
+        );
         final vat = subtotal * 0.05; // 5% VAT
         grandTotal = subtotal + vat;
       }
 
       // Generate quotation number using the new ALK format
-      final quotationNumber = await _quotationNumberService.generateNextQuotationNumber();
-      
+      final quotationNumber = await _quotationNumberService
+          .generateNextQuotationNumber();
+
       // Extract CC emails from the email (filter out account email)
       debugPrint('📧 [Process Email] Raw email.cc: ${email.cc}');
       debugPrint('📧 [Process Email] email.cc length: ${email.cc.length}');
       debugPrint('📧 [Process Email] accountEmail: $accountEmail');
-      
+
       final ccEmails = email.cc
           .where((ccEmail) {
             final trimmed = ccEmail.trim();
-            final isValid = trimmed.isNotEmpty && 
-                           trimmed.toLowerCase() != accountEmail &&
-                           trimmed.contains('@');
+            final isValid =
+                trimmed.isNotEmpty &&
+                trimmed.toLowerCase() != accountEmail &&
+                trimmed.contains('@');
             if (!isValid && trimmed.isNotEmpty) {
-              debugPrint('📧 [Process Email] Filtered out CC: $trimmed (matches account or invalid)');
+              debugPrint(
+                '📧 [Process Email] Filtered out CC: $trimmed (matches account or invalid)',
+              );
             }
             return isValid;
           })
           .map((ccEmail) => ccEmail.trim())
           .toList();
-      
+
       debugPrint('📧 [Process Email] Filtered CC emails: $ccEmails');
-      
+
       // Build notes field with CC emails, threadId, originalMessageId, and originalSubject for reply support
       final notesParts = <String>[];
-      
+
       // Store threadId for email reply threading (REQUIRED for Gmail API reply)
       if (email.threadId != null && email.threadId!.isNotEmpty) {
         notesParts.add('THREAD_ID: ${email.threadId}');
         debugPrint('📧 [Process Email] ✅ Storing threadId: ${email.threadId}');
       }
-      
+
       // Store original message ID for In-Reply-To header (for proper reply threading)
       if (email.id.isNotEmpty) {
         notesParts.add('ORIGINAL_MESSAGE_ID: ${email.id}');
-        debugPrint('📧 [Process Email] ✅ Storing originalMessageId: ${email.id}');
+        debugPrint(
+          '📧 [Process Email] ✅ Storing originalMessageId: ${email.id}',
+        );
       }
-      
+
       // Store original subject for reply
       if (email.subject.isNotEmpty) {
         notesParts.add('ORIGINAL_SUBJECT: ${email.subject}');
-        debugPrint('📧 [Process Email] ✅ Storing originalSubject: ${email.subject}');
+        debugPrint(
+          '📧 [Process Email] ✅ Storing originalSubject: ${email.subject}',
+        );
       }
-      
+
       // Store CC emails if they exist
       if (ccEmails.isNotEmpty) {
         notesParts.add('CC: ${ccEmails.join(', ')}');
-        debugPrint('📧 [Process Email] ✅ CC emails found: ${ccEmails.join(', ')}');
+        debugPrint(
+          '📧 [Process Email] ✅ CC emails found: ${ccEmails.join(', ')}',
+        );
       } else {
-        debugPrint('📧 [Process Email] ⚠️ No CC emails found or all filtered out');
+        debugPrint(
+          '📧 [Process Email] ⚠️ No CC emails found or all filtered out',
+        );
         debugPrint('📧 [Process Email] ⚠️ email.cc was: ${email.cc}');
       }
-      
+
       final notes = notesParts.isNotEmpty ? notesParts.join('\n') : null;
       if (notes != null) {
         debugPrint('📧 [Process Email] ✅ Final notes: "$notes"');
       }
-      
+
       // Create draft quotation
       final quotation = Quotation(
         quotationNumber: quotationNumber,
@@ -2060,22 +2258,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         createdAt: DateTime.now(),
         inquiryId: savedInquiry?.id,
       );
-      
+
       debugPrint('📧 [Process Email] ========== QUOTATION CREATED ==========');
-      debugPrint('📧 [Process Email] Created quotation with notes: "${quotation.notes}"');
-      debugPrint('📧 [Process Email] Quotation number: ${quotation.quotationNumber}');
-      debugPrint('📧 [Process Email] Quotation notes is null: ${quotation.notes == null}');
-      debugPrint('📧 [Process Email] Quotation notes is empty: ${quotation.notes?.isEmpty ?? true}');
+      debugPrint(
+        '📧 [Process Email] Created quotation with notes: "${quotation.notes}"',
+      );
+      debugPrint(
+        '📧 [Process Email] Quotation number: ${quotation.quotationNumber}',
+      );
+      debugPrint(
+        '📧 [Process Email] Quotation notes is null: ${quotation.notes == null}',
+      );
+      debugPrint(
+        '📧 [Process Email] Quotation notes is empty: ${quotation.notes?.isEmpty ?? true}',
+      );
 
       // Save quotation
-      final savedQuotation = await ref.read(quotationProvider.notifier).addQuotation(quotation);
-      
+      final savedQuotation = await ref
+          .read(quotationProvider.notifier)
+          .addQuotation(quotation);
+
       debugPrint('📧 [Process Email] ========== QUOTATION SAVED ==========');
-      debugPrint('📧 [Process Email] Saved quotation ID: ${savedQuotation?.id}');
-      debugPrint('📧 [Process Email] Saved quotation notes: "${savedQuotation?.notes}"');
-      debugPrint('📧 [Process Email] Saved quotation notes is null: ${savedQuotation?.notes == null}');
-      debugPrint('📧 [Process Email] Saved quotation notes is empty: ${savedQuotation?.notes?.isEmpty ?? true}');
-      debugPrint('✅ Successfully processed email ${index + 1}/$total and created draft quotation');
+      debugPrint(
+        '📧 [Process Email] Saved quotation ID: ${savedQuotation?.id}',
+      );
+      debugPrint(
+        '📧 [Process Email] Saved quotation notes: "${savedQuotation?.notes}"',
+      );
+      debugPrint(
+        '📧 [Process Email] Saved quotation notes is null: ${savedQuotation?.notes == null}',
+      );
+      debugPrint(
+        '📧 [Process Email] Saved quotation notes is empty: ${savedQuotation?.notes?.isEmpty ?? true}',
+      );
+      debugPrint(
+        '✅ Successfully processed email ${index + 1}/$total and created draft quotation',
+      );
       debugPrint('📧 [Process Email] ========================================');
       return savedQuotation;
     } on FormatException catch (e) {
@@ -2083,14 +2301,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       return null;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
-      
+
       // Handle 429 rate limit errors - continue to next email
       if (errorStr.contains('429') || errorStr.contains('rate limit')) {
-        debugPrint('⚠️ Rate limit error (429) for email ${index + 1}/$total. Continuing to next email...');
+        debugPrint(
+          '⚠️ Rate limit error (429) for email ${index + 1}/$total. Continuing to next email...',
+        );
         await Future.delayed(const Duration(seconds: 2));
         return null;
       }
-      
+
       // For other errors, log and continue
       debugPrint('❌ Error processing email ${index + 1}/$total: $e');
       return null;
@@ -2104,7 +2324,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     ScaffoldMessenger.of(ctx).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: message.contains('failed') ? Colors.orange : AppTheme.primaryGreen,
+        backgroundColor: message.contains('failed')
+            ? Colors.orange
+            : AppTheme.primaryGreen,
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
       ),
@@ -2123,13 +2345,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     Future(() async {
       try {
-        final emails = await _emailService.fetchInquiryEmails(maxResults: 10)
-          .timeout(
-            const Duration(seconds: 60),
-            onTimeout: () {
-              throw Exception('Request timed out. Please check your internet connection and try again.');
-            },
-          );
+        final emails = await _emailService
+            .fetchInquiryEmails(maxResults: 10)
+            .timeout(
+              const Duration(seconds: 60),
+              onTimeout: () {
+                throw Exception(
+                  'Request timed out. Please check your internet connection and try again.',
+                );
+              },
+            );
 
         if (emails.isEmpty) {
           sync.setInquiryError();
@@ -2145,18 +2370,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           return;
         }
 
-        debugPrint('📧 Found ${emails.length} inquiry email(s). Processing in background...');
-        sync.setInquiryProgress(current: 0, total: emails.length, successCount: 0, failCount: 0);
+        debugPrint(
+          '📧 Found ${emails.length} inquiry email(s). Processing in background...',
+        );
+        sync.setInquiryProgress(
+          current: 0,
+          total: emails.length,
+          successCount: 0,
+          failCount: 0,
+        );
 
         int successCount = 0;
         int failCount = 0;
 
         for (int i = 0; i < emails.length; i++) {
           final email = emails[i];
-          sync.setInquiryProgress(current: i + 1, total: emails.length, successCount: successCount, failCount: failCount);
+          sync.setInquiryProgress(
+            current: i + 1,
+            total: emails.length,
+            successCount: successCount,
+            failCount: failCount,
+          );
 
           try {
-            final quotation = await _processSingleEmail(email, i, emails.length);
+            final quotation = await _processSingleEmail(
+              email,
+              i,
+              emails.length,
+            );
             if (quotation != null) {
               successCount++;
             } else {
@@ -2262,7 +2503,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           );
           return;
         }
-        if (errorMsg.contains('sign in') || errorMsg.contains('authentication')) {
+        if (errorMsg.contains('sign in') ||
+            errorMsg.contains('authentication')) {
           _showGmailSignInDialog('inquiry', ctx);
           return;
         }
@@ -2277,7 +2519,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     });
   }
 
-  Future<EmailMessage?> _showEmailSelectionDialog(List<EmailMessage> emails, String type) async {
+  Future<EmailMessage?> _showEmailSelectionDialog(
+    List<EmailMessage> emails,
+    String type,
+  ) async {
     return showDialog<EmailMessage>(
       context: context,
       builder: (context) => AlertDialog(
@@ -2347,7 +2592,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             onPressed: () async {
               // Close dialog first
               Navigator.of(dialogContext).pop();
-              
+
               // Show loading indicator
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -2358,10 +2603,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                 );
               }
-              
+
               // Small delay to ensure dialog is closed
               await Future.delayed(const Duration(milliseconds: 500));
-              
+
               // Trigger Gmail sign-in then start background sync
               try {
                 await _emailService.fetchInquiryEmails(maxResults: 10);
@@ -2379,9 +2624,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(errorStr.contains('OAuth2') || errorStr.contains('MissingPluginException')
-                            ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
-                            : 'Sign-in was cancelled. Please try again.'),
+                        content: Text(
+                          errorStr.contains('OAuth2') ||
+                                  errorStr.contains('MissingPluginException')
+                              ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
+                              : 'Sign-in was cancelled. Please try again.',
+                        ),
                         backgroundColor: Colors.orange,
                         duration: const Duration(seconds: 5),
                       ),
@@ -2409,10 +2657,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   /// Process a single PO email
-  Future<bool> _processSinglePOEmail(EmailMessage email, int index, int total) async {
+  Future<bool> _processSinglePOEmail(
+    EmailMessage email,
+    int index,
+    int total,
+  ) async {
     try {
-      debugPrint('📧 Processing PO email ${index + 1}/$total: ${email.subject}');
-      
+      debugPrint(
+        '📧 Processing PO email ${index + 1}/$total: ${email.subject}',
+      );
+
       // Find PDF attachment
       final pdfAttachment = email.attachments.firstWhere(
         (att) => att.name.toLowerCase().endsWith('.pdf'),
@@ -2421,8 +2675,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
       // Fetch attachment data if not already loaded
       Uint8List pdfData;
-      if (pdfAttachment.data.isEmpty && pdfAttachment.attachmentId != null && pdfAttachment.messageId != null) {
-        pdfData = await _emailService.fetchAttachmentData(pdfAttachment.messageId!, pdfAttachment.attachmentId!);
+      if (pdfAttachment.data.isEmpty &&
+          pdfAttachment.attachmentId != null &&
+          pdfAttachment.messageId != null) {
+        pdfData = await _emailService.fetchAttachmentData(
+          pdfAttachment.messageId!,
+          pdfAttachment.attachmentId!,
+        );
       } else {
         pdfData = pdfAttachment.data;
       }
@@ -2432,7 +2691,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       }
 
       // Extract PO data from PDF using existing parser
-      final po = await _pdfService.extractPODataFromPDFBytes(pdfData, pdfAttachment.name);
+      final po = await _pdfService.extractPODataFromPDFBytes(
+        pdfData,
+        pdfAttachment.name,
+      );
 
       // Removed duplicate PO number check as per requirements
 
@@ -2447,27 +2709,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       final finalPO = po.copyWith(pdfPath: savedPath);
 
       // Save to database
-      final savedPO = await ref.read(poProvider.notifier).addPurchaseOrder(finalPO);
+      final savedPO = await ref
+          .read(poProvider.notifier)
+          .addPurchaseOrder(finalPO);
 
       if (savedPO != null) {
-        debugPrint('✅ Successfully processed PO email ${index + 1}/$total: ${po.poNumber}');
+        debugPrint(
+          '✅ Successfully processed PO email ${index + 1}/$total: ${po.poNumber}',
+        );
         return true;
       }
-      
+
       return false;
     } on FormatException catch (e) {
       debugPrint('❌ JSON FormatException at PO email ${index + 1}/$total: $e');
       return false;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
-      
+
       // Handle 429 rate limit errors - continue to next email
       if (errorStr.contains('429') || errorStr.contains('rate limit')) {
-        debugPrint('⚠️ Rate limit error (429) for PO email ${index + 1}/$total. Continuing to next email...');
+        debugPrint(
+          '⚠️ Rate limit error (429) for PO email ${index + 1}/$total. Continuing to next email...',
+        );
         await Future.delayed(const Duration(seconds: 2));
         return false;
       }
-      
+
       // For other errors, log and continue
       debugPrint('❌ Error processing PO email ${index + 1}/$total: $e');
       return false;
@@ -2496,18 +2764,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           return;
         }
 
-        debugPrint('📧 Found ${emails.length} PO email(s). Processing in background...');
-        sync.setPOProgress(current: 0, total: emails.length, successCount: 0, failCount: 0);
+        debugPrint(
+          '📧 Found ${emails.length} PO email(s). Processing in background...',
+        );
+        sync.setPOProgress(
+          current: 0,
+          total: emails.length,
+          successCount: 0,
+          failCount: 0,
+        );
 
         int successCount = 0;
         int failCount = 0;
 
         for (int i = 0; i < emails.length; i++) {
           final email = emails[i];
-          sync.setPOProgress(current: i + 1, total: emails.length, successCount: successCount, failCount: failCount);
+          sync.setPOProgress(
+            current: i + 1,
+            total: emails.length,
+            successCount: successCount,
+            failCount: failCount,
+          );
 
           try {
-            final success = await _processSinglePOEmail(email, i, emails.length);
+            final success = await _processSinglePOEmail(
+              email,
+              i,
+              emails.length,
+            );
             if (success) {
               successCount++;
             } else {
@@ -2542,9 +2826,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
         if (errorMsg.contains('MissingPluginException') ||
             errorMsg.contains('No implementation found')) {
-          errorMsg = 'Gmail on web requires OAuth2. Use manual upload via "Upload PO".';
+          errorMsg =
+              'Gmail on web requires OAuth2. Use manual upload via "Upload PO".';
         }
-        if (errorMsg.contains('sign in') || errorMsg.contains('authentication')) {
+        if (errorMsg.contains('sign in') ||
+            errorMsg.contains('authentication')) {
           _showGmailSignInDialog('PO', ctx);
           return;
         }
@@ -2561,58 +2847,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Future<bool> _showEmailFetchInfoDialog(String title, String message) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.blue),
-            const SizedBox(width: 8),
-            Text(title),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(message),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context, true);
-                context.push('/upload-inquiry');
-              },
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Go to Upload Inquiry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-              ),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(title),
+              ],
             ),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context, true);
-                context.push('/upload');
-              },
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Go to Upload PO'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                    context.push('/upload-inquiry');
+                  },
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Go to Upload Inquiry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                    context.push('/upload');
+                  },
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Go to Upload PO'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Close'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
-
 
   void _showEmailConfigDialog(String type) {
     showDialog(
@@ -2706,23 +2992,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             title: 'Contract Management',
             index: 1,
           ),
-          _buildDrawerItem(
+          _buildDrawerNavigationItem(
             context,
             icon: Icons.analytics,
-            title: 'Customer Call Insights',
-            index: 2,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.assistant,
-            title: 'Personal Assistant',
-            index: 3,
+            title: 'Forecast & Insights',
+            route: '/material-forecast',
           ),
           _buildDrawerItem(
             context,
             icon: Icons.trending_up,
             title: 'Seasonal Trends',
+            index: 2,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.inventory,
+            title: 'Inventory Management',
+            index: 3,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.assistant,
+            title: 'Personal Assistant',
             index: 4,
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.analytics,
+            title: 'Customer Call Insights',
+            index: 5,
           ),
           const Divider(),
           ListTile(
@@ -2811,23 +3109,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   title: 'Contract Management',
                   index: 1,
                 ),
-                _buildSidebarItem(
+                _buildSidebarNavigationItem(
                   context,
                   icon: Icons.analytics,
-                  title: 'Customer Call Insights',
-                  index: 2,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.assistant,
-                  title: 'Personal Assistant',
-                  index: 3,
+                  title: 'Forecast & Insights',
+                  route: '/material-forecast',
                 ),
                 _buildSidebarItem(
                   context,
                   icon: Icons.trending_up,
                   title: 'Seasonal Trends',
+                  index: 2,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.inventory,
+                  title: 'Inventory Management',
+                  index: 3,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.assistant,
+                  title: 'Personal Assistant',
                   index: 4,
+                ),
+                _buildSidebarItem(
+                  context,
+                  icon: Icons.analytics,
+                  title: 'Customer Call Insights',
+                  index: 5,
                 ),
               ],
             ),
@@ -2921,6 +3231,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
     );
   }
+
+  /// Build sidebar navigation item that navigates to a route (not a tab)
+  Widget _buildSidebarNavigationItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String route,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.grey[600]),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.normal,
+            color: Colors.black87,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () {
+          context.push(route);
+        },
+      ),
+    );
+  }
+
+  /// Build drawer navigation item that navigates to a route (not a tab)
+  Widget _buildDrawerNavigationItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String route,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context); // Close drawer
+        context.push(route);
+      },
+    );
+  }
 }
 
 /// Dashboard stat card with same hover animation as QuickAction cards (scale + elevation).
@@ -2985,7 +3338,9 @@ class _DashboardStatCardState extends State<_DashboardStatCard> {
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.gradientColors[0].withOpacity(_hovered ? 0.55 : 0.5),
+                      color: widget.gradientColors[0].withOpacity(
+                        _hovered ? 0.55 : 0.5,
+                      ),
                       blurRadius: elevationBlur,
                       offset: Offset(0, elevationOffset),
                       spreadRadius: spreadRadius,
@@ -3033,7 +3388,9 @@ class _DashboardStatCardState extends State<_DashboardStatCard> {
                             padding: EdgeInsets.all(isMobile ? 8 : 12),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+                              borderRadius: BorderRadius.circular(
+                                isMobile ? 12 : 16,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.15),
@@ -3044,7 +3401,10 @@ class _DashboardStatCardState extends State<_DashboardStatCard> {
                             ),
                             child: Icon(
                               widget.icon,
-                              size: ResponsiveHelper.responsiveIconSize(context, 32),
+                              size: ResponsiveHelper.responsiveIconSize(
+                                context,
+                                32,
+                              ),
                               color: Colors.white,
                             ),
                           ),
@@ -3060,7 +3420,11 @@ class _DashboardStatCardState extends State<_DashboardStatCard> {
                                   child: Text(
                                     widget.value,
                                     style: TextStyle(
-                                      fontSize: ResponsiveHelper.responsiveFontSize(context, 38),
+                                      fontSize:
+                                          ResponsiveHelper.responsiveFontSize(
+                                            context,
+                                            38,
+                                          ),
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                       letterSpacing: -1,
@@ -3074,7 +3438,11 @@ class _DashboardStatCardState extends State<_DashboardStatCard> {
                                   child: Text(
                                     widget.title,
                                     style: TextStyle(
-                                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                                      fontSize:
+                                          ResponsiveHelper.responsiveFontSize(
+                                            context,
+                                            12,
+                                          ),
                                       color: Colors.white.withOpacity(0.95),
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.2,
@@ -3136,7 +3504,9 @@ class _QuickActionCardState extends State<_QuickActionCard> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      cursor: widget.onPressed != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: widget.onPressed != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       child: AnimatedScale(
         scale: scale,
         duration: const Duration(milliseconds: 150),
@@ -3189,7 +3559,9 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                         padding: EdgeInsets.all(isMobile ? 12 : 14),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.28),
-                          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+                          borderRadius: BorderRadius.circular(
+                            isMobile ? 12 : 14,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.12),
@@ -3200,17 +3572,28 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                         ),
                         child: widget.isLoading
                             ? SizedBox(
-                                width: ResponsiveHelper.responsiveIconSize(context, 22),
-                                height: ResponsiveHelper.responsiveIconSize(context, 22),
+                                width: ResponsiveHelper.responsiveIconSize(
+                                  context,
+                                  22,
+                                ),
+                                height: ResponsiveHelper.responsiveIconSize(
+                                  context,
+                                  22,
+                                ),
                                 child: const CircularProgressIndicator(
                                   strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : Icon(
                                 widget.icon,
                                 color: Colors.white,
-                                size: ResponsiveHelper.responsiveIconSize(context, 28),
+                                size: ResponsiveHelper.responsiveIconSize(
+                                  context,
+                                  28,
+                                ),
                               ),
                       ),
                       SizedBox(width: isMobile ? 14 : 18),
@@ -3224,7 +3607,10 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 15 : 16),
+                                fontSize: ResponsiveHelper.responsiveFontSize(
+                                  context,
+                                  isMobile ? 15 : 16,
+                                ),
                                 letterSpacing: 0.3,
                               ),
                               maxLines: isMobile ? 2 : 1,
@@ -3236,7 +3622,10 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                                 widget.subtitle!,
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.92),
-                                  fontSize: ResponsiveHelper.responsiveFontSize(context, isMobile ? 11 : 12),
+                                  fontSize: ResponsiveHelper.responsiveFontSize(
+                                    context,
+                                    isMobile ? 11 : 12,
+                                  ),
                                   fontWeight: FontWeight.w500,
                                 ),
                                 maxLines: 1,
@@ -3249,7 +3638,10 @@ class _QuickActionCardState extends State<_QuickActionCard> {
                       Icon(
                         Icons.arrow_forward_ios,
                         color: Colors.white.withOpacity(0.9),
-                        size: ResponsiveHelper.responsiveIconSize(context, isMobile ? 14 : 16),
+                        size: ResponsiveHelper.responsiveIconSize(
+                          context,
+                          isMobile ? 14 : 16,
+                        ),
                       ),
                     ],
                   ),

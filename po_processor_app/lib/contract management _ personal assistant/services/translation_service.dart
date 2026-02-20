@@ -1,10 +1,10 @@
 import '../utils/logger.dart';
 import 'package:dio/dio.dart';
-import '../utils/config.dart';
+import '../../core/constants/app_constants.dart';
 
 class TranslationService {
   final Dio _dio = Dio();
-  final String _apiKey = Config.geminiApiKey;
+  final String _apiKey = AppConstants.geminiApiKey;
 
   TranslationService() {
     // Set longer timeouts for translation operations
