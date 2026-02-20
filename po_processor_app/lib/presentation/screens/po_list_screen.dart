@@ -312,7 +312,10 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
             ),
           ],
         ),
-        onTap: () => context.push('/po-detail/${po.id}'),
+        onTap: () async {
+          await context.push('/po-detail/${po.id}');
+          if (mounted) ref.read(poProvider.notifier).loadPurchaseOrders();
+        },
       ),
     );
   }

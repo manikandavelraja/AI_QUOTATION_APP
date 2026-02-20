@@ -68,7 +68,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
       ref.read(inquiryProvider.notifier).clearError();
 
       // Fetch emails directly via Gmail API (will prompt for sign-in if needed)
-      final emails = await _emailService.fetchInquiryEmails(maxResults: 10);
+      final emails = await _emailService.fetchInquiryEmails();
 
       if (emails.isEmpty) {
         setState(() {

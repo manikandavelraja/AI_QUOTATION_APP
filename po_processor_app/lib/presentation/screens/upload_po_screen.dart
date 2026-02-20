@@ -65,7 +65,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
       ref.read(poProvider.notifier).clearError();
 
       // Fetch PO emails directly via Gmail API (will prompt for sign-in if needed)
-      final emails = await _emailService.fetchPOEmails(maxResults: 10);
+      final emails = await _emailService.fetchPOEmails();
 
       if (emails.isEmpty) {
         setState(() {

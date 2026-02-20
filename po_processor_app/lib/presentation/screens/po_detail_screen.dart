@@ -154,11 +154,6 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            onPressed: _createSupplierOrder,
-            tooltip: 'Create Supplier Order',
-          ),
-          IconButton(
             icon: const Icon(Icons.delete, color: Colors.white),
             onPressed: _deletePO,
           ),
