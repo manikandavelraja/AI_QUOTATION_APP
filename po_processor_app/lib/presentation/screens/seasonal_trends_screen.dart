@@ -20,41 +20,34 @@ class SeasonalTrendsScreen extends ConsumerStatefulWidget {
 class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   String _selectedRegion = 'Dubai';
   String _selectedSeason = 'Spring';
-  int _selectedMonth = DateTime.now().month;
   bool _isLoading = false;
   String? _sustainabilityInsight;
   List<Recommendation> _recommendations = [];
 
   final List<String> _regions = ['Dubai', 'Germany', 'India'];
   final List<String> _seasons = ['Spring', 'Summer', 'Autumn', 'Winter'];
-  final List<String> _months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadPredictions();
+    // Delay provider modification until after the widget tree is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPredictions();
+    });
   }
 
   Future<void> _loadPredictions() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await ref.read(seasonalTrendsProvider.notifier).loadPredictions(
+      // Use current month as default for predictions
+      final currentMonth = DateTime.now().month;
+      await ref
+          .read(seasonalTrendsProvider.notifier)
+          .loadPredictions(
             region: _selectedRegion,
             season: _selectedSeason,
-            month: _selectedMonth,
+            month: currentMonth,
           );
       await _generateSustainabilityInsight();
       _generateRecommendations();
@@ -76,19 +69,73 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     if (state.prediction == null) return;
 
     try {
-      final insight = await VBeltPredictionService.generateSustainabilityInsight(
-        region: _selectedRegion,
-        season: _selectedSeason,
-        month: _selectedMonth,
-        predictedDemand: state.prediction!.predictedDemand,
-        carbonFootprint: state.prediction!.carbonFootprint,
-        sustainabilityScore: state.prediction!.sustainabilityScore,
-        language: context.locale.languageCode,
-      );
-      setState(() => _sustainabilityInsight = insight);
+      final insight =
+          await VBeltPredictionService.generateSustainabilityInsight(
+            region: _selectedRegion,
+            season: _selectedSeason,
+            month: DateTime.now().month,
+            predictedDemand: state.prediction!.predictedDemand,
+            carbonFootprint: state.prediction!.carbonFootprint,
+            sustainabilityScore: state.prediction!.sustainabilityScore,
+            language: context.locale.languageCode,
+          );
+      if (mounted &&
+          insight.isNotEmpty &&
+          !insight.contains('temporarily unavailable') &&
+          !insight.contains('Unable to generate')) {
+        setState(() => _sustainabilityInsight = insight);
+      } else if (mounted) {
+        // Generate a fallback insight if API fails
+        setState(() {
+          _sustainabilityInsight = _generateFallbackInsight(state.prediction!);
+        });
+      }
     } catch (e) {
       debugPrint('Error generating insight: $e');
+      if (mounted && state.prediction != null) {
+        setState(() {
+          _sustainabilityInsight = _generateFallbackInsight(state.prediction!);
+        });
+      }
     }
+  }
+
+  String _generateFallbackInsight(PredictionResult prediction) {
+    final weather = prediction.weatherData;
+    final carbonPerUnit =
+        prediction.carbonFootprint / prediction.predictedDemand;
+
+    StringBuffer insight = StringBuffer();
+    insight.writeln(
+      'Based on the current prediction for $_selectedRegion during $_selectedSeason:',
+    );
+    insight.writeln('');
+    insight.writeln(
+      'The predicted demand of ${prediction.predictedDemand.toStringAsFixed(0)} units '
+      'will result in a carbon footprint of ${prediction.carbonFootprint.toStringAsFixed(2)} kg CO₂ '
+      '(${carbonPerUnit.toStringAsFixed(2)} kg per unit). ',
+    );
+
+    if (carbonPerUnit > 2.5) {
+      insight.writeln(
+        'To reduce environmental impact, consider sourcing from local suppliers or using '
+        'eco-friendly transportation methods.',
+      );
+    }
+
+    if (weather.temperature > 40) {
+      insight.writeln(
+        'Given the extreme temperature of ${weather.temperature.toStringAsFixed(1)}°C, '
+        'V-belts may experience accelerated degradation. Consider heat-resistant variants '
+        'and climate-controlled storage.',
+      );
+    }
+
+    insight.writeln(
+      'Optimize inventory management to reduce waste and improve sustainability metrics.',
+    );
+
+    return insight.toString();
   }
 
   @override
@@ -115,8 +162,6 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                       _buildKPICards(context, state.prediction!),
                       const SizedBox(height: 24),
                       _buildTripleBottomLineChart(context, state.prediction!),
-                      const SizedBox(height: 24),
-                      _buildConfidenceGauges(context, state.prediction!),
                       const SizedBox(height: 24),
                       _buildRegionalMap(context),
                       const SizedBox(height: 24),
@@ -152,7 +197,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Qumarionix GreenFlow',
+                  'Seasonal Trends Analysis',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -185,8 +230,6 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                   _buildRegionSelector(context),
                   const SizedBox(height: 16),
                   _buildSeasonSelector(context),
-                  const SizedBox(height: 16),
-                  _buildMonthSelector(context),
                 ],
               )
             : Row(
@@ -194,8 +237,6 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                   Expanded(child: _buildRegionSelector(context)),
                   const SizedBox(width: 16),
                   Expanded(child: _buildSeasonSelector(context)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildMonthSelector(context)),
                 ],
               ),
       ),
@@ -211,10 +252,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
         prefixIcon: Icon(Icons.location_on),
       ),
       items: _regions.map((region) {
-        return DropdownMenuItem(
-          value: region,
-          child: Text(region),
-        );
+        return DropdownMenuItem(value: region, child: Text(region));
       }).toList(),
       onChanged: (value) {
         if (value != null) {
@@ -234,38 +272,11 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
         prefixIcon: Icon(Icons.wb_sunny),
       ),
       items: _seasons.map((season) {
-        return DropdownMenuItem(
-          value: season,
-          child: Text(season),
-        );
+        return DropdownMenuItem(value: season, child: Text(season));
       }).toList(),
       onChanged: (value) {
         if (value != null) {
           setState(() => _selectedSeason = value);
-          _loadPredictions();
-        }
-      },
-    );
-  }
-
-  Widget _buildMonthSelector(BuildContext context) {
-    return DropdownButtonFormField<int>(
-      value: _selectedMonth,
-      decoration: const InputDecoration(
-        labelText: 'Month',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.calendar_today),
-      ),
-      items: List.generate(12, (index) {
-        final month = index + 1;
-        return DropdownMenuItem(
-          value: month,
-          child: Text(_months[month - 1]),
-        );
-      }),
-      onChanged: (value) {
-        if (value != null) {
-          setState(() => _selectedMonth = value);
           _loadPredictions();
         }
       },
@@ -292,16 +303,6 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
             '${prediction.carbonFootprint.toStringAsFixed(2)} kg CO₂',
             Icons.eco,
             Colors.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildKPICard(
-            context,
-            'Sustainability Score',
-            '${prediction.sustainabilityScore.toStringAsFixed(0)}/100',
-            Icons.star,
-            AppTheme.primaryGreen,
           ),
         ),
         const SizedBox(width: 12),
@@ -362,7 +363,9 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   }
 
   Widget _buildTripleBottomLineChart(
-      BuildContext context, PredictionResult prediction) {
+    BuildContext context,
+    PredictionResult prediction,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -399,7 +402,11 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
-                          final labels = ['Profit', 'Waste Reduction', 'Order Accuracy'];
+                          final labels = [
+                            'Profit',
+                            'Waste Reduction',
+                            'Order Accuracy',
+                          ];
                           if (index >= 0 && index < labels.length) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
@@ -471,75 +478,8 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     );
   }
 
-  Widget _buildConfidenceGauges(
-      BuildContext context, PredictionResult prediction) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'AI Confidence & ESG Gauges',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildGauge(
-                    'AI Confidence',
-                    prediction.confidence * 100,
-                    Colors.purple,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildGauge(
-                    'Sustainability Score',
-                    prediction.sustainabilityScore,
-                    AppTheme.primaryGreen,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGauge(String label, double value, Color color) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 150,
-          width: 150,
-          child: CircularProgressIndicator(
-            value: value / 100,
-            strokeWidth: 12,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
-        Text(
-          '${value.toStringAsFixed(0)}%',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildRegionalMap(BuildContext context) {
+    final state = ref.read(seasonalTrendsProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -553,60 +493,36 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 400,
-              child: Row(
-                children: _regions.map((region) {
-                  final isSelected = region == _selectedRegion;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedRegion = region);
-                        _loadPredictions();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.primaryGreen.withOpacity(0.2)
-                              : Colors.grey[200],
-                          border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primaryGreen
-                                : Colors.grey[300]!,
-                            width: isSelected ? 3 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 48,
-                              color: isSelected
-                                  ? AppTheme.primaryGreen
-                                  : Colors.grey[600],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              region,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? AppTheme.primaryGreen
-                                    : Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRegionAlerts(region),
-                          ],
-                        ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                  border: Border.all(color: AppTheme.primaryGreen, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 64,
+                      color: AppTheme.primaryGreen,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _selectedRegion,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
                       ),
                     ),
-                  );
-                }).toList(),
+                    const SizedBox(height: 16),
+                    _buildRegionAlerts(_selectedRegion),
+                    const SizedBox(height: 24),
+                    if (state.prediction != null)
+                      _buildRegionDetails(state.prediction!),
+                  ],
+                ),
               ),
             ),
           ],
@@ -655,6 +571,55 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     );
   }
 
+  Widget _buildRegionDetails(PredictionResult prediction) {
+    final weather = prediction.weatherData;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildWeatherInfo(
+                'Temperature',
+                '${weather.temperature.toStringAsFixed(1)}°C',
+                Icons.thermostat,
+              ),
+              _buildWeatherInfo(
+                'Humidity',
+                '${weather.humidity.toStringAsFixed(0)}%',
+                Icons.water_drop,
+              ),
+              _buildWeatherInfo(
+                'Condition',
+                weather.condition,
+                Icons.wb_cloudy,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherInfo(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.primaryGreen, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryGreen,
+          ),
+        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
   Widget _buildSustainabilityInsight(BuildContext context) {
     return Card(
       color: AppTheme.primaryGreen.withOpacity(0.1),
@@ -668,7 +633,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                 const Icon(Icons.lightbulb, color: AppTheme.primaryGreen),
                 const SizedBox(width: 8),
                 const Text(
-                  'Reflexive AI Sustainability Insight',
+                  'Sustainability Insight',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -700,186 +665,218 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
 
     // Recommendation 1: Demand-based recommendations
     if (prediction.predictedDemand > 2500) {
-      recommendations.add(Recommendation(
-        title: 'High Demand Alert',
-        description:
-            'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units, which is above optimal levels. Consider bulk ordering to reduce per-unit costs and improve supply chain efficiency.',
-        icon: Icons.trending_up,
-        color: Colors.orange,
-        priority: 'High',
-        category: 'Demand Management',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'High Demand Alert',
+          description:
+              'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units, which is above optimal levels. Consider bulk ordering to reduce per-unit costs and improve supply chain efficiency.',
+          icon: Icons.trending_up,
+          color: Colors.orange,
+          priority: 'High',
+          category: 'Demand Management',
+        ),
+      );
     } else if (prediction.predictedDemand < 1000) {
-      recommendations.add(Recommendation(
-        title: 'Low Demand Opportunity',
-        description:
-            'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units. This is a good time to optimize inventory and reduce excess stock. Consider consolidating orders with other regions.',
-        icon: Icons.trending_down,
-        color: Colors.blue,
-        priority: 'Medium',
-        category: 'Inventory Optimization',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Low Demand Opportunity',
+          description:
+              'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units. This is a good time to optimize inventory and reduce excess stock. Consider consolidating orders with other regions.',
+          icon: Icons.trending_down,
+          color: Colors.blue,
+          priority: 'Medium',
+          category: 'Inventory Optimization',
+        ),
+      );
     }
 
     // Recommendation 2: Carbon footprint recommendations
-    final carbonPerUnit = prediction.carbonFootprint / prediction.predictedDemand;
+    final carbonPerUnit =
+        prediction.carbonFootprint / prediction.predictedDemand;
     if (carbonPerUnit > 2.5) {
-      recommendations.add(Recommendation(
-        title: 'Carbon Footprint Reduction',
-        description:
-            'Carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is above optimal. Consider sourcing from local suppliers or using eco-friendly transportation methods to reduce emissions.',
-        icon: Icons.eco,
-        color: Colors.green,
-        priority: 'High',
-        category: 'Sustainability',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Carbon Footprint Reduction',
+          description:
+              'Carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is above optimal. Consider sourcing from local suppliers or using eco-friendly transportation methods to reduce emissions.',
+          icon: Icons.eco,
+          color: Colors.green,
+          priority: 'High',
+          category: 'Sustainability',
+        ),
+      );
     } else if (carbonPerUnit < 2.0) {
-      recommendations.add(Recommendation(
-        title: 'Excellent Carbon Efficiency',
-        description:
-            'Your carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is below average. Maintain this sustainable approach and consider sharing best practices with other regions.',
-        icon: Icons.verified,
-        color: Colors.green,
-        priority: 'Low',
-        category: 'Sustainability',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Excellent Carbon Efficiency',
+          description:
+              'Your carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is below average. Maintain this sustainable approach and consider sharing best practices with other regions.',
+          icon: Icons.verified,
+          color: Colors.green,
+          priority: 'Low',
+          category: 'Sustainability',
+        ),
+      );
     }
 
     // Recommendation 3: Sustainability score recommendations
     if (prediction.sustainabilityScore < 70) {
-      recommendations.add(Recommendation(
-        title: 'Improve Sustainability Score',
-        description:
-            'Current sustainability score is ${prediction.sustainabilityScore.toStringAsFixed(0)}/100. Focus on reducing waste, optimizing demand forecasting, and improving supply chain efficiency to boost your ESG rating.',
-        icon: Icons.star_border,
-        color: Colors.amber,
-        priority: 'High',
-        category: 'ESG Performance',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Improve Sustainability Score',
+          description:
+              'Current sustainability score is ${prediction.sustainabilityScore.toStringAsFixed(0)}/100. Focus on reducing waste, optimizing demand forecasting, and improving supply chain efficiency to boost your ESG rating.',
+          icon: Icons.star_border,
+          color: Colors.amber,
+          priority: 'High',
+          category: 'ESG Performance',
+        ),
+      );
     }
 
     // Recommendation 4: Weather-based recommendations
     final weather = prediction.weatherData;
     if (weather.temperature > 40) {
-      recommendations.add(Recommendation(
-        title: 'Extreme Heat Warning',
-        description:
-            'Temperature is ${weather.temperature.toStringAsFixed(1)}°C. High temperatures accelerate V-belt degradation. Consider ordering belts with higher temperature resistance or increasing inventory buffer by 15-20%.',
-        icon: Icons.warning,
-        color: Colors.red,
-        priority: 'High',
-        category: 'Weather Impact',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Extreme Heat Warning',
+          description:
+              'Temperature is ${weather.temperature.toStringAsFixed(1)}°C. High temperatures accelerate V-belt degradation. Consider ordering belts with higher temperature resistance or increasing inventory buffer by 15-20%.',
+          icon: Icons.warning,
+          color: Colors.red,
+          priority: 'High',
+          category: 'Weather Impact',
+        ),
+      );
     } else if (weather.humidity > 75) {
-      recommendations.add(Recommendation(
-        title: 'High Humidity Alert',
-        description:
-            'Humidity is ${weather.humidity.toStringAsFixed(0)}%. High humidity can cause belt deterioration. Ensure proper storage conditions and consider moisture-resistant belt options.',
-        icon: Icons.water_drop,
-        color: Colors.cyan,
-        priority: 'Medium',
-        category: 'Weather Impact',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'High Humidity Alert',
+          description:
+              'Humidity is ${weather.humidity.toStringAsFixed(0)}%. High humidity can cause belt deterioration. Ensure proper storage conditions and consider moisture-resistant belt options.',
+          icon: Icons.water_drop,
+          color: Colors.cyan,
+          priority: 'Medium',
+          category: 'Weather Impact',
+        ),
+      );
     }
 
     // Recommendation 5: Waste reduction recommendations
     if (prediction.wasteReductionScore < 70) {
-      recommendations.add(Recommendation(
-        title: 'Optimize Waste Reduction',
-        description:
-            'Waste reduction score is ${prediction.wasteReductionScore.toStringAsFixed(0)}/100. Implement just-in-time inventory management and improve demand forecasting accuracy to reduce waste and improve sustainability.',
-        icon: Icons.recycling,
-        color: Colors.teal,
-        priority: 'Medium',
-        category: 'Waste Management',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Optimize Waste Reduction',
+          description:
+              'Waste reduction score is ${prediction.wasteReductionScore.toStringAsFixed(0)}/100. Implement just-in-time inventory management and improve demand forecasting accuracy to reduce waste and improve sustainability.',
+          icon: Icons.recycling,
+          color: Colors.teal,
+          priority: 'Medium',
+          category: 'Waste Management',
+        ),
+      );
     }
 
     // Recommendation 6: Profit optimization
     if (prediction.profitScore < 60) {
-      recommendations.add(Recommendation(
-        title: 'Profit Optimization Opportunity',
-        description:
-            'Profit score is ${prediction.profitScore.toStringAsFixed(0)}/100. Consider negotiating bulk discounts, optimizing supplier relationships, or adjusting pricing strategy for this region and season.',
-        icon: Icons.attach_money,
-        color: Colors.blue,
-        priority: 'Medium',
-        category: 'Financial',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Profit Optimization Opportunity',
+          description:
+              'Profit score is ${prediction.profitScore.toStringAsFixed(0)}/100. Consider negotiating bulk discounts, optimizing supplier relationships, or adjusting pricing strategy for this region and season.',
+          icon: Icons.attach_money,
+          color: Colors.blue,
+          priority: 'Medium',
+          category: 'Financial',
+        ),
+      );
     }
 
     // Recommendation 7: Order accuracy
     if (prediction.orderAccuracyScore < 80) {
-      recommendations.add(Recommendation(
-        title: 'Improve Order Accuracy',
-        description:
-            'Order accuracy score is ${prediction.orderAccuracyScore.toStringAsFixed(0)}/100. Enhance demand forecasting models and consider historical data analysis to improve prediction confidence.',
-        icon: Icons.analytics,
-        color: Colors.purple,
-        priority: 'Medium',
-        category: 'Forecasting',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Improve Order Accuracy',
+          description:
+              'Order accuracy score is ${prediction.orderAccuracyScore.toStringAsFixed(0)}/100. Enhance demand forecasting models and consider historical data analysis to improve prediction confidence.',
+          icon: Icons.analytics,
+          color: Colors.purple,
+          priority: 'Medium',
+          category: 'Forecasting',
+        ),
+      );
     }
 
     // Recommendation 8: Seasonal strategy
     if (_selectedSeason == 'Summer' && prediction.predictedDemand > 2000) {
-      recommendations.add(Recommendation(
-        title: 'Summer Peak Season Strategy',
-        description:
-            'Summer typically sees increased demand. Plan ahead by securing supplier commitments early, building inventory buffers, and implementing flexible delivery schedules to meet peak demand.',
-        icon: Icons.wb_sunny,
-        color: Colors.orange,
-        priority: 'High',
-        category: 'Seasonal Planning',
-      ));
-    } else if (_selectedSeason == 'Winter' && prediction.predictedDemand < 1500) {
-      recommendations.add(Recommendation(
-        title: 'Winter Inventory Management',
-        description:
-            'Winter shows lower demand. Use this period to optimize inventory, conduct maintenance, and negotiate better terms with suppliers for the upcoming high-demand seasons.',
-        icon: Icons.ac_unit,
-        color: Colors.blue,
-        priority: 'Low',
-        category: 'Seasonal Planning',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Summer Peak Season Strategy',
+          description:
+              'Summer typically sees increased demand. Plan ahead by securing supplier commitments early, building inventory buffers, and implementing flexible delivery schedules to meet peak demand.',
+          icon: Icons.wb_sunny,
+          color: Colors.orange,
+          priority: 'High',
+          category: 'Seasonal Planning',
+        ),
+      );
+    } else if (_selectedSeason == 'Winter' &&
+        prediction.predictedDemand < 1500) {
+      recommendations.add(
+        Recommendation(
+          title: 'Winter Inventory Management',
+          description:
+              'Winter shows lower demand. Use this period to optimize inventory, conduct maintenance, and negotiate better terms with suppliers for the upcoming high-demand seasons.',
+          icon: Icons.ac_unit,
+          color: Colors.blue,
+          priority: 'Low',
+          category: 'Seasonal Planning',
+        ),
+      );
     }
 
     // Recommendation 9: Regional specific
     if (_selectedRegion == 'Dubai' && weather.temperature > 35) {
-      recommendations.add(Recommendation(
-        title: 'Dubai Heat Management',
-        description:
-            'Dubai\'s extreme heat requires special attention. Consider heat-resistant V-belt specifications, shorter replacement cycles, and climate-controlled storage facilities.',
-        icon: Icons.location_on,
-        color: Colors.orange,
-        priority: 'High',
-        category: 'Regional Strategy',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Dubai Heat Management',
+          description:
+              'Dubai\'s extreme heat requires special attention. Consider heat-resistant V-belt specifications, shorter replacement cycles, and climate-controlled storage facilities.',
+          icon: Icons.location_on,
+          color: Colors.orange,
+          priority: 'High',
+          category: 'Regional Strategy',
+        ),
+      );
     } else if (_selectedRegion == 'India' && _selectedSeason == 'Summer') {
-      recommendations.add(Recommendation(
-        title: 'India Monsoon Preparation',
-        description:
-            'Prepare for monsoon season in India. High humidity and rainfall can impact belt performance. Stock moisture-resistant variants and plan for potential supply chain disruptions.',
-        icon: Icons.cloud,
-        color: Colors.cyan,
-        priority: 'High',
-        category: 'Regional Strategy',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'India Monsoon Preparation',
+          description:
+              'Prepare for monsoon season in India. High humidity and rainfall can impact belt performance. Stock moisture-resistant variants and plan for potential supply chain disruptions.',
+          icon: Icons.cloud,
+          color: Colors.cyan,
+          priority: 'High',
+          category: 'Regional Strategy',
+        ),
+      );
     }
 
     // Recommendation 10: Overall optimization
     if (prediction.sustainabilityScore > 80 &&
         prediction.profitScore > 70 &&
         prediction.wasteReductionScore > 75) {
-      recommendations.add(Recommendation(
-        title: 'Excellent Performance',
-        description:
-            'Your current metrics show excellent performance across sustainability, profit, and waste reduction. Maintain these practices and consider scaling successful strategies to other regions.',
-        icon: Icons.celebration,
-        color: Colors.green,
-        priority: 'Low',
-        category: 'Best Practices',
-      ));
+      recommendations.add(
+        Recommendation(
+          title: 'Excellent Performance',
+          description:
+              'Your current metrics show excellent performance across sustainability, profit, and waste reduction. Maintain these practices and consider scaling successful strategies to other regions.',
+          icon: Icons.celebration,
+          color: Colors.green,
+          priority: 'Low',
+          category: 'Best Practices',
+        ),
+      );
     }
 
     setState(() {
@@ -888,7 +885,9 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   }
 
   Widget _buildRecommendations(
-      BuildContext context, PredictionResult prediction) {
+    BuildContext context,
+    PredictionResult prediction,
+  ) {
     if (_recommendations.isEmpty) return const SizedBox.shrink();
 
     return Card(
@@ -900,11 +899,14 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.lightbulb_outline,
-                    color: AppTheme.primaryGreen, size: 28),
+                const Icon(
+                  Icons.lightbulb_outline,
+                  color: AppTheme.primaryGreen,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 const Text(
-                  'AI-Powered Recommendations',
+                  'Intelligence Recommendations',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -916,10 +918,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
             const SizedBox(height: 8),
             Text(
               'Based on your current prediction details',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 20),
             ..._recommendations.map((rec) => _buildRecommendationCard(rec)),
@@ -988,7 +987,9 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: priorityColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -1070,4 +1071,3 @@ class Recommendation {
     required this.category,
   });
 }
-

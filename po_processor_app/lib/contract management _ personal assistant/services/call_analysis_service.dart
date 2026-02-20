@@ -3,13 +3,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import '../models/call_recording.dart';
 import '../utils/logger.dart';
-import '../utils/config.dart';
+import '../../core/constants/app_constants.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' if (dart.library.html) '../io_stub.dart';
 
 class CallAnalysisService {
   final Dio _dio = Dio();
-  final String _apiKey = Config.geminiApiKey;
+  final String _apiKey = AppConstants.geminiApiKey;
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
   CallAnalysisService() {

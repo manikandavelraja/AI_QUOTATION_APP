@@ -13,10 +13,12 @@ class MaterialForecastScreen extends ConsumerStatefulWidget {
   const MaterialForecastScreen({super.key});
 
   @override
-  ConsumerState<MaterialForecastScreen> createState() => _MaterialForecastScreenState();
+  ConsumerState<MaterialForecastScreen> createState() =>
+      _MaterialForecastScreenState();
 }
 
-class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen> {
+class _MaterialForecastScreenState
+    extends ConsumerState<MaterialForecastScreen> {
   final TextEditingController _materialCodeController = TextEditingController();
   final FocusNode _materialCodeFocusNode = FocusNode();
   final TestDataGenerator _testDataGenerator = TestDataGenerator();
@@ -34,10 +36,14 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
     debugPrint('🔍 [Material Forecast] Analyze button clicked');
     debugPrint('🔍 [Material Forecast] Material Code entered: "$materialCode"');
     if (materialCode.isNotEmpty) {
-      debugPrint('🔍 [Material Forecast] Calling analyzeMaterial with code: "$materialCode"');
+      debugPrint(
+        '🔍 [Material Forecast] Calling analyzeMaterial with code: "$materialCode"',
+      );
       ref.read(materialForecastProvider.notifier).analyzeMaterial(materialCode);
     } else {
-      debugPrint('⚠️ [Material Forecast] Material code is empty, not analyzing');
+      debugPrint(
+        '⚠️ [Material Forecast] Material code is empty, not analyzing',
+      );
     }
   }
 
@@ -48,13 +54,13 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
 
     try {
       await _testDataGenerator.generateTestPurchaseOrders();
-      
+
       // Refresh PO list
       ref.read(poProvider.notifier).loadPurchaseOrders();
-      
+
       // Refresh available material codes
       await ref.read(materialForecastProvider.notifier).reloadMaterialCodes();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -97,19 +103,13 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryGreen,
-                AppTheme.primaryGreenLight,
-              ],
+              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
             ),
           ),
         ),
         title: const Text(
-          'Material Forecast & Inventory Analysis',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          'Forecast & Insights',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -155,7 +155,10 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                                   ? IconButton(
                                       icon: const Icon(Icons.arrow_drop_down),
                                       onPressed: () {
-                                        _showMaterialCodePicker(context, availableCodes);
+                                        _showMaterialCodePicker(
+                                          context,
+                                          availableCodes,
+                                        );
                                       },
                                     )
                                   : null,
@@ -168,20 +171,27 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
-                          onPressed: forecastState.isLoading ? null : _analyzeMaterial,
+                          onPressed: forecastState.isLoading
+                              ? null
+                              : _analyzeMaterial,
                           icon: forecastState.isLoading
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Icon(Icons.analytics),
                           label: const Text('Analyze'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
                           ),
                         ),
                       ],
@@ -189,7 +199,9 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                     const SizedBox(height: 12),
                     // Test Data Generation Button
                     OutlinedButton.icon(
-                      onPressed: _isGeneratingTestData ? null : _generateTestData,
+                      onPressed: _isGeneratingTestData
+                          ? null
+                          : _generateTestData,
                       icon: _isGeneratingTestData
                           ? const SizedBox(
                               width: 16,
@@ -197,11 +209,16 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.science),
-                      label: Text(_isGeneratingTestData
-                          ? 'Generating Test Data...'
-                          : 'Generate Test Purchase Orders'),
+                      label: Text(
+                        _isGeneratingTestData
+                            ? 'Generating Test Data...'
+                            : 'Generate Test Purchase Orders',
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         side: const BorderSide(color: AppTheme.primaryGreen),
                       ),
                     ),
@@ -265,19 +282,13 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                       const SizedBox(height: 16),
                       Text(
                         'Enter a Material Code to analyze',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'The system will analyze procurement patterns and provide inventory recommendations',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                       ),
                     ],
                   ),
@@ -339,8 +350,14 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
               borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 colors: forecast.recommendation == 'Stock'
-                    ? [AppTheme.successGreen.withOpacity(0.1), AppTheme.successGreen.withOpacity(0.05)]
-                    : [AppTheme.warningOrange.withOpacity(0.1), AppTheme.warningOrange.withOpacity(0.05)],
+                    ? [
+                        AppTheme.successGreen.withOpacity(0.1),
+                        AppTheme.successGreen.withOpacity(0.05),
+                      ]
+                    : [
+                        AppTheme.warningOrange.withOpacity(0.1),
+                        AppTheme.warningOrange.withOpacity(0.05),
+                      ],
               ),
             ),
             padding: const EdgeInsets.all(20.0),
@@ -350,8 +367,12 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                 Row(
                   children: [
                     Icon(
-                      forecast.recommendation == 'Stock' ? Icons.check_circle : Icons.cancel,
-                      color: forecast.recommendation == 'Stock' ? AppTheme.successGreen : AppTheme.warningOrange,
+                      forecast.recommendation == 'Stock'
+                          ? Icons.check_circle
+                          : Icons.cancel,
+                      color: forecast.recommendation == 'Stock'
+                          ? AppTheme.successGreen
+                          : AppTheme.warningOrange,
                       size: 32,
                     ),
                     const SizedBox(width: 12),
@@ -364,7 +385,9 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: forecast.recommendation == 'Stock' ? AppTheme.successGreen : AppTheme.warningOrange,
+                              color: forecast.recommendation == 'Stock'
+                                  ? AppTheme.successGreen
+                                  : AppTheme.warningOrange,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -471,7 +494,11 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const Icon(Icons.event, color: AppTheme.primaryGreen, size: 32),
+                  const Icon(
+                    Icons.event,
+                    color: AppTheme.primaryGreen,
+                    size: 32,
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -486,7 +513,9 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          DateFormat('MMMM dd, yyyy').format(forecast.predictedNextOrderDate!),
+                          DateFormat(
+                            'MMMM dd, yyyy',
+                          ).format(forecast.predictedNextOrderDate!),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -524,10 +553,7 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
               children: [
                 const Text(
                   'Purchase History (Last 12 Months)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -554,10 +580,7 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
               children: [
                 const Text(
                   'Purchase History Details',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 _buildPurchaseHistoryTable(forecast),
@@ -569,12 +592,15 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -612,19 +638,14 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
 
   Widget _buildPurchaseHistoryChart(MaterialForecast forecast) {
     if (forecast.purchaseHistory.isEmpty) {
-      return const Center(
-        child: Text('No purchase history data available'),
-      );
+      return const Center(child: Text('No purchase history data available'));
     }
 
     final sortedHistory = List<PurchaseEvent>.from(forecast.purchaseHistory)
       ..sort((a, b) => a.purchaseDate.compareTo(b.purchaseDate));
 
     final spots = sortedHistory.asMap().entries.map((entry) {
-      return FlSpot(
-        entry.key.toDouble(),
-        entry.value.quantity,
-      );
+      return FlSpot(entry.key.toDouble(), entry.value.quantity);
     }).toList();
 
     return LineChart(
@@ -661,7 +682,10 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
             color: AppTheme.primaryGreen,
             barWidth: 3,
             dotData: FlDotData(show: true),
-            belowBarData: BarAreaData(show: true, color: AppTheme.primaryGreen.withOpacity(0.1)),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppTheme.primaryGreen.withOpacity(0.1),
+            ),
           ),
         ],
       ),
@@ -694,15 +718,19 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
         rows: sortedHistory.map((purchase) {
           return DataRow(
             cells: [
-              DataCell(Text(DateFormat('MMM dd, yyyy').format(purchase.purchaseDate))),
+              DataCell(
+                Text(DateFormat('MMM dd, yyyy').format(purchase.purchaseDate)),
+              ),
               DataCell(Text(purchase.poNumber)),
               DataCell(Text(purchase.quantity.toStringAsFixed(2))),
               DataCell(Text(purchase.unit)),
-              DataCell(Text(
-                purchase.leadTimeDays != null
-                    ? '${purchase.leadTimeDays} days'
-                    : 'N/A',
-              )),
+              DataCell(
+                Text(
+                  purchase.leadTimeDays != null
+                      ? '${purchase.leadTimeDays} days'
+                      : 'N/A',
+                ),
+              ),
             ],
           );
         }).toList(),
@@ -710,4 +738,3 @@ class _MaterialForecastScreenState extends ConsumerState<MaterialForecastScreen>
     );
   }
 }
-
