@@ -150,13 +150,28 @@ class PDFService {
             } else {
               final summary = result['summary'] as String? ?? '';
               debugPrint('⚠️ Direct extraction returned no meaningful data. Summary: $summary');
-              throw Exception(summary.isNotEmpty ? summary : 'Failed to extract valid PO data from PDF.');
+              // Provide a more helpful error message
+              final errorMsg = summary.isNotEmpty && !summary.toLowerCase().contains('failed to parse')
+                  ? 'Failed to extract valid PO data from PDF. The document may be corrupted, image-based, or in an unsupported format. Summary: $summary'
+                  : 'Failed to extract valid PO data from PDF. The document may be corrupted, image-based, or in an unsupported format.';
+              throw Exception(errorMsg);
             }
           }
         } else {
           final summary = result['summary'] as String? ?? '';
           debugPrint('⚠️ Direct extraction returned null poData. Summary: $summary');
-          throw Exception(summary.isNotEmpty ? summary : 'Failed to extract PO data from PDF.');
+          // Check if summary contains error information
+          final hasErrorInfo = summary.toLowerCase().contains('failed to parse') || 
+                              summary.toLowerCase().contains('error') ||
+                              summary.toLowerCase().contains('exception');
+          
+          // Provide a more helpful error message
+          final errorMsg = hasErrorInfo
+              ? 'Failed to extract PO data from PDF: $summary'
+              : (summary.isNotEmpty 
+                  ? 'Failed to extract PO data from PDF. The AI was able to read the document but could not extract structured data. This may indicate the PDF format is not supported or the document is corrupted.'
+                  : 'Failed to extract PO data from PDF. The document may be corrupted, image-based, or in an unsupported format.');
+          throw Exception(errorMsg);
         }
       } catch (directError) {
         debugPrint('❌ Direct PDF extraction with inline_data failed: $directError');

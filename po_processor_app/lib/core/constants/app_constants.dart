@@ -48,7 +48,7 @@ class AppConstants {
   
   // Database Configuration
   static const String databaseName = 'po_processor.db';
-  static const int databaseVersion = 3; // Incremented to add sender_email column
+  static const int databaseVersion = 5; // Add inquiry_items.status for item-level quoted/pending
   
   // Supported Languages
   static const String defaultLanguage = 'en';

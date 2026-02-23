@@ -19,9 +19,15 @@ import '../../presentation/screens/delivery_document_create_screen.dart';
 import '../../presentation/screens/quotation_list_screen.dart';
 import '../../presentation/screens/quotation_detail_screen.dart';
 import '../../presentation/screens/splash_screen.dart';
+import '../../presentation/screens/material_forecast_screen.dart';
+
+/// Global navigator key for safe navigation from background tasks (e.g. after
+/// inquiry/PO sync completes when the user may be on a different screen).
+final GlobalKey<NavigatorState>? rootNavigatorKey = GlobalKey<NavigatorState>();
 
 class AppRouter {
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -182,6 +188,12 @@ class AppRouter {
           final supplierOrderId = state.pathParameters['supplierOrderId']!;
           return DeliveryDocumentCreateScreen(supplierOrderId: supplierOrderId);
         },
+      ),
+      // Material Forecast route
+      GoRoute(
+        path: '/material-forecast',
+        name: 'material-forecast',
+        builder: (context, state) => const MaterialForecastScreen(),
       ),
     ],
   );

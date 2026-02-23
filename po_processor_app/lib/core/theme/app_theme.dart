@@ -8,17 +8,17 @@ class AppTheme {
   static const Color primaryGreenDark = Color(0xFF1B5E20);
   static const Color secondaryGreen = Color(0xFF66BB6A);
   static const Color accentGreen = Color(0xFF81C784);
-  
+
   static const Color errorRed = Color(0xFFD32F2F);
   static const Color warningOrange = Color(0xFFFF9800);
   static const Color successGreen = Color(0xFF4CAF50);
   static const Color infoBlue = Color(0xFF2196F3);
-  
+
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color backgroundDark = Color(0xFF121212);
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF1E1E1E);
-  
+
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
   static const Color textPrimaryDark = Color(0xFFFFFFFF);
@@ -236,4 +236,3 @@ class AppTheme {
     );
   }
 }
-

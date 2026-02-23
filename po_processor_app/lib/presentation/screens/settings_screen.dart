@@ -7,6 +7,8 @@ import '../providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/services/gemini_ai_service.dart';
 import '../../data/services/email_service.dart';
+import '../../data/services/test_data_generator.dart';
+import '../providers/po_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -17,7 +19,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isTestingApi = false;
+  bool _isClearingTestPOs = false;
   final _emailService = EmailService();
+  final _testDataGenerator = TestDataGenerator();
   final _emailPasswordController = TextEditingController();
   bool _isEmailConfigured = false;
   bool _isLoadingEmailConfig = true;
@@ -130,6 +134,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         setState(() => _isTestingApi = false);
       }
+    }
+  }
+
+  Future<void> _clearTestPOs() async {
+    setState(() => _isClearingTestPOs = true);
+    try {
+      await _testDataGenerator.clearTestPurchaseOrders();
+      if (mounted) {
+        ref.read(poProvider.notifier).loadPurchaseOrders();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Test purchase orders cleared from the system'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error clearing test POs: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isClearingTestPOs = false);
     }
   }
 
@@ -284,6 +315,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       )
                     : const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: _isTestingApi ? null : _testApiConnection,
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.cleaning_services, color: Colors.orange),
+                  title: const Text('Clear test POs'),
+                  subtitle: const Text('Permanently remove TEST-PO- entries from the system'),
+                  trailing: _isClearingTestPOs
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: _isClearingTestPOs ? null : _clearTestPOs,
                 ),
               ],
             ),

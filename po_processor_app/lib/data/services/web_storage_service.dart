@@ -75,6 +75,7 @@ class WebStorageService {
       'status': po.status,
       'created_at': po.createdAt.millisecondsSinceEpoch,
       'updated_at': po.updatedAt?.millisecondsSinceEpoch,
+      'quotation_reference': po.quotationReference,
       'line_items': po.lineItems.map((item) => {
         'id': item.id ?? '${id}_${po.lineItems.indexOf(item)}',
         'item_name': item.itemName,
@@ -112,10 +113,13 @@ class WebStorageService {
       
       String status = poMap['status'] as String? ?? 'active';
       final expiryDate = DateTime.fromMillisecondsSinceEpoch(poMap['expiry_date'] as int);
-      if (expiryDate.isBefore(DateTime.now())) {
-        status = 'expired';
-      } else if (expiryDate.difference(DateTime.now()).inDays <= 7) {
-        status = 'expiring_soon';
+      // Only override with expiry state when status is still 'active'; preserve user-set status (e.g. material_received, delivery_status)
+      if (status == 'active') {
+        if (expiryDate.isBefore(DateTime.now())) {
+          status = 'expired';
+        } else if (expiryDate.difference(DateTime.now()).inDays <= 7) {
+          status = 'expiring_soon';
+        }
       }
       
       return PurchaseOrder(
@@ -136,6 +140,7 @@ class WebStorageService {
             ? DateTime.fromMillisecondsSinceEpoch(poMap['updated_at'] as int)
             : null,
         status: status,
+        quotationReference: poMap['quotation_reference'] as String?,
         lineItems: lineItems,
       );
     }).toList();
@@ -173,6 +178,7 @@ class WebStorageService {
         'status': po.status,
         'created_at': pos[index]['created_at'],
         'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'quotation_reference': po.quotationReference,
         'line_items': po.lineItems.map((item) => {
           'id': item.id ?? '${po.id}_${po.lineItems.indexOf(item)}',
           'item_name': item.itemName,
@@ -260,6 +266,7 @@ class WebStorageService {
         'manufacturer_part': item.manufacturerPart,
         'class_code': item.classCode,
         'plant': item.plant,
+        'status': item.status,
       }).toList(),
     });
     
@@ -284,6 +291,7 @@ class WebStorageService {
                 manufacturerPart: item['manufacturer_part'] as String?,
                 classCode: item['class_code'] as String?,
                 plant: item['plant'] as String?,
+                status: item['status'] as String? ?? 'pending',
               ))
           .toList() ?? [];
       
@@ -352,6 +360,7 @@ class WebStorageService {
           'manufacturer_part': item.manufacturerPart,
           'class_code': item.classCode,
           'plant': item.plant,
+          'status': item.status,
         }).toList(),
       };
       
