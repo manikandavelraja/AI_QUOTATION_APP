@@ -625,12 +625,13 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
     );
   }
 
-  /// Inventory Health gauge: e.g. "27% At Risk"
+  /// Inventory Health gauge: rich modern circular gauge with score and label
   Widget _buildHealthGauge(BuildContext context) {
     final effective = _getEffectiveMaterial();
     if (effective == null) return const SizedBox.shrink();
     final health = InventoryMockData.computeHealth(effective);
     final score = health.healthScore;
+    final scoreClamped = (score / 100).clamp(0.0, 1.0);
     Color scoreColor = score >= 75
         ? AppTheme.successGreen
         : score >= 50
@@ -639,91 +640,172 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
                 ? AppTheme.warningOrange
                 : AppTheme.errorRed;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: ResponsiveHelper.responsiveCardPadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'True Inventory Health',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Dead stock (${InventoryMockData.deadStockUnits.toStringAsFixed(0)} units) and wastage (${InventoryMockData.wastagePercent.toStringAsFixed(1)}%) applied as negative modifiers.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                SizedBox(
-                  width: 120,
-                  height: 120,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: score / 100,
-                        strokeWidth: 12,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${score.toStringAsFixed(0)}%',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: scoreColor,
-                                ),
-                          ),
-                          Text(
-                            health.healthLabel,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: scoreColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${score.toStringAsFixed(0)}% ${health.healthLabel}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: scoreColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Based on current stock vs predicted demand for ${effective.materialName}, with dead stock and wastage reducing the score.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                      ),
-                    ],
-                  ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
+    final trackColor = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200,
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            ),
-          ],
-        ),
+      ),
+      padding: ResponsiveHelper.responsiveCardPadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: scoreColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.health_and_safety_outlined, size: 22, color: scoreColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'True Inventory Health',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Dead stock (${InventoryMockData.deadStockUnits.toStringAsFixed(0)} units) and wastage (${InventoryMockData.wastagePercent.toStringAsFixed(1)}%) applied as negative modifiers.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final size = 160.0;
+              final strokeWidth = 14.0;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: size,
+                    height: size,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Track
+                        SizedBox(
+                          width: size,
+                          height: size,
+                          child: CircularProgressIndicator(
+                            value: 1,
+                            strokeWidth: strokeWidth,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(trackColor),
+                          ),
+                        ),
+                        // Value arc with gradient
+                        SizedBox(
+                          width: size,
+                          height: size,
+                          child: CircularProgressIndicator(
+                            value: scoreClamped,
+                            strokeWidth: strokeWidth,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
+                          ),
+                        ),
+                        // Center content
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${score.toStringAsFixed(0)}',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: scoreColor,
+                                    letterSpacing: -0.5,
+                                  ),
+                            ),
+                            Text(
+                              '%',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: scoreColor,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: scoreColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: scoreColor.withOpacity(0.4)),
+                              ),
+                              child: Text(
+                                health.healthLabel,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: scoreColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 28),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${score.toStringAsFixed(0)}% ${health.healthLabel}',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: scoreColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Based on current stock vs predicted demand for ${effective.materialName}, with dead stock and wastage reducing the score.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey.shade600,
+                                height: 1.4,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -731,84 +813,165 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
   Widget _buildPastMonthTrendCard(BuildContext context) {
     if (_selectedMaterial == null) return const SizedBox.shrink();
     final trend = InventoryMockData.pastMonthTrendFor(_selectedMaterial!.materialCode);
-    final maxY = trend.fold<double>(0, (a, p) => a > p.consumption ? a : p.consumption) * 1.2;
+    final maxConsumption = trend.fold<double>(0, (a, p) => a > p.consumption ? a : p.consumption);
+    final maxY = (maxConsumption * 1.15).clamp(10.0, double.infinity);
+    final minY = 0.0;
     final spots = trend.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.consumption)).toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
+    final textColor = isDark ? Colors.grey.shade400 : Colors.grey.shade700;
+    final gridColor = isDark ? Colors.white.withOpacity(0.06) : Colors.grey.shade200;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Past month trend (weekly) → Predicted demand',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true, drawVerticalLine: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 10),
-                        ),
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) {
-                          final i = value.toInt();
-                          if (i >= 0 && i < trend.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(trend[i].label, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
-                            );
-                          }
-                          return const SizedBox();
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  minX: 0,
-                  maxX: (trend.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: maxY,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: AppTheme.primaryGreen,
-                      barWidth: 2.5,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: AppTheme.primaryGreen.withOpacity(0.15),
-                      ),
-                    ),
-                  ],
-                ),
-                duration: const Duration(milliseconds: 250),
-              ),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200,
         ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.show_chart_rounded, size: 22, color: AppTheme.primaryGreen),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Past month trend (weekly) → Predicted demand',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 240,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  drawHorizontalLine: true,
+                  horizontalInterval: (maxY - minY) / 5,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: gridColor,
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: (maxY - minY) / 5,
+                      getTitlesWidget: (value, meta) {
+                        if (value == value.roundToDouble()) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              value.toInt().toString(),
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 32,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.round();
+                        if (i >= 0 && i < trend.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Text(
+                              trend[i].label,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: (trend.length - 1).toDouble(),
+                minY: minY,
+                maxY: maxY,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    curveSmoothness: 0.35,
+                    color: AppTheme.primaryGreen,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                        radius: 4,
+                        color: AppTheme.primaryGreen,
+                        strokeWidth: 2,
+                        strokeColor: isDark ? Colors.white24 : Colors.white,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppTheme.primaryGreen.withOpacity(0.25),
+                          AppTheme.primaryGreen.withOpacity(0.05),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              duration: const Duration(milliseconds: 300),
+            ),
+          ),
+        ],
       ),
     );
   }
