@@ -101,11 +101,12 @@ echo "Now in: $(pwd)"
 echo "📚 Getting Flutter dependencies..."
 flutter pub get || exit 1
 
-# Build web app (pass GEMINI_API_KEY from Vercel env if set)
+# Build web app (pass API key from Vercel: GEMINI_API_KEY or API_KEY)
 echo "🔨 Building Flutter web app..."
-if [ -n "$GEMINI_API_KEY" ]; then
-  echo "Using GEMINI_API_KEY from environment for build..."
-  flutter build web --release --dart-define=GEMINI_API_KEY="$GEMINI_API_KEY" || exit 1
+KEY="${GEMINI_API_KEY:-$API_KEY}"
+if [ -n "$KEY" ]; then
+  echo "Using API key from environment for build..."
+  flutter build web --release --dart-define=GEMINI_API_KEY="$KEY" --dart-define=API_KEY="$KEY" || exit 1
 else
   flutter build web --release || exit 1
 fi

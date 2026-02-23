@@ -11,13 +11,14 @@ class AppConstants {
   }
 
   // API Configuration
-  // Load from environment variables, with fallback to compile-time constants.
-  // When .env is missing (e.g. production), returns empty so app still loads; set key in Vercel env or Settings.
+  // Load from environment variables (GEMINI_API_KEY or API_KEY for Vercel), with fallback to compile-time constants.
   static String get geminiApiKey {
-    final envKey = _env('GEMINI_API_KEY');
+    final envKey = _env('GEMINI_API_KEY') ?? _env('API_KEY');
     if (envKey != null && envKey.isNotEmpty) return envKey;
     const fallbackKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
     if (fallbackKey.isNotEmpty) return fallbackKey;
+    const apiKeyFallback = String.fromEnvironment('API_KEY', defaultValue: '');
+    if (apiKeyFallback.isNotEmpty) return apiKeyFallback;
     return '';
   }
 
