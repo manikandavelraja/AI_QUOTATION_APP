@@ -111,7 +111,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+              colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
             ),
           ),
         ),
@@ -233,12 +233,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                 //     ),
                                 //   ],
                                 // ),
-                                _buildWelcomeHeader(context),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
+                                
                                 if (syncState.isActive)
                                   _buildBackgroundSyncingIndicator(
                                     context,
