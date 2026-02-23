@@ -20,27 +20,36 @@ class GeminiAIService {
   static final GeminiAIService _instance = GeminiAIService._internal();
   factory GeminiAIService() => _instance;
   GeminiAIService._internal() {
-    // Initialize with latest google_generative_ai package
-    _model = GenerativeModel(
-      model: AppConstants.geminiModel,
-      apiKey: AppConstants.geminiApiKey,
-    );
-    
-    // Initialize model with JSON response support for combined extraction
-    _jsonModel = GenerativeModel(
-      model: AppConstants.geminiModel,
-      apiKey: AppConstants.geminiApiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        maxOutputTokens: 2048
-      ),
-  
-    );
-    debugPrint('✅ GeminiAIService initialized with model: ${AppConstants.geminiModel}');
+    if (AppConstants.hasGeminiApiKey) {
+      _modelOrNull = GenerativeModel(
+        model: AppConstants.geminiModel,
+        apiKey: AppConstants.geminiApiKey,
+      );
+      _jsonModelOrNull = GenerativeModel(
+        model: AppConstants.geminiModel,
+        apiKey: AppConstants.geminiApiKey,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2048
+        ),
+      );
+      debugPrint('✅ GeminiAIService initialized with model: ${AppConstants.geminiModel}');
+    } else {
+      _modelOrNull = null;
+      _jsonModelOrNull = null;
+      debugPrint('⚠️ GeminiAIService: GEMINI_API_KEY not set. Set it in Vercel Environment Variables or .env to use AI features.');
+    }
   }
 
-  late final GenerativeModel _model;
-  late final GenerativeModel _jsonModel;
+  GenerativeModel? _modelOrNull;
+  GenerativeModel? _jsonModelOrNull;
+
+  GenerativeModel get _m => _modelOrNull ?? (throw StateError(
+    'Gemini API key not configured. Set GEMINI_API_KEY in Vercel project Environment Variables or in a .env file.'
+  ));
+  GenerativeModel get _j => _jsonModelOrNull ?? (throw StateError(
+    'Gemini API key not configured. Set GEMINI_API_KEY in Vercel project Environment Variables or in a .env file.'
+  ));
   
   // ========== COMPREHENSIVE RATE LIMITING SYSTEM ==========
   // Global rate limiting (shared across all instances)
@@ -564,7 +573,7 @@ Extract and return ONLY the readable Purchase Order text content, removing all P
 ''';
       
       final enhancedText = await _callWithRetry(() async {
-        final result = await _model.generateContent([Content.text(extractionPrompt)])
+        final result = await _m.generateContent([Content.text(extractionPrompt)])
             .timeout(const Duration(minutes: 2));
         return result.text ?? '';
       });
@@ -798,7 +807,7 @@ Extract and return ONLY the readable Purchase Order text content, removing all P
       final extractedText = await _callWithRetry(() async {
         // Increased timeout to 2 minutes to account for processing time
         // Rate limiting is handled by _callWithRetry, so this timeout is just for the actual API call
-        final result = await _model.generateContent([Content.text(prompt)])
+        final result = await _m.generateContent([Content.text(prompt)])
             .timeout(const Duration(minutes: 2));
         return result.text ?? '';
       });
@@ -823,7 +832,7 @@ Extract and return ONLY the readable Purchase Order text content, removing all P
     try {
       final prompt = _buildSummaryPrompt(po);
       final summary = await _callWithRetry(() async {
-        final result = await _model.generateContent([Content.text(prompt)]);
+        final result = await _m.generateContent([Content.text(prompt)]);
         return result.text ?? 'Summary generation failed';
       });
       return summary;
@@ -969,7 +978,7 @@ Extract and return ONLY the readable Purchase Order text content, removing all P
       
       // Make single API call with JSON response
       final response = await _callWithRetry(() async {
-        final result = await _jsonModel.generateContent([Content.text(prompt)])
+        final result = await _j.generateContent([Content.text(prompt)])
             .timeout(const Duration(minutes: 2));
         
         // Check for content safety filters in response text
@@ -1181,7 +1190,7 @@ Extract and return ONLY the readable Purchase Order text content, removing all P
       final testPrompt = 'Say "API connection successful" in one sentence.';
       
       final response = await _callWithRetry(() async {
-        final result = await _model.generateContent([Content.text(testPrompt)]);
+        final result = await _m.generateContent([Content.text(testPrompt)]);
         return result.text ?? '';
       });
       
@@ -1242,7 +1251,7 @@ ${pdfText.length > 2000 ? pdfText.substring(0, 2000) : pdfText}
 ''';
       
       final answer = await _callWithRetry(() async {
-        final result = await _model.generateContent([Content.text(prompt)]);
+        final result = await _m.generateContent([Content.text(prompt)]);
         return result.text?.toUpperCase().trim() ?? '';
       });
       return answer.contains('YES') || answer.contains('VALID');
@@ -4106,7 +4115,7 @@ $sanitizedText
 ''';
 
       final extractedText = await _callWithRetry(() async {
-        final result = await _jsonModel.generateContent([Content.text(prompt)])
+        final result = await _j.generateContent([Content.text(prompt)])
             .timeout(const Duration(minutes: 2));
         return result.text ?? '';
       });
@@ -4215,7 +4224,7 @@ $pdfText
 ''';
 
       final extractedText = await _callWithRetry(() async {
-        final result = await _jsonModel.generateContent([Content.text(prompt)])
+        final result = await _j.generateContent([Content.text(prompt)])
             .timeout(const Duration(minutes: 2));
         return result.text ?? '';
       });

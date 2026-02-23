@@ -1,33 +1,31 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
-  // API Configuration
-  // Load from environment variables, with fallback to compile-time constants
-  // For production, always use environment variables
-  static String get geminiApiKey {
-    // Try environment variable first (from .env file)
-    final envKey = dotenv.env['GEMINI_API_KEY'];
-    if (envKey != null && envKey.isNotEmpty) {
-      return envKey;
+  // Safe read from dotenv (no throw when .env was not loaded, e.g. on Vercel)
+  static String? _env(String key) {
+    try {
+      return dotenv.env[key];
+    } catch (_) {
+      return null;
     }
-    // Fallback to compile-time constant (for development only)
-    // TODO: Remove this fallback in production
-    const fallbackKey = String.fromEnvironment(
-      'GEMINI_API_KEY',
-      defaultValue: '',
-    );
-    if (fallbackKey.isNotEmpty) {
-      return fallbackKey;
-    }
-    // Last resort: throw error to prevent using leaked key
-    throw Exception(
-      'GEMINI_API_KEY not found in environment variables. '
-      'Please create a .env file with GEMINI_API_KEY=your_key',
-    );
   }
-  
+
+  // API Configuration
+  // Load from environment variables (GEMINI_API_KEY or API_KEY for Vercel), with fallback to compile-time constants.
+  static String get geminiApiKey {
+    final envKey = _env('GEMINI_API_KEY') ?? _env('API_KEY');
+    if (envKey != null && envKey.isNotEmpty) return envKey;
+    const fallbackKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+    if (fallbackKey.isNotEmpty) return fallbackKey;
+    const apiKeyFallback = String.fromEnvironment('API_KEY', defaultValue: '');
+    if (apiKeyFallback.isNotEmpty) return apiKeyFallback;
+    return '';
+  }
+
+  static bool get hasGeminiApiKey => geminiApiKey.isNotEmpty;
+
   static String get geminiModel {
-    return dotenv.env['GEMINI_MODEL'] ?? 
+    return _env('GEMINI_MODEL') ?? 
            const String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-2.5-flash');
   }
   
@@ -36,7 +34,7 @@ class AppConstants {
   static const String defaultPassword = 'admin123';
   
   // App Configuration
-  static const String appName = 'ELEVATEIONIX';
+  static const String appName = 'ElevateIonix';
   static const String appVersion = '1.0.0';
   
   // PO Expiry Alert Days
@@ -86,33 +84,23 @@ class AppConstants {
   // 5. Add authorized JavaScript origins: http://localhost:PORT
   // 6. Add authorized redirect URIs: http://localhost:PORT
   static String? get gmailWebClientId {
-    // Try environment variable first
-    final envClientId = dotenv.env['GMAIL_WEB_CLIENT_ID'];
-    if (envClientId != null && envClientId.isNotEmpty) {
-      return envClientId;
-    }
-    // Fallback to compile-time constant
+    final envClientId = _env('GMAIL_WEB_CLIENT_ID');
+    if (envClientId != null && envClientId.isNotEmpty) return envClientId;
     const fallbackClientId = String.fromEnvironment('GMAIL_WEB_CLIENT_ID');
-    if (fallbackClientId.isNotEmpty) {
-      return fallbackClientId;
-    }
-    // Return null if not found (optional for some configurations)
+    if (fallbackClientId.isNotEmpty) return fallbackClientId;
     return null;
   }
-  
+
   // Email Configuration
   static String get emailAddress {
-    return dotenv.env['EMAIL_ADDRESS'] ?? 
+    return _env('EMAIL_ADDRESS') ?? 
            const String.fromEnvironment('EMAIL_ADDRESS', defaultValue: 'kumarionix07@gmail.com');
   }
-  
+
   // Security - Encryption Key
   static String get encryptionKey {
-    final envKey = dotenv.env['ENCRYPTION_KEY'];
-    if (envKey != null && envKey.isNotEmpty) {
-      return envKey;
-    }
-    // Fallback for development (should be changed in production)
+    final envKey = _env('ENCRYPTION_KEY');
+    if (envKey != null && envKey.isNotEmpty) return envKey;
     return const String.fromEnvironment(
       'ENCRYPTION_KEY',
       defaultValue: 'po_processor_secure_key_2024',
