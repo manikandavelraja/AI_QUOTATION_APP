@@ -8,6 +8,7 @@ import '../providers/inquiry_provider.dart';
 import '../../domain/entities/quotation.dart';
 import '../../domain/entities/customer_inquiry.dart';
 import '../../core/utils/currency_helper.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/services/email_service.dart';
 import '../../data/services/quotation_pdf_service.dart';
 import '../../data/services/database_service.dart';
@@ -904,533 +905,577 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
+    final scaffoldBg = isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight;
+
     return Scaffold(
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: Text(_quotation!.quotationNumber),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          _quotation!.quotationNumber,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: const Icon(Icons.delete_outline_rounded),
             onPressed: _deleteQuotation,
+            tooltip: 'Delete quotation',
+          ),
+        ],
+        elevation: 0,
+        scrolledUnderElevation: 2,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderCard(context, surfaceColor),
+            const SizedBox(height: 20),
+            _buildCustomerCard(context, surfaceColor),
+            const SizedBox(height: 20),
+            _buildItemsCard(context, surfaceColor),
+            const SizedBox(height: 20),
+            _buildSummaryCard(context, surfaceColor),
+            if (_quotation!.terms != null || _quotation!.notes != null) ...[
+              const SizedBox(height: 20),
+              _buildTermsCard(context, surfaceColor),
+            ],
+            const SizedBox(height: 20),
+            _buildEmailOptionsCard(context, surfaceColor),
+            const SizedBox(height: 20),
+            if (_shouldShowSendButton())
+              _buildSendQuotationButton(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailOptionsCard(BuildContext context, Color surfaceColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.mail_outline_rounded,
+      title: 'Email Options',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _recipientEmailController,
+            decoration: InputDecoration(
+              labelText: 'Send To',
+              hintText: 'Enter recipient email address',
+              prefixIcon: Icon(Icons.email_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
+              filled: true,
+              fillColor: isDark ? surfaceColor : Colors.grey.shade50,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+              ),
+              helperText: 'Email address for sending quotation. You can edit if needed.',
+              helperStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              suffixIcon: _recipientEmailController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear_rounded, size: 20, color: Colors.grey.shade600),
+                      onPressed: () => setState(() => _recipientEmailController.clear()),
+                    )
+                  : null,
+            ),
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ccEmailController,
+            decoration: InputDecoration(
+              labelText: 'CC (comma-separated)',
+              hintText: 'email1@example.com, email2@example.com',
+              prefixIcon: Icon(Icons.alternate_email_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
+              filled: true,
+              fillColor: isDark ? surfaceColor : Colors.grey.shade50,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+              ),
+              helperText: 'Enter CC email addresses separated by commas',
+              helperStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: (isDark ? Colors.white12 : Colors.grey.shade50).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SwitchListTile(
+              title: Text(
+                'Automatically send quotation via email',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              subtitle: _recipientEmailController.text.isNotEmpty
+                  ? Text(
+                      'Will send to: ${_recipientEmailController.text}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    )
+                  : Text(
+                      'Recipient email not set',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+              value: _autoSendEmail && _recipientEmailController.text.isNotEmpty,
+              onChanged: _recipientEmailController.text.isNotEmpty
+                  ? (value) => setState(() => _autoSendEmail = value)
+                  : null,
+              activeColor: Theme.of(context).colorScheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeaderCard(context),
-            const SizedBox(height: 16),
-            _buildCustomerCard(context),
-            const SizedBox(height: 16),
-            _buildItemsCard(context),
-            const SizedBox(height: 16),
-            _buildSummaryCard(context),
-            if (_quotation!.terms != null || _quotation!.notes != null) ...[
-              const SizedBox(height: 16),
-              _buildTermsCard(context),
-            ],
-            const SizedBox(height: 16),
-            _buildEmailOptionsCard(context),
-            const SizedBox(height: 16),
-            // Send Quotation Button at the bottom (show if not sent OR has pending items)
-            if (_shouldShowSendButton())
-              _buildSendQuotationButton(context),
-            const SizedBox(height: 80), // Bottom padding
-          ],
-        ),
+    );
+  }
+
+  Widget _buildHeaderCard(BuildContext context, Color surfaceColor) {
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.description_outlined,
+      title: 'Quotation Details',
+      trailing: _hasPendingItems()
+          ? _StatusChip(label: 'Pending', color: AppTheme.warningOrange)
+          : (_shouldShowStatusChip(_quotation!.status)
+              ? _StatusChip(label: _quotation!.status, color: _getStatusColor(_quotation!.status))
+              : null),
+      child: Column(
+        children: [
+          _buildInfoRow(context, 'Quotation Number', _quotation!.quotationNumber),
+          _buildInfoRow(context, 'Quotation Date',
+              '${_quotation!.quotationDate.day}/${_quotation!.quotationDate.month}/${_quotation!.quotationDate.year}'),
+          _buildInfoRow(context, 'Valid Until',
+              '${_quotation!.validityDate.day}/${_quotation!.validityDate.month}/${_quotation!.validityDate.year}'),
+        ],
       ),
     );
   }
 
-  Widget _buildEmailOptionsCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Email Options',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            // Send To: Email Field
-            TextField(
-              controller: _recipientEmailController,
-              decoration: InputDecoration(
-                labelText: 'Send To:',
-                hintText: 'Enter recipient email address',
-                prefixIcon: const Icon(Icons.email),
-                border: const OutlineInputBorder(),
-                helperText: 'Email address for sending quotation. You can edit if needed.',
-                suffixIcon: _recipientEmailController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _recipientEmailController.clear();
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (value) {
-                setState(() {
-                  // Update state when email changes
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            // CC Email Field
-            TextField(
-              controller: _ccEmailController,
-              decoration: InputDecoration(
-                labelText: 'CC (comma-separated)',
-                hintText: 'email1@example.com, email2@example.com',
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: const OutlineInputBorder(),
-                helperText: 'Enter CC email addresses separated by commas',
-              ),
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (value) {
-                setState(() {});
-              },
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('Automatically send quotation via email'),
-              subtitle: _recipientEmailController.text.isNotEmpty
-                  ? Text('Will send to: ${_recipientEmailController.text}')
-                  : const Text('Recipient email not set'),
-              value: _autoSendEmail && _recipientEmailController.text.isNotEmpty,
-              onChanged: _recipientEmailController.text.isNotEmpty
-                  ? (value) {
-                      setState(() {
-                        _autoSendEmail = value;
-                      });
-                    }
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Quotation Details',
-                  style: Theme.of(context).textTheme.titleLarge,
+  Widget _buildCustomerCard(BuildContext context, Color surfaceColor) {
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.person_outline_rounded,
+      title: 'Customer Information',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _quotation!.customerName,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
-                // Show pending chip if quotation has pending items
-                if (_hasPendingItems())
-                  Chip(
-                    label: const Text('Pending'),
-                    backgroundColor: Colors.yellow.withOpacity(0.2),
-                    labelStyle: const TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                // Otherwise show regular status chip (but not accepted/rejected)
-                else if (_shouldShowStatusChip(_quotation!.status))
-                  Chip(
-                    label: Text(_quotation!.status),
-                    backgroundColor: _getStatusColor(_quotation!.status).withOpacity(0.2),
-                    labelStyle: TextStyle(color: _getStatusColor(_quotation!.status)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildInfoRow(context, 'Quotation Number', _quotation!.quotationNumber),
-            _buildInfoRow(context, 'Quotation Date', 
-                '${_quotation!.quotationDate.day}/${_quotation!.quotationDate.month}/${_quotation!.quotationDate.year}'),
-            _buildInfoRow(context, 'Valid Until', 
-                '${_quotation!.validityDate.day}/${_quotation!.validityDate.month}/${_quotation!.validityDate.year}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomerCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Customer Information',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _quotation!.customerName,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            if (_quotation!.customerAddress != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _quotation!.customerAddress!,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-            if (_quotation!.customerEmail != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _quotation!.customerEmail!,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-            if (_quotation!.customerPhone != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _quotation!.customerPhone!,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemsCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Items',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            ..._quotation!.items.asMap().entries.map((entry) => 
-              _buildItemRow(context, entry.value, entry.key)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemRow(BuildContext context, QuotationItem item, int index) {
-    final currencyCode = _quotation!.currency ?? 'AED';
-    final currencySymbol = CurrencyHelper.getCurrencySymbol(currencyCode);
-    
-    // Check if item is pending
-    final isPending = item.status == 'pending' || item.unitPrice == 0;
-    
-    // Always show editable fields - items should always be editable
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Card(
-          color: isPending ? Colors.yellow.shade50 : null,
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
+          ),
+          if (_quotation!.customerAddress != null) ...[
+            const SizedBox(height: 10),
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.itemName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (isPending)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Pending',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                if (item.description != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    item.description!,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _itemCodeControllers[index],
-                  decoration: InputDecoration(
-                    labelText: 'Material Code',
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: (_) => _calculateItemTotal(index),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _quantityControllers[index],
-                        decoration: InputDecoration(
-                          labelText: 'Quantity',
-                          border: const OutlineInputBorder(),
-                          suffixText: item.unit,
-                          isDense: true,
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => _calculateItemTotal(index),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _unitPriceControllers[index],
-                        focusNode: _unitPriceFocusNodes[index],
-                        decoration: InputDecoration(
-                          labelText: 'Unit Price',
-                          border: const OutlineInputBorder(),
-                          prefixText: currencySymbol,
-                          isDense: true,
-                        ),
-                        keyboardType: TextInputType.number,
-                        onTap: () { },
-                        onChanged: (_) => _calculateItemTotal(index),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // History button below Unit Price field
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      debugPrint('🔘 [History Button] Button pressed for index: $index');
-                      _showHistoricalDataDialog(index);
-                    },
-                    icon: const Icon(Icons.history, size: 18),
-                    label: const Text('View Price History'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _quotation!.customerAddress!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total:'),
-                    Text(
-                      CurrencyHelper.formatAmount(item.total, currencyCode),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isPending ? Colors.grey : null,
-                      ),
-                    ),
-                  ],
-                ),
-                if (isPending) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Price pending - Enter unit price to complete this item',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
-          ),
-        ),
-      );
+          ],
+          if (_quotation!.customerEmail != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.email_outlined, size: 18, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _quotation!.customerEmail!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_quotation!.customerPhone != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.phone_outlined, size: 18, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Text(
+                  _quotation!.customerPhone!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-  Widget _buildSummaryCard(BuildContext context) {
+  Widget _buildItemsCard(BuildContext context, Color surfaceColor) {
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.inventory_2_outlined,
+      title: 'Items',
+      child: Column(
+        children: _quotation!.items.asMap().entries.map((entry) {
+          final isLast = entry.key == _quotation!.items.length - 1;
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+            child: _buildItemRow(context, entry.value, entry.key, surfaceColor),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildItemRow(BuildContext context, QuotationItem item, int index, Color surfaceColor) {
     final currencyCode = _quotation!.currency ?? 'AED';
-    
-    // Check if there are pending items
+    final currencySymbol = CurrencyHelper.getCurrencySymbol(currencyCode);
+    final isPending = item.status == 'pending' || item.unitPrice == 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fieldBg = isDark ? surfaceColor : Colors.grey.shade50;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isPending ? (isDark ? Colors.orange.shade900.withOpacity(0.2) : Colors.amber.shade50) : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isPending ? Colors.orange.shade200 : (isDark ? Colors.white12 : Colors.grey.shade200),
+          width: 1,
+        ),
+        boxShadow: isDark ? null : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.itemName,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                ),
+              ),
+              if (isPending)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningOrange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.warningOrange.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    'Pending',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.warningOrange),
+                  ),
+                ),
+            ],
+          ),
+          if (item.description != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              item.description!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextField(
+            controller: _itemCodeControllers[index],
+            decoration: InputDecoration(
+              labelText: 'Material Code',
+              filled: true,
+              fillColor: fieldBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              isDense: true,
+            ),
+            onChanged: (_) => _calculateItemTotal(index),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _quantityControllers[index],
+                  decoration: InputDecoration(
+                    labelText: 'Quantity',
+                    suffixText: item.unit,
+                    filled: true,
+                    fillColor: fieldBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    isDense: true,
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _calculateItemTotal(index),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _unitPriceControllers[index],
+                  focusNode: _unitPriceFocusNodes[index],
+                  decoration: InputDecoration(
+                    labelText: 'Unit Price',
+                    prefixText: '$currencySymbol ',
+                    filled: true,
+                    fillColor: fieldBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    isDense: true,
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _calculateItemTotal(index),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () {
+                debugPrint('🔘 [History Button] Button pressed for index: $index');
+                _showHistoricalDataDialog(index);
+              },
+              icon: Icon(Icons.history_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+              label: Text(
+                'View Price History',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
+              Text(
+                CurrencyHelper.formatAmount(item.total, currencyCode),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isPending ? Colors.grey : Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+            ],
+          ),
+          if (isPending) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.warningOrange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.warningOrange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Price pending - Enter unit price to complete this item',
+                      style: TextStyle(fontSize: 12, color: AppTheme.warningOrange, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(BuildContext context, Color surfaceColor) {
+    final currencyCode = _quotation!.currency ?? 'AED';
     final hasPendingItems = _quotation!.items.any((item) => item.status == 'pending' || item.unitPrice == 0);
     final readyItems = _quotation!.items.where((item) => item.status == 'ready' && item.unitPrice > 0).toList();
     final readySubtotal = readyItems.fold<double>(0.0, (sum, item) => sum + item.total);
     final readyVat = readySubtotal * 0.05;
     final readyGrandTotal = readySubtotal + readyVat;
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Summary',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.receipt_long_outlined,
+      title: 'Summary',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasPendingItems) ...[
+            _buildSummaryRow(context, 'Subtotal (Ready Items)', CurrencyHelper.formatAmount(readySubtotal, currencyCode)),
+            const SizedBox(height: 6),
+            _buildSummaryRow(context, 'VAT (5%)', CurrencyHelper.formatAmount(readyVat, currencyCode)),
             const SizedBox(height: 12),
-            if (hasPendingItems) ...[
-              // Show ready items subtotal if there are pending items
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Subtotal (Ready Items)',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  Text(
-                    CurrencyHelper.formatAmount(readySubtotal, currencyCode),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.warningOrange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
               ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Row(
                 children: [
-                  Text(
-                    'VAT (5%)',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  Text(
-                    CurrencyHelper.formatAmount(readyVat, currencyCode),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.yellow.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.yellow.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Partial Quotation - Some items are pending pricing',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                  Icon(Icons.warning_amber_rounded, size: 20, color: AppTheme.warningOrange),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Partial Quotation - Some items are pending pricing',
+                      style: TextStyle(fontSize: 12, color: AppTheme.warningOrange, fontWeight: FontWeight.w500),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
-            Row(
+            ),
+            const SizedBox(height: 16),
+          ],
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
+            ),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   hasPendingItems ? 'Grand Total (Ready Items)' : 'Grand Total',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                 ),
                 Text(
                   CurrencyHelper.formatAmount(hasPendingItems ? readyGrandTotal : _quotation!.totalAmount, currencyCode),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTermsCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_quotation!.terms != null) ...[
-              Text(
-                'Terms & Conditions',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(_quotation!.terms!),
-              if (_quotation!.notes != null) const SizedBox(height: 16),
-            ],
-            if (_quotation!.notes != null) ...[
-              Text(
-                'Notes',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(_quotation!.notes!),
-            ],
+  Widget _buildSummaryRow(BuildContext context, String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
+        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildTermsCard(BuildContext context, Color surfaceColor) {
+    return _ModernSectionCard(
+      surfaceColor: surfaceColor,
+      icon: Icons.note_alt_outlined,
+      title: 'Notes',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_quotation!.terms != null) ...[
+            Text(
+              'Terms & Conditions',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _quotation!.terms!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            if (_quotation!.notes != null) const SizedBox(height: 16),
           ],
-        ),
+          if (_quotation!.notes != null) ...[
+            Text(
+              'Notes',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+            ),
+            if (_quotation!.terms != null) const SizedBox(height: 4),
+            Text(
+              _quotation!.notes!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4, color: Colors.grey.shade700),
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildInfoRow(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
           ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+              textAlign: TextAlign.end,
+            ),
           ),
         ],
       ),
@@ -1439,36 +1484,48 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
 
   Widget _buildSendQuotationButton(BuildContext context) {
     final canSend = _hasAtLeastOnePricedItem();
-    return Card(
-      color: canSend
-          ? Theme.of(context).colorScheme.primary
-          : Colors.grey.shade400,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        onTap: (_isSaving || !canSend) ? null : () async {
-          await _sendQuotation();
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+        onTap: (_isSaving || !canSend) ? null : () async { await _sendQuotation(); },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: canSend ? Theme.of(context).colorScheme.primary : Colors.grey.shade400,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: canSend
+                ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_isSaving)
                 const SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
               else
-                const Icon(Icons.send, color: Colors.white),
+                const Icon(Icons.send_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 12),
               Text(
                 'Send Quotation',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
                     ),
               ),
             ],
@@ -1480,14 +1537,115 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
 
   Future<void> _sendQuotation() async {
     if (_quotation == null) return;
-    
-    // Set auto-send to true and call save quotation
-    setState(() {
-      _autoSendEmail = true;
-    });
-    
-    // Use existing _saveQuotation method which handles saving and sending
+
+    setState(() => _autoSendEmail = true);
     await _saveQuotation();
+  }
+}
+
+/// Modern section card with icon, optional trailing, and consistent padding.
+class _ModernSectionCard extends StatelessWidget {
+  final Color surfaceColor;
+  final IconData icon;
+  final String title;
+  final Widget? trailing;
+  final Widget child;
+
+  const _ModernSectionCard({
+    required this.surfaceColor,
+    required this.icon,
+    required this.title,
+    this.trailing,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                  ),
+                ),
+                if (trailing != null) trailing!,
+              ],
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pill-style status chip for quotation status.
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
   }
 }
 
