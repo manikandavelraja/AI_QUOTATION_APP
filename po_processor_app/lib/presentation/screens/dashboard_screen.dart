@@ -127,7 +127,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           height: 32,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Text(
-            'ELEVATEIONIX'.tr(),
+            'app_name'.tr(),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
           ),
         ),
@@ -2908,7 +2908,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   height: 28,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
-                    'ELEVATEIONIX'.tr(),
+                    'app_name'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -3025,7 +3025,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   height: 24,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
-                    'ELEVATEIONIX'.tr(),
+                    'app_name'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
