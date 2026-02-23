@@ -42,6 +42,17 @@ class EmailService {
     }
   }
 
+  /// Ensure Gmail is authenticated (for use after sign-in dialog).
+  /// Only initializes Gmail API / prompts sign-in; does not fetch emails.
+  /// Returns when the user is signed in and API is ready.
+  Future<void> ensureGmailAuthenticated() async {
+    if (_gmailApi != null) return;
+    await _initializeGmailApi(silent: false);
+    if (_gmailApi == null) {
+      throw Exception('Gmail sign-in did not complete. Please try again.');
+    }
+  }
+
   /// Initialize Gmail API with OAuth2 - automatically uses stored tokens
   /// Only prompts for sign-in if tokens are missing or expired
   Future<void> _initializeGmailApi({bool silent = true}) async {
@@ -317,11 +328,9 @@ class EmailService {
     }
   }
 
-  /// Fetch emails from inbox with attachments (PDF/DOC)
-  /// Automatically uses stored credentials for authentication
-  /// Returns list of email messages with attachments
+  /// Fetch all matching inquiry emails from inbox (exact count from mailbox; no hardcoded limit).
+  /// Uses Gmail API pagination so 2 emails = 2, 3 = 3, etc.
   Future<List<EmailMessage>> fetchInquiryEmails({
-    int maxResults = 10,
     String? query,
   }) async {
     try {
@@ -379,7 +388,7 @@ class EmailService {
         throw Exception('Failed to initialize Gmail API. Please sign in with Gmail to access your emails.');
       }
       
-      return await _fetchInquiryEmailsViaGmailAPI(maxResults: maxResults, query: query);
+      return await _fetchInquiryEmailsViaGmailAPI(query: query);
     } catch (e) {
       debugPrint('❌ Error fetching inquiry emails: $e');
       // Provide more helpful error message
@@ -392,15 +401,14 @@ class EmailService {
     }
   }
   
-  /// Internal method to fetch inquiry emails via Gmail API
+  /// Internal method to fetch inquiry emails via Gmail API.
+  /// Paginates through all matching messages so count is exact (no hardcoded limit).
   Future<List<EmailMessage>> _fetchInquiryEmailsViaGmailAPI({
-    int maxResults = 10,
     String? query,
   }) async {
     try {
-      debugPrint('📧 Fetching inquiry emails via Gmail API...');
+      debugPrint('📧 Fetching inquiry emails via Gmail API (all matching, no limit)...');
       
-      // Double-check that Gmail API is initialized
       if (_gmailApi == null) {
         debugPrint('⚠️ Gmail API is null, attempting to initialize...');
         await _initializeGmailApi(silent: false);
@@ -409,56 +417,56 @@ class EmailService {
         }
       }
       
-      // Search for inquiry-related emails - filter by subject containing "Inquiry" (case-insensitive)
-      // Gmail search is case-insensitive by default, but we'll be explicit
-      final searchQuery = query ?? 'subject:inquiry has:attachment (filename:pdf OR filename:doc OR filename:docx)';
-      
-      final listResponse = await _gmailApi!.users.messages.list(
-        'me',
-        q: searchQuery,
-        maxResults: maxResults,
-      );
-      
-      if (listResponse.messages == null || listResponse.messages!.isEmpty) {
-        debugPrint('No inquiry emails found');
+      // Strict subject filter: only messages where subject contains "Customer" OR "Inquiry" (case-insensitive).
+      // No fixed buffer: we paginate and only count/process inbox messages that match.
+      final searchQuery = query ?? 'subject:(customer OR inquiry) has:attachment (filename:pdf OR filename:doc OR filename:docx) in:inbox';
+      final allMessageIds = <String>[];
+      String? pageToken;
+
+      do {
+        final listResponse = await _gmailApi!.users.messages.list(
+          'me',
+          q: searchQuery,
+          maxResults: 500,
+          pageToken: pageToken,
+        );
+        if (listResponse.messages != null && listResponse.messages!.isNotEmpty) {
+          for (final m in listResponse.messages!) {
+            if (m.id != null) allMessageIds.add(m.id!);
+          }
+        }
+        pageToken = listResponse.nextPageToken;
+      } while (pageToken != null && pageToken.isNotEmpty);
+
+      if (allMessageIds.isEmpty) {
+        debugPrint('No inquiry emails found in inbox matching subject (Customer OR Inquiry).');
         return [];
       }
-      
+
+      debugPrint('📧 Found ${allMessageIds.length} message(s) matching subject. Parsing and filtering by subject...');
       final emails = <EmailMessage>[];
-      
-      for (final message in listResponse.messages!) {
+
+      for (final messageId in allMessageIds) {
         try {
-          // Get full message
           final fullMessage = await _gmailApi!.users.messages.get(
             'me',
-            message.id!,
+            messageId,
             format: 'full',
           );
-          
-          // Parse message
           final email = _parseGmailMessage(fullMessage);
-          
-          debugPrint('📧 [FetchInquiryEmails] Parsed email - CC: ${email.cc}');
-          debugPrint('📧 [FetchInquiryEmails] Parsed email - CC length: ${email.cc.length}');
-          
-          // Filter for inquiry-related emails with PDF/DOC attachments
-          // Also check if subject contains "Inquiry" (case-insensitive)
           final subjectLower = email.subject.toLowerCase();
-          if (email.attachments.isNotEmpty && 
-              (subjectLower.contains('inquiry') || 
-               subjectLower.contains('rfq') || 
-               subjectLower.contains('quotation') ||
-               subjectLower.contains('request'))) {
-            debugPrint('📧 [FetchInquiryEmails] Adding email with CC: ${email.cc}');
+          // Strict subject filter: must contain "customer" OR "inquiry" (case-insensitive)
+          final matchesSubject = subjectLower.contains('customer') || subjectLower.contains('inquiry');
+          if (email.attachments.isNotEmpty && matchesSubject) {
             emails.add(email);
           }
         } catch (e) {
-          debugPrint('Error processing email ${message.id}: $e');
+          debugPrint('Error processing email $messageId: $e');
           continue;
         }
       }
-      
-      debugPrint('✅ Fetched ${emails.length} inquiry emails');
+
+      debugPrint('✅ Fetched ${emails.length} inquiry email(s) from inbox (strict subject match only)');
       return emails;
     } catch (e) {
       debugPrint('❌ Error fetching inquiry emails: $e');
@@ -626,34 +634,46 @@ class EmailService {
     }
   }
 
-  /// Fetch Purchase Order emails from inbox
-  /// Uses Gmail API with automatic authentication
-  Future<List<EmailMessage>> fetchPOEmails({
-    int maxResults = 10,
-  }) async {
+  /// Fetch all matching PO emails from inbox (same logic as inquiry: strict subject, inbox only, no fixed buffer).
+  Future<List<EmailMessage>> fetchPOEmails() async {
     try {
       debugPrint('📧 Fetching PO emails automatically...');
       
-      // Ensure Gmail API is initialized before fetching
+      // Same init as inquiry: ensure Gmail API is initialized with timeout
       if (_gmailApi == null) {
         try {
-          // Try silent initialization first (uses stored tokens)
-          await _initializeGmailApi(silent: true);
+          await _initializeGmailApi(silent: true)
+              .timeout(
+                const Duration(seconds: 15),
+                onTimeout: () {
+                  throw Exception('Gmail initialization timed out. Please sign in manually.');
+                },
+              );
         } catch (initError) {
           debugPrint('❌ Gmail API silent initialization error: $initError');
           final errorStr = initError.toString();
-          
-          // If it's a sign-in related error, try with user interaction
-          if (errorStr.contains('sign in') || 
+          if (errorStr.contains('sign in') ||
               errorStr.contains('cancelled') ||
               errorStr.contains('authentication') ||
               errorStr.contains('token') ||
-              errorStr.contains('MissingPluginException')) {
+              errorStr.contains('MissingPluginException') ||
+              errorStr.contains('timed out') ||
+              errorStr.contains('timeout')) {
             debugPrint('🔄 Retrying with user interaction...');
             try {
-              await _initializeGmailApi(silent: false);
+              await _initializeGmailApi(silent: false)
+                  .timeout(
+                    const Duration(seconds: 120),
+                    onTimeout: () {
+                      throw Exception('Sign-in timed out. Please check your internet connection and try again.');
+                    },
+                  );
             } catch (interactiveError) {
               debugPrint('❌ Interactive initialization also failed: $interactiveError');
+              final errorMsg = interactiveError.toString();
+              if (errorMsg.contains('timed out') || errorMsg.contains('timeout')) {
+                throw Exception('Sign-in timed out. Please check your internet connection and allow popups, then try again.');
+              }
               throw Exception('Please sign in with your Gmail account. A sign-in window will open when you tap "GetFromMail".');
             }
           } else {
@@ -666,21 +686,23 @@ class EmailService {
         throw Exception('Failed to initialize Gmail API. Please sign in with Gmail to access your emails.');
       }
       
-      return await _fetchPOEmailsViaGmailAPI(maxResults: maxResults);
+      return await _fetchPOEmailsViaGmailAPI();
     } catch (e) {
       debugPrint('❌ Error fetching PO emails: $e');
+      final errorStr = e.toString();
+      if (errorStr.contains('Gmail API not initialized') || errorStr.contains('Failed to initialize')) {
+        throw Exception('Please sign in with your Gmail account to access emails. Tap "GetFromMail" again and sign in when prompted.');
+      }
       rethrow;
     }
   }
   
-  /// Internal method to fetch PO emails via Gmail API
-  Future<List<EmailMessage>> _fetchPOEmailsViaGmailAPI({
-    int maxResults = 10,
-  }) async {
+  /// Internal method to fetch PO emails via Gmail API.
+  /// Same logic as inquiry: strict subject filter, inbox only, pagination (no fixed buffer).
+  Future<List<EmailMessage>> _fetchPOEmailsViaGmailAPI() async {
     try {
-      debugPrint('📧 Fetching PO emails via Gmail API...');
+      debugPrint('📧 Fetching PO emails via Gmail API (all matching, no limit)...');
       
-      // Double-check that Gmail API is initialized
       if (_gmailApi == null) {
         debugPrint('⚠️ Gmail API is null, attempting to initialize...');
         await _initializeGmailApi(silent: false);
@@ -689,49 +711,58 @@ class EmailService {
         }
       }
       
-      // Search for PO-related emails - filter by subject containing 'PO' or 'Purchase Order' (case-insensitive)
-      final searchQuery = 'subject:(po OR "purchase order") has:attachment filename:pdf';
-      
-      final listResponse = await _gmailApi!.users.messages.list(
-        'me',
-        q: searchQuery,
-        maxResults: maxResults,
-      );
-      
-      if (listResponse.messages == null || listResponse.messages!.isEmpty) {
-        debugPrint('No PO emails found');
+      // Strict subject filter: only messages where subject contains "PO" or "Purchase Order" (case-insensitive).
+      // No fixed buffer: we paginate and only count/process inbox messages that match.
+      final searchQuery = 'subject:(po OR "purchase order") has:attachment filename:pdf in:inbox';
+      final allMessageIds = <String>[];
+      String? pageToken;
+
+      do {
+        final listResponse = await _gmailApi!.users.messages.list(
+          'me',
+          q: searchQuery,
+          maxResults: 500,
+          pageToken: pageToken,
+        );
+        if (listResponse.messages != null && listResponse.messages!.isNotEmpty) {
+          for (final m in listResponse.messages!) {
+            if (m.id != null) allMessageIds.add(m.id!);
+          }
+        }
+        pageToken = listResponse.nextPageToken;
+      } while (pageToken != null && pageToken.isNotEmpty);
+
+      if (allMessageIds.isEmpty) {
+        debugPrint('No PO emails found in inbox matching subject (PO or Purchase Order).');
         return [];
       }
-      
+
+      debugPrint('📧 Found ${allMessageIds.length} message(s) matching subject. Parsing and filtering by subject...');
       final emails = <EmailMessage>[];
-      
-      for (final message in listResponse.messages!) {
+
+      for (final messageId in allMessageIds) {
         try {
-          // Get full message
           final fullMessage = await _gmailApi!.users.messages.get(
             'me',
-            message.id!,
+            messageId,
             format: 'full',
           );
-          
-          // Parse message
           final email = _parseGmailMessage(fullMessage);
-          
-          // Filter for PO-related emails with PDF attachments
-          // Also check if subject contains "PO" or "Purchase Order" (case-insensitive)
           final subjectLower = email.subject.toLowerCase();
-          if (email.attachments.isNotEmpty && 
+          // Strict subject filter: must contain "po" OR "purchase order" (case-insensitive)
+          final matchesSubject = subjectLower.contains('po') || subjectLower.contains('purchase order');
+          if (email.attachments.isNotEmpty &&
               email.attachments.any((att) => att.name.toLowerCase().endsWith('.pdf')) &&
-              (subjectLower.contains('po') || subjectLower.contains('purchase order'))) {
+              matchesSubject) {
             emails.add(email);
           }
         } catch (e) {
-          debugPrint('Error processing email ${message.id}: $e');
+          debugPrint('Error processing email $messageId: $e');
           continue;
         }
       }
-      
-      debugPrint('✅ Fetched ${emails.length} PO emails');
+
+      debugPrint('✅ Fetched ${emails.length} PO email(s) from inbox (strict subject match only)');
       return emails;
     } catch (e) {
       debugPrint('❌ Error fetching PO emails: $e');
@@ -744,7 +775,7 @@ class EmailService {
         await _initializeGmailApi(silent: true);
         if (_gmailApi != null) {
           // Retry the fetch
-          return await _fetchPOEmailsViaGmailAPI(maxResults: maxResults);
+          return await _fetchPOEmailsViaGmailAPI();
         }
         throw Exception('Gmail authentication expired. Please sign in again.');
       }

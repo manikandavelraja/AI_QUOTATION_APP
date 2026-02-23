@@ -52,6 +52,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   final _emailService = EmailService();
   final _pdfService = PDFService();
   final _aiService = GeminiAIService();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _catalogService = CatalogService();
   final _quotationNumberService = QuotationNumberService(
     DatabaseService.instance,
@@ -100,6 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final monthlyData = _getMonthlyStatistics(poState.purchaseOrders);
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
@@ -112,32 +114,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          tooltip: 'menu'.tr(),
+        leading: ResponsiveHelper.isMobile(context)
+            ? IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                tooltip: 'menu'.tr(),
+              )
+            : null,
+        title: Image.asset(
+          'assets/icons/ElevateIonix.jpeg',
+          height: 32,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Text(
+            'ELEVATEIONIX'.tr(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          ),
         ),
-        title: Text(
-          'ELEVATEIONIX'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-        ),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.settings),
-        //     onPressed: () => context.push('/settings'),
-        //     tooltip: 'settings'.tr(),
-        //   ),
-        //   IconButton(
-        //     icon: const Icon(Icons.logout),
-        //     onPressed: () {
-        //       ref.read(authProvider.notifier).logout();
-        //       context.go('/login');
-        //     },
-        //     tooltip: 'logout'.tr(),
-        //   ),
-        // ],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/al-kareem.jpg',
+                height: 40,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 32, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
-      drawer: _buildNavigationDrawer(context),
+      drawer: ResponsiveHelper.isMobile(context) ? _buildNavigationDrawer(context) : null,
       body: Row(
         children: [
           // Left-side navigation drawer (always visible on desktop, drawer on mobile)
@@ -168,23 +175,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Al-Kareem logo below app bar on the right - Rich container
-                                // Center(
-                                //   child: Container(
-                                //     //height: 200,
-                                //     height: 100,
-                                //     width: 300,
-                                //     padding: const EdgeInsets.all(8),
-                                //     child: Image.asset(
-                                //       'assets/icons/al-kareem.jpg',
-                                //       // width: double.infinity,
-                                //       // height: 300,
-                                //       fit: BoxFit.contain,
-                                //     ),
-                                //   ),
-                                // ),
-
-                                // Row(
+                               
                                 //   children: [
                                 //     Expanded(
                                 //       child: Container(
@@ -247,6 +238,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     context,
                                   ),
                                 ),
+                                if (syncState.isActive)
+                                  _buildBackgroundSyncingIndicator(
+                                    context,
+                                    syncState.inquiryProgress,
+                                    syncState.poProgress,
+                                  ),
+                                if (syncState.isActive)
+                                  SizedBox(
+                                    height:
+                                        ResponsiveHelper.responsiveSpacing(
+                                          context,
+                                        ) *
+                                        0.5,
+                                  ),
                                 // QuickActions moved to top
                                 _buildQuickActions(context, syncState),
                                 SizedBox(
@@ -267,20 +272,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   ),
                                 ),
                                 // Background syncing indicator (non-intrusive, corner)
-                                if (syncState.isActive)
-                                  _buildBackgroundSyncingIndicator(
-                                    context,
-                                    syncState.inquiryProgress,
-                                    syncState.poProgress,
-                                  ),
-                                if (syncState.isActive)
-                                  SizedBox(
-                                    height:
-                                        ResponsiveHelper.responsiveSpacing(
-                                          context,
-                                        ) *
-                                        0.5,
-                                  ),
+                              
                                 _buildExpiringAlerts(context, poState),
                                 SizedBox(
                                   height: ResponsiveHelper.responsiveSpacing(
@@ -1315,86 +1307,75 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ],
           ),
           SizedBox(height: isMobile ? 12 : 16),
-          ...expiringPOs
-              .take(5)
-              .map(
-                (po) => Container(
-                  margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
-                  padding: EdgeInsets.all(isMobile ? 10 : 12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                    border: Border.all(color: Colors.orange.withOpacity(0.2)),
-                  ),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: EdgeInsets.all(isMobile ? 6 : 8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
-                      ),
-                      child: Icon(
-                        Icons.description,
-                        color: Colors.orange,
-                        size: ResponsiveHelper.responsiveIconSize(context, 20),
-                      ),
-                    ),
-                    title: Text(
-                      po.poNumber,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: ResponsiveHelper.responsiveFontSize(
-                          context,
-                          14,
-                        ),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      po.customerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: ResponsiveHelper.responsiveFontSize(
-                          context,
-                          12,
-                        ),
-                      ),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          DateFormat('MMM dd').format(po.expiryDate),
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveHelper.responsiveFontSize(
-                              context,
-                              12,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          DateFormat('yyyy').format(po.expiryDate),
-                          style: TextStyle(
-                            fontSize: ResponsiveHelper.responsiveFontSize(
-                              context,
-                              10,
-                            ),
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    onTap: () => context.push('/po-detail/${po.id}'),
+          ...expiringPOs.take(5).map((po) => Container(
+                margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+                padding: EdgeInsets.all(isMobile ? 10 : 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                  border: Border.all(
+                    color: Colors.orange.withOpacity(0.2),
                   ),
                 ),
-              ),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: EdgeInsets.all(isMobile ? 6 : 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
+                    ),
+                    child: Icon(
+                      Icons.description, 
+                      color: Colors.orange,
+                      size: ResponsiveHelper.responsiveIconSize(context, 20),
+                    ),
+                  ),
+                  title: Text(
+                    po.poNumber,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    po.customerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                    ),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('MMM dd').format(po.expiryDate),
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                        ),
+                      ),
+                      Text(
+                        DateFormat('yyyy').format(po.expiryDate),
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.responsiveFontSize(context, 10),
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    await context.push('/po-detail/${po.id}');
+                    if (mounted) ref.read(poProvider.notifier).loadPurchaseOrders();
+                  },
+                ),
+              )),
           if (expiringPOs.length > 5)
             Center(
               child: TextButton(
@@ -1687,7 +1668,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (inquiryActive) labels.add('Inquiry: ${inquiryProgress!.progressLabel}');
     if (poActive) labels.add('PO: ${poProgress!.progressLabel}');
     return Material(
-      color: Colors.transparent,
+      color: Colors.green ,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -1751,7 +1732,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 Text(
                   poProgress.progressLabel,
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1761,7 +1742,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   value: poProgress.total > 0
                       ? poProgress.current / poProgress.total
                       : null,
-                  backgroundColor: Colors.white24,
+                  backgroundColor: Colors.blueGrey,
                 ),
               ],
             ),
@@ -1887,7 +1868,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       Text(
                         inquiryProgress.progressLabel,
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Colors.black,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1897,7 +1878,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         value: inquiryProgress.total > 0
                             ? inquiryProgress.current / inquiryProgress.total
                             : null,
-                        backgroundColor: Colors.white24,
+                        backgroundColor: Colors.blueGrey,
                       ),
                     ],
                   ),
@@ -1919,14 +1900,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           isMobile
               ? Column(
                   children: [
-                    _buildModernActionButton(
-                      context,
-                      'upload_po'.tr(),
-                      Icons.upload_file,
-                      () => context.push('/upload'),
-                      subtitle: 'Upload PO document',
-                    ),
-                    SizedBox(height: isMobile ? 10 : 12),
                     _buildPOFromMailAction(context, isPOSyncing, poProgress),
                   ],
                 )
@@ -2345,16 +2318,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     Future(() async {
       try {
-        final emails = await _emailService
-            .fetchInquiryEmails(maxResults: 10)
-            .timeout(
-              const Duration(seconds: 60),
-              onTimeout: () {
-                throw Exception(
-                  'Request timed out. Please check your internet connection and try again.',
-                );
-              },
-            );
+        final emails = await _emailService.fetchInquiryEmails()
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw Exception('Request timed out. Please check your internet connection and try again.');
+            },
+          );
 
         if (emails.isEmpty) {
           sync.setInquiryError();
@@ -2606,10 +2576,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
               // Small delay to ensure dialog is closed
               await Future.delayed(const Duration(milliseconds: 500));
-
-              // Trigger Gmail sign-in then start background sync
+              
+              // Only wait for Gmail authentication; then start fetch+process so it runs automatically after sign-in
               try {
-                await _emailService.fetchInquiryEmails(maxResults: 10);
+                await _emailService.ensureGmailAuthenticated();
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Signed in. Fetching and processing emails...'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
                 if (type == 'inquiry') {
                   _getInquiryFromMail();
                 } else {
@@ -2618,29 +2596,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               } catch (e) {
                 final errorStr = e.toString();
                 debugPrint('Error during sign-in: $e');
-                if (errorStr.contains('cancelled') ||
-                    errorStr.contains('OAuth2') ||
-                    errorStr.contains('MissingPluginException')) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          errorStr.contains('OAuth2') ||
-                                  errorStr.contains('MissingPluginException')
-                              ? 'Gmail access on web requires OAuth2 setup. Please use manual upload.'
-                              : 'Sign-in was cancelled. Please try again.',
-                        ),
-                        backgroundColor: Colors.orange,
-                        duration: const Duration(seconds: 5),
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        errorStr.contains('cancelled')
+                            ? 'Sign-in was cancelled. Please try again.'
+                            : errorStr.contains('OAuth2') || errorStr.contains('MissingPluginException')
+                                ? 'Gmail on web requires OAuth2. Use manual upload.'
+                                : 'Sign-in failed. Please try again.',
                       ),
-                    );
-                  }
-                } else {
-                  if (type == 'inquiry') {
-                    _getInquiryFromMail();
-                  } else {
-                    _getPOFromMail();
-                  }
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
                 }
               }
             },
@@ -2748,7 +2717,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     Future(() async {
       try {
-        final emails = await _emailService.fetchPOEmails(maxResults: 10);
+        final emails = await _emailService.fetchPOEmails();
 
         if (emails.isEmpty) {
           sync.setPOError();
@@ -2961,12 +2930,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Image.asset(
+                  'assets/icons/ElevateIonix.jpeg',
+                  height: 28,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(
+                    'ELEVATEIONIX'.tr(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -3073,12 +3047,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                Image.asset(
+                  'assets/icons/ElevateIonix.jpeg',
+                  height: 24,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(
+                    'ELEVATEIONIX'.tr(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
