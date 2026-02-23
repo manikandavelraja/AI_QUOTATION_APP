@@ -36,6 +36,7 @@ import '../../contract management _ personal assistant/providers/app_provider.da
 import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
 import 'seasonal_trends_screen.dart';
+import 'inventory_analysis_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -308,35 +309,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       // Seasonal Trends Tab - Qumarionix GreenFlow
                       const SeasonalTrendsScreen(),
                       // Inventory Management Tab
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Inventory Management',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const InventoryAnalysisScreen(),
                       // Personal Assistant Tab - Voice Recording
                       provider_pkg.MultiProvider(
                         providers: [
