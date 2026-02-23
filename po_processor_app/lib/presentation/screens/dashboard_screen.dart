@@ -36,6 +36,7 @@ import '../../contract management _ personal assistant/providers/app_provider.da
 import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
 import 'seasonal_trends_screen.dart';
+import 'inventory_analysis_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -110,7 +111,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+              colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
             ),
           ),
         ),
@@ -126,7 +127,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           height: 32,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Text(
-            'ELEVATEIONIX'.tr(),
+            'app_name'.tr(),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
           ),
         ),
@@ -232,12 +233,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                 //     ),
                                 //   ],
                                 // ),
-                                _buildWelcomeHeader(context),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
+                                
                                 if (syncState.isActive)
                                   _buildBackgroundSyncingIndicator(
                                     context,
@@ -308,35 +304,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       // Seasonal Trends Tab - Qumarionix GreenFlow
                       const SeasonalTrendsScreen(),
                       // Inventory Management Tab
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Inventory Management',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const InventoryAnalysisScreen(),
                       // Personal Assistant Tab - Voice Recording
                       provider_pkg.MultiProvider(
                         providers: [
@@ -2935,7 +2903,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   height: 28,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
-                    'ELEVATEIONIX'.tr(),
+                    'app_name'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -3052,7 +3020,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   height: 24,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
-                    'ELEVATEIONIX'.tr(),
+                    'app_name'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,

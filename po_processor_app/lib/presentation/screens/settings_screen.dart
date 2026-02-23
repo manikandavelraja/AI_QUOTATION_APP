@@ -286,7 +286,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context: context,
                       applicationName: AppConstants.appName,
                       applicationVersion: AppConstants.appVersion,
-                      applicationLegalese: 'AI-Powered PO Processing Application',
+                      applicationLegalese: 'ElevateIonix',
                     );
                   },
                 ),
