@@ -52,6 +52,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   final _emailService = EmailService();
   final _pdfService = PDFService();
   final _aiService = GeminiAIService();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _catalogService = CatalogService();
   final _quotationNumberService = QuotationNumberService(
     DatabaseService.instance,
@@ -100,6 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final monthlyData = _getMonthlyStatistics(poState.purchaseOrders);
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
@@ -112,32 +114,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          tooltip: 'menu'.tr(),
+        leading: ResponsiveHelper.isMobile(context)
+            ? IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                tooltip: 'menu'.tr(),
+              )
+            : null,
+        title: Image.asset(
+          'assets/icons/ElevateIonix.jpeg',
+          height: 32,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Text(
+            'ELEVATEIONIX'.tr(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          ),
         ),
-        title: Text(
-          'ELEVATEIONIX'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-        ),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.settings),
-        //     onPressed: () => context.push('/settings'),
-        //     tooltip: 'settings'.tr(),
-        //   ),
-        //   IconButton(
-        //     icon: const Icon(Icons.logout),
-        //     onPressed: () {
-        //       ref.read(authProvider.notifier).logout();
-        //       context.go('/login');
-        //     },
-        //     tooltip: 'logout'.tr(),
-        //   ),
-        // ],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/al-kareem.jpg',
+                height: 40,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 32, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
-      drawer: _buildNavigationDrawer(context),
+      drawer: ResponsiveHelper.isMobile(context) ? _buildNavigationDrawer(context) : null,
       body: Row(
         children: [
           // Left-side navigation drawer (always visible on desktop, drawer on mobile)
@@ -168,23 +175,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Al-Kareem logo below app bar on the right - Rich container
-                                // Center(
-                                //   child: Container(
-                                //     //height: 200,
-                                //     height: 100,
-                                //     width: 300,
-                                //     padding: const EdgeInsets.all(8),
-                                //     child: Image.asset(
-                                //       'assets/icons/al-kareem.jpg',
-                                //       // width: double.infinity,
-                                //       // height: 300,
-                                //       fit: BoxFit.contain,
-                                //     ),
-                                //   ),
-                                // ),
-
-                                // Row(
+                               
                                 //   children: [
                                 //     Expanded(
                                 //       child: Container(
@@ -247,6 +238,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                     context,
                                   ),
                                 ),
+                                if (syncState.isActive)
+                                  _buildBackgroundSyncingIndicator(
+                                    context,
+                                    syncState.inquiryProgress,
+                                    syncState.poProgress,
+                                  ),
+                                if (syncState.isActive)
+                                  SizedBox(
+                                    height:
+                                        ResponsiveHelper.responsiveSpacing(
+                                          context,
+                                        ) *
+                                        0.5,
+                                  ),
                                 // QuickActions moved to top
                                 _buildQuickActions(context, syncState),
                                 SizedBox(
@@ -267,20 +272,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   ),
                                 ),
                                 // Background syncing indicator (non-intrusive, corner)
-                                if (syncState.isActive)
-                                  _buildBackgroundSyncingIndicator(
-                                    context,
-                                    syncState.inquiryProgress,
-                                    syncState.poProgress,
-                                  ),
-                                if (syncState.isActive)
-                                  SizedBox(
-                                    height:
-                                        ResponsiveHelper.responsiveSpacing(
-                                          context,
-                                        ) *
-                                        0.5,
-                                  ),
+                              
                                 _buildExpiringAlerts(context, poState),
                                 SizedBox(
                                   height: ResponsiveHelper.responsiveSpacing(
@@ -1676,7 +1668,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (inquiryActive) labels.add('Inquiry: ${inquiryProgress!.progressLabel}');
     if (poActive) labels.add('PO: ${poProgress!.progressLabel}');
     return Material(
-      color: Colors.transparent,
+      color: Colors.green ,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -1750,7 +1742,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   value: poProgress.total > 0
                       ? poProgress.current / poProgress.total
                       : null,
-                  backgroundColor: Colors.lightBlue,
+                  backgroundColor: Colors.blueGrey,
                 ),
               ],
             ),
@@ -1886,7 +1878,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         value: inquiryProgress.total > 0
                             ? inquiryProgress.current / inquiryProgress.total
                             : null,
-                        backgroundColor: Colors.black,
+                        backgroundColor: Colors.blueGrey,
                       ),
                     ],
                   ),
@@ -2938,12 +2930,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Image.asset(
+                  'assets/icons/ElevateIonix.jpeg',
+                  height: 28,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(
+                    'ELEVATEIONIX'.tr(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -3050,12 +3047,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ELEVATEIONIX'.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                Image.asset(
+                  'assets/icons/ElevateIonix.jpeg',
+                  height: 24,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(
+                    'ELEVATEIONIX'.tr(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
