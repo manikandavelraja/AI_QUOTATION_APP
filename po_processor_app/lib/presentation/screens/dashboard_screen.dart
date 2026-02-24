@@ -124,7 +124,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             : null,
         title: Image.asset(
           'assets/icons/ElevateIonix.jpeg',
-          height: 32,
+          height: 50,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Text(
             'app_name'.tr(),
@@ -2891,7 +2891,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+                colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
               ),
             ),
             child: Column(
@@ -3009,7 +3009,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+                colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
               ),
             ),
             child: Column(
@@ -3017,8 +3017,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               children: [
                 Image.asset(
                   'assets/icons/ElevateIonix.jpeg',
-                  height: 24,
-                  fit: BoxFit.contain,
+                  height: 50,
+                  fit: BoxFit.fill,
                   errorBuilder: (_, __, ___) => Text(
                     'app_name'.tr(),
                     style: const TextStyle(
@@ -3032,8 +3032,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 Text(
                   'Navigation'.tr(),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
+                    color: Colors.black.withOpacity(0.9),
+                    fontSize: 15,
                   ),
                 ),
               ],
