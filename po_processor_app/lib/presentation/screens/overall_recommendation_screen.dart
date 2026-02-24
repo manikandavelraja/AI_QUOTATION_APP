@@ -57,7 +57,9 @@ class _OverallRecommendationScreenState
     List<PlanningRecommendation> seasonalRecs,
     MaterialForecast? materialForecast,
   ) {
-    final parts = <String>[];
+    final parts = <String>[
+      'Based on Inventory Management, Seasonal Trends, and Material Forecasting: ',
+    ];
 
     if (seasonalRecs.isNotEmpty) {
       final seasonalText = seasonalRecs

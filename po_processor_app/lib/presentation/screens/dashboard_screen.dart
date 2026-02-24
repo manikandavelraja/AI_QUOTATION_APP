@@ -70,8 +70,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   int _poErrorCount = 0;
   final Set<String> _expandedSections = {
     'Get Inquiries',
-    'Planning & Forecasting',
+    'Smart Quotations',
     'PO Purchasing',
+    'Planning & Forecasting',
+    'Customer Support',
+    'Personal Assistant',
   };
 
   void _toggleSection(String key) {
@@ -205,36 +208,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       const SeasonalTrendsScreen(),
                       // Inventory Management Tab
                       const InventoryAnalysisScreen(),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory,
-                              size: 64,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Inventory Management',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Personal Assistant Tab - Voice Recording
+                      // Personal Assistant Tab - Voice Memo
                       provider_pkg.MultiProvider(
                         providers: [
                           provider_pkg.ChangeNotifierProvider(
@@ -3068,21 +3042,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       list.add(_buildSubItem(context, 'Get Inquiries from Mail', Icons.inbox, tabIndex: 0, isDrawer: isDrawer));
     }
 
-    // 2. Smart Quotations (single) -> in-dashboard View All Quotations tab
+    // 2. Smart Quotations (expandable) -> View All Quotations inside
     list.add(_buildSectionHeader(
       context,
       title: 'Smart Quotations',
       icon: Icons.request_quote_outlined,
-      isExpanded: true,
-      onTap: () {
-        if (isDrawer) Navigator.pop(context);
-        _tabController.animateTo(7);
-        setState(() {});
-      },
+      isExpanded: _expandedSections.contains('Smart Quotations'),
+      onTap: () => _toggleSection('Smart Quotations'),
       isDrawer: isDrawer,
-      isSingleItem: true,
-      isSelected: _tabController.index == 7,
     ));
+    if (_expandedSections.contains('Smart Quotations')) {
+      list.add(_buildSubItem(context, 'View All Quotations', Icons.list_alt, tabIndex: 7, isDrawer: isDrawer));
+    }
 
     // 3. PO Purchasing (expandable) -> tab 1
     list.add(_buildSectionHeader(
@@ -3109,7 +3080,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (_expandedSections.contains('Planning & Forecasting')) {
       list.add(_buildSubItem(context, 'Inventory Management', Icons.inventory_2_outlined, tabIndex: 4, isDrawer: isDrawer));
       list.add(_buildSubItem(context, 'Seasonal Trends', Icons.trending_up, tabIndex: 3, isDrawer: isDrawer));
-      list.add(_buildSubItem(context, 'Material Forecasting', Icons.analytics_outlined, tabIndex: 8, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Forecast & Insights', Icons.analytics_outlined, tabIndex: 8, isDrawer: isDrawer));
       list.add(_buildSubItem(context, 'Overall Recommendation', Icons.lightbulb_outline, tabIndex: 9, isDrawer: isDrawer));
       //list.add(_buildSubItem(context, 'Planning and Reconstruct', Icons.construction_outlined, route: '/planning-reconstruct', isDrawer: isDrawer));
     }
@@ -3130,37 +3101,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       isSelected: _tabController.index == 2,
     ));
 
-    // 6. Customer Support (single) -> tab 6
+    // 6. Customer Support (expandable) -> Customer Call Insights inside
     list.add(_buildSectionHeader(
       context,
       title: 'Customer Support',
       icon: Icons.support_agent,
-      isExpanded: true,
-      onTap: () {
-        if (isDrawer) Navigator.pop(context);
-        _tabController.animateTo(6);
-        setState(() {});
-      },
+      isExpanded: _expandedSections.contains('Customer Support'),
+      onTap: () => _toggleSection('Customer Support'),
       isDrawer: isDrawer,
-      isSingleItem: true,
-      isSelected: _tabController.index == 6,
     ));
+    if (_expandedSections.contains('Customer Support')) {
+      list.add(_buildSubItem(context, 'Customer Call Insights', Icons.call, tabIndex: 6, isDrawer: isDrawer));
+    }
 
-    // 7. Personal Assistant (single) -> tab 5
+    // 7. Personal Assistant (expandable) -> Voice Memo inside
     list.add(_buildSectionHeader(
       context,
       title: 'Personal Assistant',
       icon: Icons.assistant_outlined,
-      isExpanded: true,
-      onTap: () {
-        if (isDrawer) Navigator.pop(context);
-        _tabController.animateTo(5);
-        setState(() {});
-      },
+      isExpanded: _expandedSections.contains('Personal Assistant'),
+      onTap: () => _toggleSection('Personal Assistant'),
       isDrawer: isDrawer,
-      isSingleItem: true,
-      isSelected: _tabController.index == 5,
     ));
+    if (_expandedSections.contains('Personal Assistant')) {
+      list.add(_buildSubItem(context, 'Voice Memo', Icons.mic, tabIndex: 5, isDrawer: isDrawer));
+    }
 
     return list;
   }
