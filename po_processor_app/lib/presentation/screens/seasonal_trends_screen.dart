@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive_helper.dart';
 import '../../data/services/vbelt_prediction_service.dart';
 import '../providers/seasonal_trends_provider.dart';
+import '../utils/planning_recommendations_helper.dart';
 
 /// Qumarionix GreenFlow - Seasonal Trends & V-Belt Predictor
 /// Enterprise-grade ESG-driven supply chain command center
@@ -22,7 +23,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   String _selectedSeason = 'Spring';
   bool _isLoading = false;
   String? _sustainabilityInsight;
-  List<Recommendation> _recommendations = [];
+  List<PlanningRecommendation> _recommendations = [];
 
   final List<String> _regions = ['Dubai', 'Germany', 'India'];
   final List<String> _seasons = ['Spring', 'Summer', 'Autumn', 'Winter'];
@@ -144,7 +145,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     final isMobile = ResponsiveHelper.isMobile(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -184,7 +185,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+          colors: [AppTheme.iconGraphGreen, AppTheme.primaryGreenLight],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -284,37 +285,48 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   }
 
   Widget _buildKPICards(BuildContext context, PredictionResult prediction) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final cards = [
+      _buildKPICard(
+        context,
+        'Predicted Demand',
+        '${prediction.predictedDemand.toStringAsFixed(0)} units',
+        Icons.inventory_2,
+        Colors.blue,
+      ),
+      _buildKPICard(
+        context,
+        'Carbon Footprint',
+        '${prediction.carbonFootprint.toStringAsFixed(2)} kg CO₂',
+        Icons.eco,
+        Colors.green,
+      ),
+      _buildKPICard(
+        context,
+        'AI Confidence',
+        '${(prediction.confidence * 100).toStringAsFixed(0)}%',
+        Icons.psychology,
+        Colors.purple,
+      ),
+    ];
+    if (isMobile) {
+      return Column(
+        children: [
+          cards[0],
+          const SizedBox(height: 12),
+          cards[1],
+          const SizedBox(height: 12),
+          cards[2],
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: _buildKPICard(
-            context,
-            'Predicted Demand',
-            '${prediction.predictedDemand.toStringAsFixed(0)} units',
-            Icons.inventory_2,
-            Colors.blue,
-          ),
-        ),
+        Expanded(child: cards[0]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildKPICard(
-            context,
-            'Carbon Footprint',
-            '${prediction.carbonFootprint.toStringAsFixed(2)} kg CO₂',
-            Icons.eco,
-            Colors.green,
-          ),
-        ),
+        Expanded(child: cards[1]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildKPICard(
-            context,
-            'AI Confidence',
-            '${(prediction.confidence * 100).toStringAsFixed(0)}%',
-            Icons.psychology,
-            Colors.purple,
-          ),
-        ),
+        Expanded(child: cards[2]),
       ],
     );
   }
@@ -326,35 +338,52 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     IconData icon,
     Color color,
   ) {
+    final isMobile = ResponsiveHelper.isMobile(context);
     return Card(
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(icon, color: color, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 12,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -495,8 +524,8 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
               height: 400,
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withOpacity(0.1),
-                  border: Border.all(color: AppTheme.primaryGreen, width: 2),
+                  color: AppTheme.iconGraphGreen.withOpacity(0.1),
+                  border: Border.all(color: AppTheme.iconGraphGreen, width: 2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -505,7 +534,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                     Icon(
                       Icons.location_on,
                       size: 64,
-                      color: AppTheme.primaryGreen,
+                      color: AppTheme.iconGraphGreen,
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -513,7 +542,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
+                        color: AppTheme.iconGraphGreen,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -605,24 +634,24 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   Widget _buildWeatherInfo(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.primaryGreen, size: 20),
+        Icon(icon, color: AppTheme.iconGraphGreen, size: 20),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: AppTheme.primaryGreen,
+            color: AppTheme.iconGraphGreen,
           ),
         ),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
       ],
     );
   }
 
   Widget _buildSustainabilityInsight(BuildContext context) {
     return Card(
-      color: AppTheme.primaryGreen.withOpacity(0.1),
+      color: AppTheme.iconGraphGreen.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -630,14 +659,14 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.lightbulb, color: AppTheme.primaryGreen),
+                const Icon(Icons.lightbulb, color: AppTheme.iconGraphGreen),
                 const SizedBox(width: 8),
                 const Text(
                   'Sustainability Insight',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
+                    color: AppTheme.iconGraphGreen,
                   ),
                 ),
               ],
@@ -656,231 +685,11 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   void _generateRecommendations() {
     final state = ref.read(seasonalTrendsProvider);
     if (state.prediction == null) {
-      _recommendations = [];
+      setState(() => _recommendations = []);
       return;
     }
-
-    final prediction = state.prediction!;
-    final recommendations = <Recommendation>[];
-
-    // Recommendation 1: Demand-based recommendations
-    if (prediction.predictedDemand > 2500) {
-      recommendations.add(
-        Recommendation(
-          title: 'High Demand Alert',
-          description:
-              'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units, which is above optimal levels. Consider bulk ordering to reduce per-unit costs and improve supply chain efficiency.',
-          icon: Icons.trending_up,
-          color: Colors.orange,
-          priority: 'High',
-          category: 'Demand Management',
-        ),
-      );
-    } else if (prediction.predictedDemand < 1000) {
-      recommendations.add(
-        Recommendation(
-          title: 'Low Demand Opportunity',
-          description:
-              'Predicted demand is ${prediction.predictedDemand.toStringAsFixed(0)} units. This is a good time to optimize inventory and reduce excess stock. Consider consolidating orders with other regions.',
-          icon: Icons.trending_down,
-          color: Colors.blue,
-          priority: 'Medium',
-          category: 'Inventory Optimization',
-        ),
-      );
-    }
-
-    // Recommendation 2: Carbon footprint recommendations
-    final carbonPerUnit =
-        prediction.carbonFootprint / prediction.predictedDemand;
-    if (carbonPerUnit > 2.5) {
-      recommendations.add(
-        Recommendation(
-          title: 'Carbon Footprint Reduction',
-          description:
-              'Carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is above optimal. Consider sourcing from local suppliers or using eco-friendly transportation methods to reduce emissions.',
-          icon: Icons.eco,
-          color: Colors.green,
-          priority: 'High',
-          category: 'Sustainability',
-        ),
-      );
-    } else if (carbonPerUnit < 2.0) {
-      recommendations.add(
-        Recommendation(
-          title: 'Excellent Carbon Efficiency',
-          description:
-              'Your carbon footprint per unit is ${carbonPerUnit.toStringAsFixed(2)} kg CO₂, which is below average. Maintain this sustainable approach and consider sharing best practices with other regions.',
-          icon: Icons.verified,
-          color: Colors.green,
-          priority: 'Low',
-          category: 'Sustainability',
-        ),
-      );
-    }
-
-    // Recommendation 3: Sustainability score recommendations
-    if (prediction.sustainabilityScore < 70) {
-      recommendations.add(
-        Recommendation(
-          title: 'Improve Sustainability Score',
-          description:
-              'Current sustainability score is ${prediction.sustainabilityScore.toStringAsFixed(0)}/100. Focus on reducing waste, optimizing demand forecasting, and improving supply chain efficiency to boost your ESG rating.',
-          icon: Icons.star_border,
-          color: Colors.amber,
-          priority: 'High',
-          category: 'ESG Performance',
-        ),
-      );
-    }
-
-    // Recommendation 4: Weather-based recommendations
-    final weather = prediction.weatherData;
-    if (weather.temperature > 40) {
-      recommendations.add(
-        Recommendation(
-          title: 'Extreme Heat Warning',
-          description:
-              'Temperature is ${weather.temperature.toStringAsFixed(1)}°C. High temperatures accelerate V-belt degradation. Consider ordering belts with higher temperature resistance or increasing inventory buffer by 15-20%.',
-          icon: Icons.warning,
-          color: Colors.red,
-          priority: 'High',
-          category: 'Weather Impact',
-        ),
-      );
-    } else if (weather.humidity > 75) {
-      recommendations.add(
-        Recommendation(
-          title: 'High Humidity Alert',
-          description:
-              'Humidity is ${weather.humidity.toStringAsFixed(0)}%. High humidity can cause belt deterioration. Ensure proper storage conditions and consider moisture-resistant belt options.',
-          icon: Icons.water_drop,
-          color: Colors.cyan,
-          priority: 'Medium',
-          category: 'Weather Impact',
-        ),
-      );
-    }
-
-    // Recommendation 5: Waste reduction recommendations
-    if (prediction.wasteReductionScore < 70) {
-      recommendations.add(
-        Recommendation(
-          title: 'Optimize Waste Reduction',
-          description:
-              'Waste reduction score is ${prediction.wasteReductionScore.toStringAsFixed(0)}/100. Implement just-in-time inventory management and improve demand forecasting accuracy to reduce waste and improve sustainability.',
-          icon: Icons.recycling,
-          color: Colors.teal,
-          priority: 'Medium',
-          category: 'Waste Management',
-        ),
-      );
-    }
-
-    // Recommendation 6: Profit optimization
-    if (prediction.profitScore < 60) {
-      recommendations.add(
-        Recommendation(
-          title: 'Profit Optimization Opportunity',
-          description:
-              'Profit score is ${prediction.profitScore.toStringAsFixed(0)}/100. Consider negotiating bulk discounts, optimizing supplier relationships, or adjusting pricing strategy for this region and season.',
-          icon: Icons.attach_money,
-          color: Colors.blue,
-          priority: 'Medium',
-          category: 'Financial',
-        ),
-      );
-    }
-
-    // Recommendation 7: Order accuracy
-    if (prediction.orderAccuracyScore < 80) {
-      recommendations.add(
-        Recommendation(
-          title: 'Improve Order Accuracy',
-          description:
-              'Order accuracy score is ${prediction.orderAccuracyScore.toStringAsFixed(0)}/100. Enhance demand forecasting models and consider historical data analysis to improve prediction confidence.',
-          icon: Icons.analytics,
-          color: Colors.purple,
-          priority: 'Medium',
-          category: 'Forecasting',
-        ),
-      );
-    }
-
-    // Recommendation 8: Seasonal strategy
-    if (_selectedSeason == 'Summer' && prediction.predictedDemand > 2000) {
-      recommendations.add(
-        Recommendation(
-          title: 'Summer Peak Season Strategy',
-          description:
-              'Summer typically sees increased demand. Plan ahead by securing supplier commitments early, building inventory buffers, and implementing flexible delivery schedules to meet peak demand.',
-          icon: Icons.wb_sunny,
-          color: Colors.orange,
-          priority: 'High',
-          category: 'Seasonal Planning',
-        ),
-      );
-    } else if (_selectedSeason == 'Winter' &&
-        prediction.predictedDemand < 1500) {
-      recommendations.add(
-        Recommendation(
-          title: 'Winter Inventory Management',
-          description:
-              'Winter shows lower demand. Use this period to optimize inventory, conduct maintenance, and negotiate better terms with suppliers for the upcoming high-demand seasons.',
-          icon: Icons.ac_unit,
-          color: Colors.blue,
-          priority: 'Low',
-          category: 'Seasonal Planning',
-        ),
-      );
-    }
-
-    // Recommendation 9: Regional specific
-    if (_selectedRegion == 'Dubai' && weather.temperature > 35) {
-      recommendations.add(
-        Recommendation(
-          title: 'Dubai Heat Management',
-          description:
-              'Dubai\'s extreme heat requires special attention. Consider heat-resistant V-belt specifications, shorter replacement cycles, and climate-controlled storage facilities.',
-          icon: Icons.location_on,
-          color: Colors.orange,
-          priority: 'High',
-          category: 'Regional Strategy',
-        ),
-      );
-    } else if (_selectedRegion == 'India' && _selectedSeason == 'Summer') {
-      recommendations.add(
-        Recommendation(
-          title: 'India Monsoon Preparation',
-          description:
-              'Prepare for monsoon season in India. High humidity and rainfall can impact belt performance. Stock moisture-resistant variants and plan for potential supply chain disruptions.',
-          icon: Icons.cloud,
-          color: Colors.cyan,
-          priority: 'High',
-          category: 'Regional Strategy',
-        ),
-      );
-    }
-
-    // Recommendation 10: Overall optimization
-    if (prediction.sustainabilityScore > 80 &&
-        prediction.profitScore > 70 &&
-        prediction.wasteReductionScore > 75) {
-      recommendations.add(
-        Recommendation(
-          title: 'Excellent Performance',
-          description:
-              'Your current metrics show excellent performance across sustainability, profit, and waste reduction. Maintain these practices and consider scaling successful strategies to other regions.',
-          icon: Icons.celebration,
-          color: Colors.green,
-          priority: 'Low',
-          category: 'Best Practices',
-        ),
-      );
-    }
-
     setState(() {
-      _recommendations = recommendations;
+      _recommendations = generateSeasonalRecommendations(state.prediction!);
     });
   }
 
@@ -901,7 +710,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
               children: [
                 const Icon(
                   Icons.lightbulb_outline,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
@@ -910,7 +719,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
+                    color: AppTheme.iconGraphGreen,
                   ),
                 ),
               ],
@@ -918,7 +727,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
             const SizedBox(height: 8),
             Text(
               'Based on your current prediction details',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 20),
             ..._recommendations.map((rec) => _buildRecommendationCard(rec)),
@@ -928,7 +737,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
     );
   }
 
-  Widget _buildRecommendationCard(Recommendation recommendation) {
+  Widget _buildRecommendationCard(PlanningRecommendation recommendation) {
     Color priorityColor;
     switch (recommendation.priority) {
       case 'High':
@@ -941,7 +750,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
         priorityColor = Colors.green;
         break;
       default:
-        priorityColor = Colors.grey;
+        priorityColor = AppTheme.textSecondary;
     }
 
     return Container(
@@ -1010,7 +819,7 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
                     recommendation.category,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1037,16 +846,16 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.trending_up, size: 64, color: Colors.grey[400]),
+          Icon(Icons.trending_up, size: 64, color: AppTheme.textSecondary),
           const SizedBox(height: 16),
           Text(
             'No Predictions Available',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 18, color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             'Select region, season, and month to generate predictions',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -1054,20 +863,3 @@ class _SeasonalTrendsScreenState extends ConsumerState<SeasonalTrendsScreen> {
   }
 }
 
-class Recommendation {
-  final String title;
-  final String description;
-  final IconData icon;
-  final Color color;
-  final String priority;
-  final String category;
-
-  Recommendation({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.priority,
-    required this.category,
-  });
-}

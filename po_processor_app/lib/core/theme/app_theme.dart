@@ -2,27 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Colors - Green Tech Theme (Sustainability Focus)
-  static const Color primaryGreen = Color(0xFF2E7D32);
-  static const Color primaryGreenLight = Color(0xFF4CAF50);
-  static const Color primaryGreenDark = Color(0xFF1B5E20);
+  // App-wide theme colors (unified palette)
+  static const Color primaryGreen = Color(0xFF45B795);
+  static const Color primaryGreenLight = Color(0xFF5BC4A2);
+  static const Color primaryGreenDark = Color(0xFF3A9B7D);
   static const Color secondaryGreen = Color(0xFF66BB6A);
   static const Color accentGreen = Color(0xFF81C784);
 
   static const Color errorRed = Color(0xFFD32F2F);
   static const Color warningOrange = Color(0xFFFF9800);
-  static const Color successGreen = Color(0xFF4CAF50);
-  static const Color infoBlue = Color(0xFF2196F3);
+  static const Color successGreen = Color(0xFF45B795);
+  static const Color infoBlue = Color(0xFF0A9CFF);
 
-  static const Color backgroundLight = Color(0xFFF5F5F5);
+  static const Color backgroundLight = Color(0xFFF0F9FF);
   static const Color backgroundDark = Color(0xFF121212);
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF1E1E1E);
 
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
+  static const Color textPrimary = Color(0xFF181717);
+  static const Color textSecondary = Color(0xFF5C5C5C);
   static const Color textPrimaryDark = Color(0xFFFFFFFF);
   static const Color textSecondaryDark = Color(0xFFB0B0B0);
+
+  // Named UI colors (same values, for clarity)
+  static const Color navBarBackground = Color(0xFFFFFFFF);
+  static const Color dashboardBackground = Color(0xFFF0F9FF);
+  static const Color iconGraphGreen = Color(0xFF45B795);
+  static const Color monthlyUsageBackground = Color(0xFFCAEAE8);
+  static const Color expireWeekIconRed = Color(0xFFC80000);
+  static const Color totalPoValueIcon = Color(0xFF00614C);
+  static const Color totalPoIcon = Color(0xFF0A9CFF);
+  static const Color dashboardText = Color(0xFF181717);
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -30,22 +40,24 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: primaryGreen,
       colorScheme: ColorScheme.light(
-        primary: primaryGreen,
+        primary: iconGraphGreen,
         secondary: secondaryGreen,
         tertiary: accentGreen,
         error: errorRed,
         surface: surfaceLight,
+        onPrimary: Colors.white,
+        onSurface: dashboardText,
       ),
       scaffoldBackgroundColor: backgroundLight,
       appBarTheme: AppBarTheme(
-        backgroundColor: primaryGreen,
-        foregroundColor: Colors.white,
+        backgroundColor: navBarBackground,
+        foregroundColor: dashboardText,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: dashboardText,
         ),
       ),
       textTheme: TextTheme(
@@ -94,7 +106,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: iconGraphGreen,
           foregroundColor: Colors.white,
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -112,15 +124,15 @@ class AppTheme {
         fillColor: surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+          borderSide: const BorderSide(color: textSecondary),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+          borderSide: const BorderSide(color: textSecondary),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryGreen, width: 2),
+          borderSide: const BorderSide(color: iconGraphGreen, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -145,13 +157,13 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundDark,
       appBarTheme: AppBarTheme(
         backgroundColor: primaryGreenDark,
-        foregroundColor: Colors.white,
+        foregroundColor: textPrimaryDark,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: textPrimaryDark,
         ),
       ),
       textTheme: TextTheme(
@@ -218,11 +230,11 @@ class AppTheme {
         fillColor: surfaceDark,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+          borderSide: const BorderSide(color: textSecondary),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+          borderSide: const BorderSide(color: textSecondaryDark),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

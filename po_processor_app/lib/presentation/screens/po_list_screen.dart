@@ -5,6 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import '../providers/po_provider.dart';
 import '../../domain/entities/purchase_order.dart';
 import '../../core/utils/currency_helper.dart';
+import '../../core/theme/app_theme.dart';
 
 class POListScreen extends ConsumerStatefulWidget {
   const POListScreen({super.key});
@@ -136,7 +137,7 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
                   '${filteredPOs.length} PO(s)',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -167,7 +168,7 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
                             Icon(
                               Icons.inbox,
                               size: 64,
-                              color: Colors.grey,
+                              color: AppTheme.textSecondary,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -287,7 +288,7 @@ class _POListScreenState extends ConsumerState<POListScreen> with SingleTickerPr
               '${po.lineItems.length} item(s)',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppTheme.textSecondary,
               ),
             ),
           ],

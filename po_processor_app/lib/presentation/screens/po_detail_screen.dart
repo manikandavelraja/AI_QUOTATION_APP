@@ -5,6 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import '../providers/po_provider.dart';
 import '../../domain/entities/purchase_order.dart';
 import '../../core/utils/currency_helper.dart';
+import '../../core/theme/app_theme.dart';
 
 class PODetailScreen extends ConsumerStatefulWidget {
   final String poId;
@@ -136,7 +137,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: colorScheme.primary,
@@ -411,7 +412,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                             'Status',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: AppTheme.textSecondary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -535,14 +536,14 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
+                      Icon(Icons.location_on, size: 18, color: AppTheme.textSecondary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _po!.customerAddress!,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
+                            color: AppTheme.dashboardText,
                             height: 1.5,
                           ),
                         ),
@@ -554,14 +555,14 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.email, size: 18, color: Colors.grey[600]),
+                      Icon(Icons.email, size: 18, color: AppTheme.textSecondary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _po!.customerEmail!,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
+                            color: AppTheme.dashboardText,
                           ),
                         ),
                       ),
@@ -654,9 +655,9 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppTheme.dashboardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: AppTheme.textSecondary.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +696,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                         item.description!,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[600],
+                          color: AppTheme.textSecondary,
                           height: 1.4,
                         ),
                         maxLines: 2,
@@ -725,7 +726,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                           '×',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -733,7 +734,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                           '$currencySymbol${item.unitPrice.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[700],
+                            color: AppTheme.dashboardText,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -899,7 +900,7 @@ class _PODetailScreenState extends ConsumerState<PODetailScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: AppTheme.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),

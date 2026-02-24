@@ -13,6 +13,7 @@ import '../../data/services/catalog_service.dart';
 import '../../data/services/quotation_pdf_service.dart';
 import '../../data/services/quotation_number_service.dart';
 import '../../data/services/database_service.dart';
+import '../../core/theme/app_theme.dart';
 
 class CreateQuotationScreen extends ConsumerStatefulWidget {
   final String inquiryId;
@@ -368,7 +369,7 @@ class _CreateQuotationScreenState extends ConsumerState<CreateQuotationScreen> {
                             Icon(
                               Icons.history,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: AppTheme.textSecondary,
                             ),
                             const SizedBox(height: 16),
                             Text(

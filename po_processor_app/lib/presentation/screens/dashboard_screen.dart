@@ -26,7 +26,6 @@ import '../../data/services/catalog_service.dart';
 import '../../domain/entities/quotation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart' as provider_pkg;
-import 'coming_soon_screen.dart';
 import '../../contract management _ personal assistant/screens/contract_management_hub_screen.dart';
 import '../../contract management _ personal assistant/screens/voice_memo_screen.dart';
 import '../../contract management _ personal assistant/providers/language_provider.dart'
@@ -36,6 +35,9 @@ import '../../contract management _ personal assistant/providers/app_provider.da
 import '../../contract management _ personal assistant/providers/call_recordings_provider.dart';
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
 import 'seasonal_trends_screen.dart';
+import 'quotation_list_screen.dart';
+import 'material_forecast_screen.dart';
+import 'overall_recommendation_screen.dart';
 import 'inventory_analysis_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -66,11 +68,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   int _poProcessedCount = 0;
   int _poSuccessCount = 0;
   int _poErrorCount = 0;
+  final Set<String> _expandedSections = {
+    'Get Inquiries',
+    'Planning & Forecasting',
+    'PO Purchasing',
+  };
+
+  void _toggleSection(String key) {
+    setState(() {
+      if (_expandedSections.contains(key)) {
+        _expandedSections.remove(key);
+      } else {
+        _expandedSections.add(key);
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
     _tabController.addListener(() {
       // Rebuild when tab changes to update FAB visibility
       setState(() {});
@@ -103,21 +120,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       appBar: AppBar(
         elevation: 0,
+                backgroundColor: AppTheme.navBarBackground,
+        foregroundColor: AppTheme.dashboardText,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
+              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
             ),
           ),
         ),
         leading: ResponsiveHelper.isMobile(context)
             ? IconButton(
-                icon: const Icon(Icons.menu),
+                icon: Icon(Icons.menu, color: AppTheme.dashboardText),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 tooltip: 'menu'.tr(),
               )
@@ -127,8 +146,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           height: 50,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Text(
-            'app_name'.tr(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+            'ELEVATEIONIX'.tr(),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppTheme.dashboardText),
           ),
         ),
         actions: [
@@ -139,7 +158,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 'assets/icons/al-kareem.jpg',
                 height: 40,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.business, size: 32, color: Colors.white),
+                errorBuilder: (_, __, ___) => Icon(Icons.business, size: 32, color: AppTheme.dashboardText),
               ),
             ),
           ),
@@ -153,140 +172,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ResponsiveHelper.isTablet(context))
             Container(
               width: 280,
-              color: Colors.white,
+              color: AppTheme.navBarBackground,
               child: _buildSidebarNavigation(context),
             ),
           // Main content area
           Expanded(
-            child: poState.isLoading && _tabController.index == 0
+            child: poState.isLoading && _tabController.index == 1
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      // Supply Chain Tab - All current features
-                      RefreshIndicator(
-                        onRefresh: () =>
-                            ref.read(poProvider.notifier).loadPurchaseOrders(),
-                        child: FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: SingleChildScrollView(
-                            padding: ResponsiveHelper.responsivePadding(
-                              context,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                               
-                                //   children: [
-                                //     Expanded(
-                                //       child: Container(
-                                //         margin: EdgeInsets.only(
-                                //           bottom:
-                                //               ResponsiveHelper.isMobile(context)
-                                //               ? 8
-                                //               : 12,
-                                //           right:
-                                //               ResponsiveHelper.isMobile(context)
-                                //               ? 0
-                                //               : 8,
-                                //         ),
-                                //         padding: const EdgeInsets.all(8),
-                                //         decoration: BoxDecoration(
-                                //           color: Colors.white,
-                                //           borderRadius: BorderRadius.circular(
-                                //             12,
-                                //           ),
-                                //           boxShadow: [
-                                //             BoxShadow(
-                                //               color: Colors.black.withOpacity(
-                                //                 0.1,
-                                //               ),
-                                //               blurRadius: 10,
-                                //               offset: const Offset(0, 3),
-                                //               spreadRadius: 1,
-                                //             ),
-                                //             BoxShadow(
-                                //               color: AppTheme.primaryGreen
-                                //                   .withOpacity(0.1),
-                                //               blurRadius: 15,
-                                //               offset: const Offset(0, 5),
-                                //             ),
-                                //           ],
-                                //           border: Border.all(
-                                //             color: AppTheme.primaryGreen
-                                //                 .withOpacity(0.2),
-                                //             width: 1.5,
-                                //           ),
-                                //         ),
-                                //         child: ClipRRect(
-                                //           borderRadius: BorderRadius.circular(
-                                //             8,
-                                //           ),
-                                //           child: Image.asset(
-                                //             'assets/icons/al-kareem.jpg',
-                                //             width: double.infinity,
-                                //             height: 120, // set as you need
-                                //             fit: BoxFit.cover, // or contain
-                                //           ),
-                                //         ),
-                                //       ),
-                                //     ),
-                                //   ],
-                                // ),
-                                
-                                if (syncState.isActive)
-                                  _buildBackgroundSyncingIndicator(
-                                    context,
-                                    syncState.inquiryProgress,
-                                    syncState.poProgress,
-                                  ),
-                                if (syncState.isActive)
-                                  SizedBox(
-                                    height:
-                                        ResponsiveHelper.responsiveSpacing(
-                                          context,
-                                        ) *
-                                        0.5,
-                                  ),
-                                // QuickActions moved to top
-                                _buildQuickActions(context, syncState),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
-                                _buildStatsGrid(context, stats),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
-                                _buildMonthlyUsageGraph(context, monthlyData),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
-                                // Background syncing indicator (non-intrusive, corner)
-                              
-                                _buildExpiringAlerts(context, poState),
-                                SizedBox(
-                                  height: ResponsiveHelper.responsiveSpacing(
-                                    context,
-                                  ),
-                                ),
-                                _buildDraftQuotationsList(context),
-                                SizedBox(
-                                  height: ResponsiveHelper.isMobile(context)
-                                      ? 60.0
-                                      : 80.0,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Contract Management Tab - Hub with PDF Analysis & Image Analysis buttons
+                      // Tab 0: Get Inquiries Module - lead intake only
+                      _buildGetInquiriesModuleView(context, syncState),
+                      // Tab 1: PO Purchasing Module - PO hub only
+                      _buildPOPurchasingModuleView(context, syncState),
+                      // Tab 2: Contract Management
                       provider_pkg.MultiProvider(
                         providers: [
                           provider_pkg.ChangeNotifierProvider(
@@ -305,6 +205,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       const SeasonalTrendsScreen(),
                       // Inventory Management Tab
                       const InventoryAnalysisScreen(),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inventory,
+                              size: 64,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Inventory Management',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Coming Soon',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       // Personal Assistant Tab - Voice Recording
                       provider_pkg.MultiProvider(
                         providers: [
@@ -322,6 +251,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         create: (_) => CallRecordingsProvider(),
                         child: const PostCallAnalyzeScreen(),
                       ),
+                      // Tab 7: Smart Quotations - View All Quotations (in-dashboard)
+                      const QuotationListScreen(embedInDashboard: true),
+                      // Tab 8: Material Forecasting (in-dashboard)
+                      const MaterialForecastScreen(embedInDashboard: true),
+                      // Tab 9: Overall Recommendation (in-dashboard)
+                      const OverallRecommendationScreen(embedInDashboard: true),
                     ],
                   ),
           ),
@@ -329,11 +264,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
       floatingActionButton: Builder(
         builder: (context) {
-          // Only show FAB on Supply Chain tab (index 0)
-          if (_tabController.index == 0) {
+          // Only show FAB on PO Purchasing tab (index 1)
+          if (_tabController.index == 1) {
             return FloatingActionButton.extended(
               onPressed: () => context.push('/upload'),
-              backgroundColor: AppTheme.primaryGreen,
+              backgroundColor: AppTheme.iconGraphGreen,
               icon: const Icon(Icons.add),
               label: Text('upload_po'.tr()),
               elevation: 4,
@@ -365,6 +300,180 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  /// Get Inquiries module view: only "Get Inquiries from Mail" and "Customer Inquiries".
+  Widget _buildGetInquiriesModuleView(
+    BuildContext context,
+    BackgroundSyncState syncState,
+  ) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final inquiryProgress = syncState.inquiryProgress;
+    final isInquirySyncing = inquiryProgress?.isActive ?? false;
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.responsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
+          _buildModuleTitle(
+            context,
+            title: 'Get Inquiries',
+            subtitle: 'Lead intake — manage inquiries from mail and customers',
+            icon: Icons.mail_outline,
+          ),
+          SizedBox(height: isMobile ? 24 : 32),
+          _buildModernActionButton(
+            context,
+            isInquirySyncing ? 'Fetching Inquiries...' : 'Get Inquiries from Mail',
+            Icons.inbox,
+            isInquirySyncing ? () {} : _getInquiryFromMail,
+            subtitle: 'Fetch inquiries from Gmail',
+            isLoading: isInquirySyncing,
+          ),
+          if (isInquirySyncing &&
+              inquiryProgress != null &&
+              inquiryProgress.total > 0) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    inquiryProgress.progressLabel,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  PulseProgressBar(
+                    value: inquiryProgress.total > 0
+                        ? inquiryProgress.current / inquiryProgress.total
+                        : null,
+                    backgroundColor: Colors.blueGrey,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          SizedBox(height: isMobile ? 16 : 20),
+          _buildModernActionButton(
+            context,
+            'Customer Inquiries',
+            Icons.people_outline,
+            () => context.push('/inquiry-list'),
+            subtitle: 'View all customer inquiries',
+          ),
+          SizedBox(height: isMobile ? 60 : 80),
+        ],
+      ),
+    );
+  }
+
+  /// PO Purchasing module view: only "Get PO from Mail" and "PO List".
+  Widget _buildPOPurchasingModuleView(
+    BuildContext context,
+    BackgroundSyncState syncState,
+  ) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.responsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: ResponsiveHelper.responsiveSpacing(context)),
+          _buildModuleTitle(
+            context,
+            title: 'PO Purchasing',
+            subtitle: 'Purchase order management — fetch from mail and view list',
+            icon: Icons.shopping_cart_outlined,
+          ),
+          SizedBox(height: isMobile ? 24 : 32),
+          _buildPOFromMailAction(
+            context,
+            syncState.poProgress?.isActive ?? false,
+            syncState.poProgress,
+          ),
+          SizedBox(height: isMobile ? 16 : 20),
+          _buildModernActionButton(
+            context,
+            'po_list'.tr(),
+            Icons.list_alt,
+            () => context.push('/po-list'),
+            subtitle: 'View all purchase orders',
+          ),
+          SizedBox(height: isMobile ? 60 : 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModuleTitle(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    return Container(
+      padding: ResponsiveHelper.responsiveCardPadding(context),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.iconGraphGreen.withOpacity(0.08),
+            AppTheme.iconGraphGreen.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.responsiveBorderRadius(context),
+        ),
+        border: Border.all(
+          color: AppTheme.iconGraphGreen.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(isMobile ? 10 : 12),
+            decoration: BoxDecoration(
+              color: AppTheme.iconGraphGreen,
+              borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+            ),
+            child: Icon(icon, color: Colors.white, size: ResponsiveHelper.responsiveIconSize(context, 28)),
+          ),
+          SizedBox(width: isMobile ? 12 : 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.dashboardText,
+                    fontSize: ResponsiveHelper.responsiveFontSize(context, 22),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.dashboardText.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWelcomeHeader(BuildContext context) {
     final isMobile = ResponsiveHelper.isMobile(context);
     return Container(
@@ -374,15 +483,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.primaryGreen.withOpacity(0.1),
-            AppTheme.primaryGreenLight.withOpacity(0.05),
+            AppTheme.iconGraphGreen.withOpacity(0.1),
+            AppTheme.iconGraphGreen.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(
           ResponsiveHelper.responsiveBorderRadius(context),
         ),
         border: Border.all(
-          color: AppTheme.primaryGreen.withOpacity(0.2),
+          color: AppTheme.iconGraphGreen.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -391,7 +500,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           Container(
             padding: EdgeInsets.all(isMobile ? 10 : 12),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen,
+              color: AppTheme.iconGraphGreen,
               borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
             ),
             child: Icon(
@@ -409,7 +518,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   'business_pulse'.tr(),
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
+                    color: AppTheme.dashboardText,
                     fontSize: ResponsiveHelper.responsiveFontSize(context, 24),
                   ),
                 ),
@@ -417,7 +526,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 Text(
                   'Real-time insights and analytics',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
+                    color: AppTheme.dashboardText.withOpacity(0.7),
                     fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
                   ),
                   maxLines: 2,
@@ -438,29 +547,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         'title': 'today_purchase_orders'.tr(),
         'value': '${stats['todayPOs'] ?? 0}',
         'icon': Icons.description,
-        'gradient': [Colors.blue.shade400, Colors.blue.shade600],
-        'iconBg': Colors.blue.shade50,
+        'gradient': [AppTheme.iconGraphGreen, AppTheme.iconGraphGreen.withOpacity(0.85)],
+        'iconBg': AppTheme.iconGraphGreen.withOpacity(0.15),
       },
       {
         'title': 'total_po_value'.tr(),
         'value': _formatCurrencyValue(stats['totalValue'] ?? 0),
         'icon': Icons.attach_money,
-        'gradient': [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
-        'iconBg': AppTheme.primaryGreen.withOpacity(0.1),
+        'gradient': [AppTheme.totalPoValueIcon, AppTheme.totalPoValueIcon.withOpacity(0.85)],
+        'iconBg': AppTheme.totalPoValueIcon.withOpacity(0.15),
       },
       {
         'title': 'expiring_this_week'.tr(),
         'value': '${stats['expiringThisWeek'] ?? 0}',
         'icon': Icons.warning,
-        'gradient': [Colors.orange.shade400, Colors.orange.shade600],
-        'iconBg': Colors.orange.shade50,
+        'gradient': [AppTheme.expireWeekIconRed, AppTheme.expireWeekIconRed.withOpacity(0.85)],
+        'iconBg': AppTheme.expireWeekIconRed.withOpacity(0.15),
       },
       {
         'title': 'total_pos'.tr(),
         'value': '${stats['totalPOs'] ?? 0}',
         'icon': Icons.inventory,
-        'gradient': [Colors.purple.shade400, Colors.purple.shade600],
-        'iconBg': Colors.purple.shade50,
+        'gradient': [AppTheme.totalPoIcon, AppTheme.totalPoIcon.withOpacity(0.85)],
+        'iconBg': AppTheme.totalPoIcon.withOpacity(0.15),
       },
     ];
 
@@ -573,7 +682,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return Container(
       padding: ResponsiveHelper.responsiveCardPadding(context),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.monthlyUsageBackground,
         borderRadius: BorderRadius.circular(
           ResponsiveHelper.responsiveBorderRadius(context),
         ),
@@ -593,12 +702,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Container(
                 padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                  color: AppTheme.iconGraphGreen.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
                 child: Icon(
                   Icons.bar_chart,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                   size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
@@ -615,6 +724,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           context,
                           18,
                         ),
+                        color: AppTheme.dashboardText,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -623,7 +733,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     Text(
                       'PO count and value over time',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                        color: AppTheme.dashboardText.withOpacity(0.7),
                         fontSize: ResponsiveHelper.responsiveFontSize(
                           context,
                           12,
@@ -652,7 +762,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               'Total Value (₹)',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: AppTheme.dashboardText.withOpacity(0.7),
                                     fontWeight: FontWeight.w500,
                                     fontSize:
                                         ResponsiveHelper.responsiveFontSize(
@@ -670,7 +780,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   barTouchData: BarTouchData(
                                     enabled: true,
                                     touchTooltipData: BarTouchTooltipData(
-                                      tooltipBgColor: AppTheme.primaryGreen,
+                                      tooltipBgColor: AppTheme.iconGraphGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
                                       getTooltipItem:
@@ -703,7 +813,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                     as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
-                                                  color: Colors.grey,
+                                                  color: AppTheme.textSecondary,
                                                 ),
                                               ),
                                             );
@@ -728,7 +838,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                               '₹${(value / 1000).toStringAsFixed(0)}K',
                                               style: const TextStyle(
                                                 fontSize: 10,
-                                                color: Colors.grey,
+                                                color: AppTheme.textSecondary,
                                               ),
                                             );
                                           }
@@ -752,7 +862,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
-                                        color: Colors.grey.withOpacity(0.1),
+                                        color: AppTheme.textSecondary.withOpacity(0.1),
                                         strokeWidth: 1,
                                       );
                                     },
@@ -765,7 +875,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       barRods: [
                                         BarChartRodData(
                                           toY: spot.value['value'] as double,
-                                          color: AppTheme.primaryGreen,
+                                          color: AppTheme.iconGraphGreen,
                                           width: 20,
                                           borderRadius:
                                               const BorderRadius.vertical(
@@ -791,7 +901,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               'PO Count',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: AppTheme.dashboardText.withOpacity(0.7),
                                     fontWeight: FontWeight.w500,
                                     fontSize:
                                         ResponsiveHelper.responsiveFontSize(
@@ -813,7 +923,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
-                                        color: Colors.grey.withOpacity(0.1),
+                                        color: AppTheme.textSecondary.withOpacity(0.1),
                                         strokeWidth: 1,
                                       );
                                     },
@@ -835,7 +945,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                               value.toInt().toString(),
                                               style: const TextStyle(
                                                 fontSize: 10,
-                                                color: Colors.grey,
+                                                color: AppTheme.textSecondary,
                                               ),
                                             );
                                           }
@@ -859,7 +969,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                     as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
-                                                  color: Colors.grey,
+                                                  color: AppTheme.textSecondary,
                                                 ),
                                               ),
                                             );
@@ -887,19 +997,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         );
                                       }).toList(),
                                       isCurved: true,
-                                      color: Colors.blue,
+                                      color: AppTheme.iconGraphGreen,
                                       barWidth: 3,
                                       isStrokeCapRound: true,
                                       dotData: const FlDotData(show: true),
                                       belowBarData: BarAreaData(
                                         show: true,
-                                        color: Colors.blue.withOpacity(0.1),
+                                        color: AppTheme.iconGraphGreen.withOpacity(0.15),
                                       ),
                                     ),
                                   ],
                                   lineTouchData: LineTouchData(
                                     touchTooltipData: LineTouchTooltipData(
-                                      tooltipBgColor: Colors.blue,
+                                      tooltipBgColor: AppTheme.iconGraphGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
                                       getTooltipItems:
@@ -938,7 +1048,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               'Total Value (₹)',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: AppTheme.dashboardText.withOpacity(0.7),
                                     fontWeight: FontWeight.w500,
                                     fontSize:
                                         ResponsiveHelper.responsiveFontSize(
@@ -956,7 +1066,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                   barTouchData: BarTouchData(
                                     enabled: true,
                                     touchTooltipData: BarTouchTooltipData(
-                                      tooltipBgColor: AppTheme.primaryGreen,
+                                      tooltipBgColor: AppTheme.iconGraphGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
                                       getTooltipItem:
@@ -989,7 +1099,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                     as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
-                                                  color: Colors.grey,
+                                                  color: AppTheme.textSecondary,
                                                 ),
                                               ),
                                             );
@@ -1014,7 +1124,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                               '₹${(value / 1000).toStringAsFixed(0)}K',
                                               style: const TextStyle(
                                                 fontSize: 10,
-                                                color: Colors.grey,
+                                                color: AppTheme.textSecondary,
                                               ),
                                             );
                                           }
@@ -1038,7 +1148,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
-                                        color: Colors.grey.withOpacity(0.1),
+                                        color: AppTheme.textSecondary.withOpacity(0.1),
                                         strokeWidth: 1,
                                       );
                                     },
@@ -1051,7 +1161,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                       barRods: [
                                         BarChartRodData(
                                           toY: spot.value['value'] as double,
-                                          color: AppTheme.primaryGreen,
+                                          color: AppTheme.iconGraphGreen,
                                           width: 20,
                                           borderRadius:
                                               const BorderRadius.vertical(
@@ -1078,7 +1188,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               'PO Count',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: AppTheme.dashboardText.withOpacity(0.7),
                                     fontWeight: FontWeight.w500,
                                     fontSize:
                                         ResponsiveHelper.responsiveFontSize(
@@ -1100,7 +1210,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         : 2.5,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
-                                        color: Colors.grey.withOpacity(0.1),
+                                        color: AppTheme.textSecondary.withOpacity(0.1),
                                         strokeWidth: 1,
                                       );
                                     },
@@ -1122,7 +1232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                               value.toInt().toString(),
                                               style: const TextStyle(
                                                 fontSize: 10,
-                                                color: Colors.grey,
+                                                color: AppTheme.textSecondary,
                                               ),
                                             );
                                           }
@@ -1146,7 +1256,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                                     as String,
                                                 style: const TextStyle(
                                                   fontSize: 10,
-                                                  color: Colors.grey,
+                                                  color: AppTheme.textSecondary,
                                                 ),
                                               ),
                                             );
@@ -1174,19 +1284,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                         );
                                       }).toList(),
                                       isCurved: true,
-                                      color: Colors.blue,
+                                      color: AppTheme.iconGraphGreen,
                                       barWidth: 3,
                                       isStrokeCapRound: true,
                                       dotData: const FlDotData(show: true),
                                       belowBarData: BarAreaData(
                                         show: true,
-                                        color: Colors.blue.withOpacity(0.1),
+                                        color: AppTheme.iconGraphGreen.withOpacity(0.15),
                                       ),
                                     ),
                                   ],
                                   lineTouchData: LineTouchData(
                                     touchTooltipData: LineTouchTooltipData(
-                                      tooltipBgColor: Colors.blue,
+                                      tooltipBgColor: AppTheme.iconGraphGreen,
                                       tooltipRoundedRadius: 8,
                                       tooltipPadding: const EdgeInsets.all(8),
                                       getTooltipItems:
@@ -1234,7 +1344,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         borderRadius: BorderRadius.circular(
           ResponsiveHelper.responsiveBorderRadius(context),
         ),
-        border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1),
+        border: Border.all(color: AppTheme.expireWeekIconRed.withOpacity(0.3), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1251,12 +1361,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Container(
                 padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: AppTheme.expireWeekIconRed.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
                 child: Icon(
                   Icons.warning,
-                  color: Colors.orange,
+                  color: AppTheme.expireWeekIconRed,
                   size: ResponsiveHelper.responsiveIconSize(context, 24),
                 ),
               ),
@@ -1267,6 +1377,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                    color: AppTheme.dashboardText,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1279,10 +1390,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
                 padding: EdgeInsets.all(isMobile ? 10 : 12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.05),
+                  color: AppTheme.expireWeekIconRed.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                   border: Border.all(
-                    color: Colors.orange.withOpacity(0.2),
+                    color: AppTheme.expireWeekIconRed.withOpacity(0.2),
                   ),
                 ),
                 child: ListTile(
@@ -1290,12 +1401,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   leading: Container(
                     padding: EdgeInsets.all(isMobile ? 6 : 8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: AppTheme.expireWeekIconRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                     ),
                     child: Icon(
-                      Icons.description, 
-                      color: Colors.orange,
+                      Icons.description,
+                      color: AppTheme.expireWeekIconRed,
                       size: ResponsiveHelper.responsiveIconSize(context, 20),
                     ),
                   ),
@@ -1304,6 +1415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: ResponsiveHelper.responsiveFontSize(context, 14),
+                      color: AppTheme.dashboardText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1314,6 +1426,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
+                      color: AppTheme.dashboardText.withOpacity(0.7),
                     ),
                   ),
                   trailing: Column(
@@ -1324,7 +1437,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       Text(
                         DateFormat('MMM dd').format(po.expiryDate),
                         style: TextStyle(
-                          color: Colors.orange,
+                          color: AppTheme.expireWeekIconRed,
                           fontWeight: FontWeight.bold,
                           fontSize: ResponsiveHelper.responsiveFontSize(context, 12),
                         ),
@@ -1333,7 +1446,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         DateFormat('yyyy').format(po.expiryDate),
                         style: TextStyle(
                           fontSize: ResponsiveHelper.responsiveFontSize(context, 10),
-                          color: Colors.grey[600],
+                          color: AppTheme.dashboardText.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -1394,7 +1507,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 padding: EdgeInsets.all(isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+                    colors: [AppTheme.iconGraphGreen, AppTheme.iconGraphGreen.withOpacity(0.9)],
                   ),
                   borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
                 ),
@@ -1411,6 +1524,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                    color: AppTheme.dashboardText,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1419,7 +1533,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Text(
                 '${draftQuotations.length}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                   fontWeight: FontWeight.bold,
                   fontSize: ResponsiveHelper.responsiveFontSize(context, 16),
                 ),
@@ -1541,13 +1655,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                          Icon(Icons.person, size: 16, color: AppTheme.textSecondary),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               quotation.customerName,
                               style: TextStyle(
-                                color: Colors.grey[700],
+                                color: AppTheme.dashboardText,
                                 fontSize: 14,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1561,13 +1675,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           Icon(
                             Icons.shopping_cart,
                             size: 16,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             '${quotation.items.length} item(s)',
                             style: TextStyle(
-                              color: Colors.grey[700],
+                              color: AppTheme.dashboardText,
                               fontSize: 14,
                             ),
                           ),
@@ -1583,7 +1697,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               Text(
                                 'Total',
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: AppTheme.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1604,7 +1718,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             icon: const Icon(Icons.arrow_forward, size: 16),
                             label: const Text('View'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryGreen,
+                              backgroundColor: AppTheme.iconGraphGreen,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -1640,9 +1754,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.primaryGreen.withOpacity(0.12),
+          color: AppTheme.iconGraphGreen.withOpacity(0.12),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+          border: Border.all(color: AppTheme.iconGraphGreen.withOpacity(0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1735,12 +1849,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, Colors.grey.shade50],
+          colors: [Colors.white, AppTheme.dashboardBackground],
         ),
         borderRadius: BorderRadius.circular(
           ResponsiveHelper.responsiveBorderRadius(context),
         ),
-        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+        border: Border.all(color: AppTheme.textSecondary.withOpacity(0.3), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -1749,7 +1863,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: AppTheme.primaryGreen.withOpacity(0.04),
+            color: AppTheme.iconGraphGreen.withOpacity(0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -1767,14 +1881,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppTheme.primaryGreen.withOpacity(0.15),
-                      AppTheme.primaryGreenLight.withOpacity(0.12),
+                      AppTheme.iconGraphGreen.withOpacity(0.15),
+                      AppTheme.iconGraphGreen.withOpacity(0.12),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primaryGreen.withOpacity(0.2),
+                      color: AppTheme.iconGraphGreen.withOpacity(0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -1782,7 +1896,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ),
                 child: Icon(
                   Icons.flash_on,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                   size: ResponsiveHelper.responsiveIconSize(context, 26),
                 ),
               ),
@@ -1793,6 +1907,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: ResponsiveHelper.responsiveFontSize(context, 18),
+                    color: AppTheme.dashboardText,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2267,7 +2382,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         content: Text(message),
         backgroundColor: message.contains('failed')
             ? Colors.orange
-            : AppTheme.primaryGreen,
+            : AppTheme.iconGraphGreen,
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
       ),
@@ -2820,7 +2935,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Go to Upload PO'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
+                    backgroundColor: AppTheme.iconGraphGreen,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -2883,107 +2998,283 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   /// Build navigation drawer for mobile devices
   Widget _buildNavigationDrawer(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Image.asset(
-                  'assets/icons/ElevateIonix.jpeg',
-                  height: 28,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Text(
-                    'app_name'.tr(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Navigation'.tr(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.inventory_2,
-            title: 'Supply Chain',
-            index: 0,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.description,
-            title: 'Contract Management',
-            index: 1,
-          ),
-          _buildDrawerNavigationItem(
-            context,
-            icon: Icons.analytics,
-            title: 'Forecast & Insights',
-            route: '/material-forecast',
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.trending_up,
-            title: 'Seasonal Trends',
-            index: 2,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.inventory,
-            title: 'Inventory Management',
-            index: 3,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.assistant,
-            title: 'Personal Assistant',
-            index: 4,
-          ),
-          _buildDrawerItem(
-            context,
-            icon: Icons.analytics,
-            title: 'Customer Call Insights',
-            index: 5,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: Text('settings'.tr()),
-            onTap: () {
-              Navigator.pop(context);
-              context.push('/settings');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: Text('logout'.tr()),
-            onTap: () {
-              Navigator.pop(context);
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
+      child: Container(
+        color: AppTheme.navBarBackground,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _buildDrawerHeader(context, isDrawer: true),
+            const SizedBox(height: 8),
+            ..._buildNavSections(context, isDrawer: true),
+            const Divider(height: 24),
+            _buildDrawerFooter(context, isDrawer: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerHeader(BuildContext context, {required bool isDrawer}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+      decoration: BoxDecoration(
+        color: AppTheme.navBarBackground,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Image.asset(
+              'assets/icons/ElevateIonix.jpeg',
+              height: 32,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Text(
+                'ELEVATEIONIX'.tr(),
+                style: TextStyle(
+                  color: AppTheme.dashboardText,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildNavSections(BuildContext context, {required bool isDrawer}) {
+    final list = <Widget>[];
+
+    // 1. Get Inquiries (expandable)
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Get Inquiries',
+      icon: Icons.mail_outline,
+      isExpanded: _expandedSections.contains('Get Inquiries'),
+      onTap: () => _toggleSection('Get Inquiries'),
+      isDrawer: isDrawer,
+    ));
+    if (_expandedSections.contains('Get Inquiries')) {
+      list.add(_buildSubItem(context, 'Get Inquiries from Mail', Icons.inbox, tabIndex: 0, isDrawer: isDrawer));
+    }
+
+    // 2. Smart Quotations (single) -> in-dashboard View All Quotations tab
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Smart Quotations',
+      icon: Icons.request_quote_outlined,
+      isExpanded: true,
+      onTap: () {
+        if (isDrawer) Navigator.pop(context);
+        _tabController.animateTo(7);
+        setState(() {});
+      },
+      isDrawer: isDrawer,
+      isSingleItem: true,
+      isSelected: _tabController.index == 7,
+    ));
+
+    // 3. PO Purchasing (expandable) -> tab 1
+    list.add(_buildSectionHeader(
+      context,
+      title: 'PO Purchasing',
+      icon: Icons.shopping_cart_outlined,
+      isExpanded: _expandedSections.contains('PO Purchasing'),
+      onTap: () => _toggleSection('PO Purchasing'),
+      isDrawer: isDrawer,
+    ));
+    if (_expandedSections.contains('PO Purchasing')) {
+      list.add(_buildSubItem(context, 'Get PO from Mail', Icons.mail_outline, tabIndex: 1, isDrawer: isDrawer));
+    }
+
+    // 4. Planning & Forecasting (expandable)
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Planning & Forecasting',
+      icon: Icons.insights,
+      isExpanded: _expandedSections.contains('Planning & Forecasting'),
+      onTap: () => _toggleSection('Planning & Forecasting'),
+      isDrawer: isDrawer,
+    ));
+    if (_expandedSections.contains('Planning & Forecasting')) {
+      list.add(_buildSubItem(context, 'Inventory Management', Icons.inventory_2_outlined, tabIndex: 4, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Seasonal Trends', Icons.trending_up, tabIndex: 3, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Material Forecasting', Icons.analytics_outlined, tabIndex: 8, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Overall Recommendation', Icons.lightbulb_outline, tabIndex: 9, isDrawer: isDrawer));
+      //list.add(_buildSubItem(context, 'Planning and Reconstruct', Icons.construction_outlined, route: '/planning-reconstruct', isDrawer: isDrawer));
+    }
+
+    // 5. Contract Management (single) -> tab 2
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Contract Management',
+      icon: Icons.description_outlined,
+      isExpanded: true,
+      onTap: () {
+        if (isDrawer) Navigator.pop(context);
+        _tabController.animateTo(2);
+        setState(() {});
+      },
+      isDrawer: isDrawer,
+      isSingleItem: true,
+      isSelected: _tabController.index == 2,
+    ));
+
+    // 6. Customer Support (single) -> tab 6
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Customer Support',
+      icon: Icons.support_agent,
+      isExpanded: true,
+      onTap: () {
+        if (isDrawer) Navigator.pop(context);
+        _tabController.animateTo(6);
+        setState(() {});
+      },
+      isDrawer: isDrawer,
+      isSingleItem: true,
+      isSelected: _tabController.index == 6,
+    ));
+
+    // 7. Personal Assistant (single) -> tab 5
+    list.add(_buildSectionHeader(
+      context,
+      title: 'Personal Assistant',
+      icon: Icons.assistant_outlined,
+      isExpanded: true,
+      onTap: () {
+        if (isDrawer) Navigator.pop(context);
+        _tabController.animateTo(5);
+        setState(() {});
+      },
+      isDrawer: isDrawer,
+      isSingleItem: true,
+      isSelected: _tabController.index == 5,
+    ));
+
+    return list;
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required bool isExpanded,
+    required VoidCallback onTap,
+    required bool isDrawer,
+    bool isSingleItem = false,
+    bool isSelected = false,
+  }) {
+    final useSelectedStyle = isSelected && isSingleItem;
+    return Material(
+      color: useSelectedStyle ? AppTheme.iconGraphGreen.withOpacity(0.1) : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(isDrawer ? 20 : 16, 12, 12, 12),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: useSelectedStyle ? AppTheme.iconGraphGreen : AppTheme.dashboardText.withOpacity(0.7),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: useSelectedStyle ? FontWeight.w600 : FontWeight.w500,
+                    color: useSelectedStyle ? AppTheme.iconGraphGreen : AppTheme.dashboardText,
+                  ),
+                ),
+              ),
+              if (!isSingleItem)
+                AnimatedRotation(
+                  turns: isExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(Icons.expand_more, size: 22, color: AppTheme.dashboardText.withOpacity(0.6)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubItem(
+    BuildContext context,
+    String title,
+    IconData icon, {
+    int? tabIndex,
+    String? route,
+    required bool isDrawer,
+  }) {
+    assert(tabIndex != null || route != null);
+    final isTab = tabIndex != null;
+    final isSelected = isTab && _tabController.index == tabIndex;
+    return Padding(
+      padding: EdgeInsets.only(left: isDrawer ? 54 : 50),
+      child: Material(
+        color: isSelected ? AppTheme.iconGraphGreen.withOpacity(0.08) : Colors.transparent,
+        child: ListTile(
+          dense: true,
+          leading: Icon(icon, size: 20, color: isSelected ? AppTheme.iconGraphGreen : AppTheme.dashboardText.withOpacity(0.6)),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              color: isSelected ? AppTheme.iconGraphGreen : AppTheme.dashboardText,
+            ),
+          ),
+          onTap: () {
+            if (isDrawer) Navigator.pop(context);
+            if (isTab) {
+              _tabController.animateTo(tabIndex!);
+              setState(() {});
+            } else {
+              context.push(route!);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerFooter(BuildContext context, {required bool isDrawer}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: Icon(Icons.settings_outlined, size: 22, color: AppTheme.dashboardText),
+          title: Text('settings'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.dashboardText)),
+          onTap: () {
+            if (isDrawer) Navigator.pop(context);
+            context.push('/settings');
+          },
+        ),
+        ListTile(
+          leading: Icon(Icons.logout, size: 22, color: AppTheme.dashboardText),
+          title: Text('logout'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.dashboardText)),
+          onTap: () {
+            if (isDrawer) Navigator.pop(context);
+            ref.read(authProvider.notifier).logout();
+            context.go('/login');
+          },
+        ),
+      ],
     );
   }
 
@@ -2991,234 +3282,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Widget _buildSidebarNavigation(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.navBarBackground,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
             offset: const Offset(2, 0),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.surfaceLight, AppTheme.surfaceLight],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Image.asset(
-                  'assets/icons/ElevateIonix.jpeg',
-                  height: 50,
-                  fit: BoxFit.fill,
-                  errorBuilder: (_, __, ___) => Text(
-                    'app_name'.tr(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Navigation'.tr(),
-                  style: TextStyle(
-                    color: Colors.black.withOpacity(0.9),
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Navigation items
+          _buildDrawerHeader(context, isDrawer: false),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.inventory_2,
-                  title: 'Supply Chain',
-                  index: 0,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.description,
-                  title: 'Contract Management',
-                  index: 1,
-                ),
-                _buildSidebarNavigationItem(
-                  context,
-                  icon: Icons.analytics,
-                  title: 'Forecast & Insights',
-                  route: '/material-forecast',
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.trending_up,
-                  title: 'Seasonal Trends',
-                  index: 2,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.inventory,
-                  title: 'Inventory Management',
-                  index: 3,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.assistant,
-                  title: 'Personal Assistant',
-                  index: 4,
-                ),
-                _buildSidebarItem(
-                  context,
-                  icon: Icons.analytics,
-                  title: 'Customer Call Insights',
-                  index: 5,
-                ),
-              ],
+              children: _buildNavSections(context, isDrawer: false),
             ),
           ),
-          // Footer actions
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: Text('settings'.tr()),
-            onTap: () => context.push('/settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: Text('logout'.tr()),
-            onTap: () {
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-          ),
+          const Divider(height: 1),
+          _buildDrawerFooter(context, isDrawer: false),
         ],
       ),
-    );
-  }
-
-  /// Build drawer item for mobile
-  Widget _buildDrawerItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required int index,
-  }) {
-    final isSelected = _tabController.index == index;
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? AppTheme.primaryGreen : Colors.black87,
-        ),
-      ),
-      selected: isSelected,
-      selectedTileColor: AppTheme.primaryGreen.withOpacity(0.1),
-      onTap: () {
-        Navigator.pop(context);
-        _tabController.animateTo(index);
-        setState(() {});
-      },
-    );
-  }
-
-  /// Build sidebar item for desktop/tablet
-  Widget _buildSidebarItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required int index,
-  }) {
-    final isSelected = _tabController.index == index;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppTheme.primaryGreen.withOpacity(0.1)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: isSelected
-            ? Border.all(color: AppTheme.primaryGreen, width: 2)
-            : null,
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? AppTheme.primaryGreen : Colors.grey[600],
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? AppTheme.primaryGreen : Colors.black87,
-            fontSize: 14,
-          ),
-        ),
-        onTap: () {
-          _tabController.animateTo(index);
-          setState(() {});
-        },
-      ),
-    );
-  }
-
-  /// Build sidebar navigation item that navigates to a route (not a tab)
-  Widget _buildSidebarNavigationItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String route,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.grey[600]),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.normal,
-            color: Colors.black87,
-            fontSize: 14,
-          ),
-        ),
-        onTap: () {
-          context.push(route);
-        },
-      ),
-    );
-  }
-
-  /// Build drawer navigation item that navigates to a route (not a tab)
-  Widget _buildDrawerNavigationItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String route,
-  }) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: () {
-        Navigator.pop(context); // Close drawer
-        context.push(route);
-      },
     );
   }
 }
@@ -3442,8 +3527,8 @@ class _QuickActionCardState extends State<_QuickActionCard> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveHelper.isMobile(context);
-    final primaryColor = AppTheme.primaryGreen;
-    final secondaryColor = AppTheme.primaryGreenLight;
+    final primaryColor = AppTheme.iconGraphGreen;
+    final secondaryColor = AppTheme.iconGraphGreen.withOpacity(0.9);
     final borderRadius = BorderRadius.circular(isMobile ? 14 : 18);
     final elevation = _hovered && widget.onPressed != null ? 8.0 : 3.0;
     final scale = _hovered && widget.onPressed != null ? 1.02 : 1.0;

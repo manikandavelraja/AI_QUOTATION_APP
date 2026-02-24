@@ -257,6 +257,20 @@ class _VoiceMemoSectionEnhancedState extends State<VoiceMemoSectionEnhanced> {
                     ),
                     const SizedBox(height: 12),
                     SegmentedButton<VoiceMode>(
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return const Color(0xFF45B795);
+                          }
+                          return null;
+                        }),
+                        foregroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.white;
+                          }
+                          return null;
+                        }),
+                      ),
                       segments: const [
                         ButtonSegment<VoiceMode>(
                           value: VoiceMode.shortNote,

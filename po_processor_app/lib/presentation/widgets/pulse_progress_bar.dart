@@ -54,7 +54,7 @@ class _PulseProgressBarState extends State<PulseProgressBar>
   @override
   Widget build(BuildContext context) {
     final bg = widget.backgroundColor ?? Colors.white24;
-    final barColor = AppTheme.primaryGreen;
+    final barColor = AppTheme.iconGraphGreen;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_pulseAnimation, _shimmerAnimation]),

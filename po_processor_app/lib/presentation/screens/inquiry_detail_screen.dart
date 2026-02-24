@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../providers/inquiry_provider.dart';
 import '../../domain/entities/customer_inquiry.dart';
+import '../../core/theme/app_theme.dart';
 
 class InquiryDetailScreen extends ConsumerStatefulWidget {
   final String inquiryId;
@@ -149,7 +150,7 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
         statusText = 'Converted to PO';
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = AppTheme.textSecondary;
         statusText = _inquiry!.status;
     }
 
@@ -228,7 +229,7 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.email, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.email, size: 16, color: AppTheme.textSecondary),
                   const SizedBox(width: 8),
                   Text(
                     'Recipient Email',
