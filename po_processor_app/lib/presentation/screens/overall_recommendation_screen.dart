@@ -53,40 +53,35 @@ class _OverallRecommendationScreenState
     return 'Winter';
   }
 
-  String _buildOverallParagraph(
+  List<String> _buildOverallBulletPoints(
     List<PlanningRecommendation> seasonalRecs,
     MaterialForecast? materialForecast,
   ) {
-    final parts = <String>[
-      'Based on Inventory Management, Seasonal Trends, and Material Forecasting: ',
-    ];
+    final bullets = <String>[];
 
     if (seasonalRecs.isNotEmpty) {
-      final seasonalText = seasonalRecs
-          .map((r) => r.description)
-          .join(' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-      parts.add(seasonalText);
+      for (final r in seasonalRecs) {
+        bullets.add(r.description);
+      }
     }
 
     if (materialForecast != null) {
-      parts.add(
-        'For material ${materialForecast.materialCode} (${materialForecast.materialName}), '
-        'the recommendation is to ${materialForecast.recommendation}: '
+      bullets.add(
+        'Material ${materialForecast.materialCode} (${materialForecast.materialName}): '
+        'Recommendation is to ${materialForecast.recommendation}. '
         '${materialForecast.recommendationReason}',
       );
     } else {
-      parts.add(
+      bullets.add(
         'Use Material Forecasting to analyze your material codes and get stock or do-not-stock recommendations based on procurement patterns.',
       );
     }
 
-    parts.add(
+    bullets.add(
       'Inventory management insights will be included in this overall recommendation once that feature is available.',
     );
 
-    return parts.join(' ');
+    return bullets;
   }
 
   @override
@@ -99,7 +94,7 @@ class _OverallRecommendationScreenState
         : generateSeasonalRecommendations(seasonalState.prediction!);
     final isLoading = seasonalState.isLoading || _isLoadingSeasonal;
 
-    final paragraph = _buildOverallParagraph(
+    final bulletPoints = _buildOverallBulletPoints(
       seasonalRecs,
       materialState.forecast,
     );
@@ -151,13 +146,48 @@ class _OverallRecommendationScreenState
                   elevation: 2,
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
-                      paragraph,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppTheme.dashboardText,
-                        height: 1.6,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Based on Inventory Management, Seasonal Trends, and Material Forecasting:',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.dashboardText,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...bulletPoints.map((point) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6, right: 10),
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.iconGraphGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  point,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    color: AppTheme.dashboardText,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                      ],
                     ),
                   ),
                 ),

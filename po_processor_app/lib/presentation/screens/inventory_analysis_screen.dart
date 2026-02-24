@@ -117,13 +117,16 @@ class InventoryMockData {
     }
   }
 
+  /// Up-and-down (two-way) weekly pattern for the line graph.
   static List<InventoryTrendPoint> _defaultTrend(double monthlyTotal) {
     const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-    final perWeek = monthlyTotal / 4;
-    return List.generate(4, (i) => InventoryTrendPoint(
-      label: labels[i],
-      consumption: perWeek * (0.9 + (i * 0.05)),
-    ));
+    final avg = monthlyTotal / 4;
+    return [
+      InventoryTrendPoint(label: labels[0], consumption: avg * 1.15),
+      InventoryTrendPoint(label: labels[1], consumption: avg * 0.85),
+      InventoryTrendPoint(label: labels[2], consumption: avg * 1.1),
+      InventoryTrendPoint(label: labels[3], consumption: avg * 0.9),
+    ];
   }
 
   /// True Inventory Health: compare current stock vs predicted demand, apply
@@ -810,73 +813,67 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
     );
   }
 
+  static const Color _axisBrown = Color(0xFF8D6E63);
+
   Widget _buildPastMonthTrendCard(BuildContext context) {
     if (_selectedMaterial == null) return const SizedBox.shrink();
-    final trend = InventoryMockData.pastMonthTrendFor(_selectedMaterial!.materialCode);
+    final material = _selectedMaterial!;
+    final trend = InventoryMockData.pastMonthTrendFor(material.materialCode);
+    final predictedDemandWeekly = material.predictedDemand / 4;
     final maxConsumption = trend.fold<double>(0, (a, p) => a > p.consumption ? a : p.consumption);
-    final maxY = (maxConsumption * 1.15).clamp(10.0, double.infinity);
+    final maxVal = (maxConsumption > predictedDemandWeekly ? maxConsumption : predictedDemandWeekly) * 1.15;
+    final maxY = maxVal.clamp(10.0, double.infinity);
     final minY = 0.0;
-    final spots = trend.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.consumption)).toList();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
-    final textColor = isDark ? Colors.grey.shade400 : Colors.grey.shade700;
-    final gridColor = isDark ? Colors.white.withOpacity(0.06) : Colors.grey.shade200;
+    final trendSpots = trend.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.consumption)).toList();
+    final predictedSpots = List.generate(trend.length, (i) => FlSpot(i.toDouble(), predictedDemandWeekly));
+    const lineGreen = Color(0xFF2E7D32);
+    const lineRed = Color(0xFFC62828);
 
     return Container(
       decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200,
-        ),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _axisBrown.withOpacity(0.4), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.show_chart_rounded, size: 22, color: AppTheme.primaryGreen),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Past month trend (weekly) → Predicted demand',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                ),
-              ),
-            ],
+          // Title centered, bold black (like "Sale of product A and B")
+          Center(
+            child: Text(
+              'Past Month Trend & Predicted Demand Analysis',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 18,
+                  ),
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          // Chart only - no overlay so lines are fully visible
           SizedBox(
-            height: 240,
+            height: 260,
             child: LineChart(
               LineChartData(
                 gridData: FlGridData(
                   show: true,
-                  drawVerticalLine: false,
+                  drawVerticalLine: true,
                   drawHorizontalLine: true,
                   horizontalInterval: (maxY - minY) / 5,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: gridColor,
+                    color: _axisBrown.withOpacity(0.35),
+                    strokeWidth: 1,
+                  ),
+                  getDrawingVerticalLine: (value) => FlLine(
+                    color: _axisBrown.withOpacity(0.35),
                     strokeWidth: 1,
                   ),
                 ),
@@ -884,7 +881,7 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 44,
+                      reservedSize: 40,
                       interval: (maxY - minY) / 5,
                       getTitlesWidget: (value, meta) {
                         if (value == value.roundToDouble()) {
@@ -892,8 +889,8 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
                             padding: const EdgeInsets.only(right: 8),
                             child: Text(
                               value.toInt().toString(),
-                              style: TextStyle(
-                                color: textColor,
+                              style: const TextStyle(
+                                color: _axisBrown,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -908,18 +905,18 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 32,
+                      reservedSize: 28,
                       interval: 1,
                       getTitlesWidget: (value, meta) {
                         final i = value.round();
                         if (i >= 0 && i < trend.length) {
                           return Padding(
-                            padding: const EdgeInsets.only(top: 10),
+                            padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               trend[i].label,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 12,
+                              style: const TextStyle(
+                                color: _axisBrown,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -932,43 +929,106 @@ class _InventoryAnalysisScreenState extends ConsumerState<InventoryAnalysisScree
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
-                borderData: FlBorderData(show: false),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    left: BorderSide(color: _axisBrown, width: 1.5),
+                    bottom: BorderSide(color: _axisBrown, width: 1.5),
+                    top: BorderSide.none,
+                    right: BorderSide.none,
+                  ),
+                ),
                 minX: 0,
                 maxX: (trend.length - 1).toDouble(),
                 minY: minY,
                 maxY: maxY,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: spots,
+                    spots: trendSpots,
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: AppTheme.primaryGreen,
-                    barWidth: 3,
+                    color: lineGreen,
+                    barWidth: 2.5,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
-                        radius: 4,
-                        color: AppTheme.primaryGreen,
-                        strokeWidth: 2,
-                        strokeColor: isDark ? Colors.white24 : Colors.white,
+                        radius: 3,
+                        color: lineGreen,
+                        strokeWidth: 1.5,
+                        strokeColor: Colors.white,
                       ),
                     ),
-                    belowBarData: BarAreaData(
+                    belowBarData: BarAreaData(show: false),
+                  ),
+                  LineChartBarData(
+                    spots: predictedSpots,
+                    isCurved: false,
+                    color: lineRed,
+                    barWidth: 2.5,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
                       show: true,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppTheme.primaryGreen.withOpacity(0.25),
-                          AppTheme.primaryGreen.withOpacity(0.05),
-                        ],
+                      getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                        radius: 3,
+                        color: lineRed,
+                        strokeWidth: 1.5,
+                        strokeColor: Colors.white,
                       ),
                     ),
+                    belowBarData: BarAreaData(show: false),
                   ),
                 ],
               ),
               duration: const Duration(milliseconds: 300),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Legend below chart so it never hides the lines
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: _axisBrown, width: 1.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 14, height: 14, color: lineGreen),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Past month trend',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 24),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 14, height: 14, color: lineRed),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Predicted demand',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],

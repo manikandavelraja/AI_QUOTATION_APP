@@ -38,6 +38,7 @@ import 'seasonal_trends_screen.dart';
 import 'quotation_list_screen.dart';
 import 'material_forecast_screen.dart';
 import 'overall_recommendation_screen.dart';
+import 'esg_module_screen.dart';
 import 'inventory_analysis_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -68,14 +69,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   int _poProcessedCount = 0;
   int _poSuccessCount = 0;
   int _poErrorCount = 0;
-  final Set<String> _expandedSections = {
-    'Get Inquiries',
-    'Smart Quotations',
-    'PO Purchasing',
-    'Planning & Forecasting',
-    'Customer Support',
-    'Personal Assistant',
-  };
+  /// Start with all sections collapsed; sub-items show only when parent is clicked.
+  final Set<String> _expandedSections = {};
 
   void _toggleSection(String key) {
     setState(() {
@@ -90,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 10, vsync: this);
+    _tabController = TabController(length: 11, vsync: this);
     _tabController.addListener(() {
       // Rebuild when tab changes to update FAB visibility
       setState(() {});
@@ -231,6 +226,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       const MaterialForecastScreen(embedInDashboard: true),
                       // Tab 9: Overall Recommendation (in-dashboard)
                       const OverallRecommendationScreen(embedInDashboard: true),
+                      // Tab 10: Overall ESG Module (in-dashboard)
+                      const EsgModuleScreen(embedInDashboard: true),
                     ],
                   ),
           ),
@@ -3082,6 +3079,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       list.add(_buildSubItem(context, 'Seasonal Trends', Icons.trending_up, tabIndex: 3, isDrawer: isDrawer));
       list.add(_buildSubItem(context, 'Forecast & Insights', Icons.analytics_outlined, tabIndex: 8, isDrawer: isDrawer));
       list.add(_buildSubItem(context, 'Overall Recommendation', Icons.lightbulb_outline, tabIndex: 9, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Overall ESG Module', Icons.eco, tabIndex: 10, isDrawer: isDrawer));
       //list.add(_buildSubItem(context, 'Planning and Reconstruct', Icons.construction_outlined, route: '/planning-reconstruct', isDrawer: isDrawer));
     }
 
