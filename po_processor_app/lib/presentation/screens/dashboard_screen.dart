@@ -113,8 +113,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final poState = ref.watch(poProvider);
     final syncNotifier = ref.watch(backgroundSyncProvider);
     final syncState = syncNotifier.state;
-    final stats = poState.dashboardStats ?? {};
-    final monthlyData = _getMonthlyStatistics(poState.purchaseOrders);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -342,12 +340,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  /// PO Purchasing module view: only "Get PO from Mail" and "PO List".
+  /// PO Purchasing module view: KPI stats, Monthly Usage, "Get PO from Mail", and "PO List".
   Widget _buildPOPurchasingModuleView(
     BuildContext context,
     BackgroundSyncState syncState,
   ) {
     final isMobile = ResponsiveHelper.isMobile(context);
+    final poState = ref.watch(poProvider);
+    final stats = poState.dashboardStats ?? {};
+    final monthlyData = _getMonthlyStatistics(poState.purchaseOrders);
+
     return SingleChildScrollView(
       padding: ResponsiveHelper.responsivePadding(context),
       child: Column(
@@ -375,6 +377,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             subtitle: 'View all purchase orders',
           ),
           SizedBox(height: isMobile ? 60 : 80),
+                    // KPI cards: Today's POs, Total PO Value, Expiring This Week, Total POs
+          _buildStatsGrid(context, stats),
+          SizedBox(height: isMobile ? 20 : 28),
+          // Monthly Usage Statistics chart
+          _buildMonthlyUsageGraph(context, monthlyData),
+          SizedBox(height: isMobile ? 24 : 32),
         ],
       ),
     );
