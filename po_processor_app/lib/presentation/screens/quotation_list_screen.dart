@@ -5,9 +5,13 @@ import 'package:easy_localization/easy_localization.dart';
 import '../providers/quotation_provider.dart';
 import '../../domain/entities/quotation.dart';
 import '../../core/utils/currency_helper.dart';
+import '../../core/theme/app_theme.dart';
 
 class QuotationListScreen extends ConsumerStatefulWidget {
-  const QuotationListScreen({super.key});
+  /// When true, renders only the list content (no Scaffold/AppBar) for embedding in dashboard.
+  final bool embedInDashboard;
+
+  const QuotationListScreen({super.key, this.embedInDashboard = false});
 
   @override
   ConsumerState<QuotationListScreen> createState() => _QuotationListScreenState();
@@ -104,50 +108,7 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
       return matchesSearch && matchesFilter;
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isSelectionMode ? 'Select quotations' : 'Quotations'),
-        leading: _isSelectionMode
-            ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _exitSelectionMode,
-                tooltip: 'Cancel',
-              )
-            : null,
-        actions: [
-          if (_isSelectionMode) ...[
-            TextButton.icon(
-              onPressed: () => _toggleSelectAll(filteredQuotations),
-              icon: const Icon(Icons.select_all, size: 20),
-              label: Text(
-                _selectedIds.length == filteredQuotations.length && filteredQuotations.isNotEmpty
-                    ? 'Deselect All'
-                    : 'Select All',
-              ),
-            ),
-            IconButton(
-              icon: Badge(
-                isLabelVisible: _selectedIds.isNotEmpty,
-                label: Text('${_selectedIds.length}'),
-                child: const Icon(Icons.delete_outline),
-              ),
-              onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
-              tooltip: 'Delete selected',
-            ),
-          ] else ...[
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => ref.read(quotationProvider.notifier).loadQuotations(),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => setState(() => _isSelectionMode = true),
-              tooltip: 'Delete quotations',
-            ),
-          ],
-        ],
-      ),
-      body: Column(
+    final bodyContent = Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -215,7 +176,7 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                   '${filteredQuotations.length} quotation(s)',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -229,11 +190,11 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.description_outlined, size: 64, color: Colors.grey[400]),
+                            Icon(Icons.description_outlined, size: 64, color: AppTheme.textSecondary),
                             const SizedBox(height: 16),
                             Text(
                               'No quotations found',
-                              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              style: TextStyle(fontSize: 18, color: AppTheme.textSecondary),
                             ),
                           ],
                         ),
@@ -268,7 +229,110 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                       ),
           ),
         ],
+      );
+
+    if (widget.embedInDashboard) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Text(
+                  'View All Quotations',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const Spacer(),
+                if (_isSelectionMode) ...[
+                  TextButton(
+                    onPressed: _exitSelectionMode,
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _toggleSelectAll(filteredQuotations),
+                    icon: const Icon(Icons.select_all, size: 20),
+                    label: Text(
+                      _selectedIds.length == filteredQuotations.length && filteredQuotations.isNotEmpty
+                          ? 'Deselect All'
+                          : 'Select All',
+                    ),
+                  ),
+                  IconButton(
+                    icon: Badge(
+                      isLabelVisible: _selectedIds.isNotEmpty,
+                      label: Text('${_selectedIds.length}'),
+                      child: const Icon(Icons.delete_outline),
+                    ),
+                    onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+                    tooltip: 'Delete selected',
+                  ),
+                ] else ...[
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () => ref.read(quotationProvider.notifier).loadQuotations(),
+                    tooltip: 'Refresh',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => setState(() => _isSelectionMode = true),
+                    tooltip: 'Delete quotations',
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(child: bodyContent),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_isSelectionMode ? 'Select quotations' : 'Quotations'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+                tooltip: 'Cancel',
+              )
+            : null,
+        actions: [
+          if (_isSelectionMode) ...[
+            TextButton.icon(
+              onPressed: () => _toggleSelectAll(filteredQuotations),
+              icon: const Icon(Icons.select_all, size: 20),
+              label: Text(
+                _selectedIds.length == filteredQuotations.length && filteredQuotations.isNotEmpty
+                    ? 'Deselect All'
+                    : 'Select All',
+              ),
+            ),
+            IconButton(
+              icon: Badge(
+                isLabelVisible: _selectedIds.isNotEmpty,
+                label: Text('${_selectedIds.length}'),
+                child: const Icon(Icons.delete_outline),
+              ),
+              onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+              tooltip: 'Delete selected',
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.read(quotationProvider.notifier).loadQuotations(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => setState(() => _isSelectionMode = true),
+              tooltip: 'Delete quotations',
+            ),
+          ],
+        ],
       ),
+      body: bodyContent,
     );
   }
 
@@ -289,8 +353,16 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
   Widget _buildFilterChip(String value, String label) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : null,
+          fontWeight: isSelected ? FontWeight.w600 : null,
+        ),
+      ),
       selected: isSelected,
+      selectedColor: AppTheme.primaryGreen,
+      checkmarkColor: Colors.white,
       onSelected: (selected) {
         setState(() {
           _filterStatus = value;
@@ -328,10 +400,10 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
         statusColor = Colors.red;
         break;
       case 'expired':
-        statusColor = Colors.grey;
+        statusColor = AppTheme.textSecondary;
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = AppTheme.textSecondary;
     }
 
     return Card(
@@ -384,7 +456,7 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                       quotation.customerName,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[700],
+                        color: AppTheme.dashboardText,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -471,7 +543,7 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('MMM dd, yyyy').format(quotation.quotationDate),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ],
               ),

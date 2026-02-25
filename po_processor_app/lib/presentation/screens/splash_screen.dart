@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -71,7 +72,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   return const Icon(
                     Icons.image_not_supported,
                     size: 100,
-                    color: Colors.grey,
+                    color: AppTheme.textSecondary,
                   );
                 },
               ),

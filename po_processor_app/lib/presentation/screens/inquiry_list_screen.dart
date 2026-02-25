@@ -206,7 +206,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
                       Icon(
                         Icons.inbox,
                         size: 64,
-                        color: Colors.grey,
+                        color: AppTheme.textSecondary,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -304,7 +304,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
         statusText = 'Converted to PO';
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = AppTheme.textSecondary;
         statusText = inquiry.status;
     }
     final quotedCount = inquiry.items.where((i) => i.status == 'quoted').length;
@@ -336,12 +336,12 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withOpacity(0.1),
+                color: AppTheme.iconGraphGreen.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.description,
-                color: AppTheme.primaryGreen,
+                color: AppTheme.iconGraphGreen,
                 size: 22,
               ),
             ),
@@ -368,7 +368,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
               itemSummary,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppTheme.textSecondary,
               ),
             ),
           ],
@@ -395,7 +395,7 @@ class _InquiryListScreenState extends ConsumerState<InquiryListScreen> {
                 DateFormat('MMM dd, yyyy').format(inquiry.inquiryDate),
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey[600],
+                  color: AppTheme.textSecondary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

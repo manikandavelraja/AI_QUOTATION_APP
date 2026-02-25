@@ -9,6 +9,7 @@ import '../../data/services/gemini_ai_service.dart';
 import '../../data/services/email_service.dart';
 import '../../data/services/test_data_generator.dart';
 import '../providers/po_provider.dart';
+import '../../core/theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -253,7 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       'For Gmail, generate an app password at: myaccount.google.com/apppasswords',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                     ),
                     const SizedBox(height: 12),

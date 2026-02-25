@@ -77,7 +77,7 @@ class _ContractManagementHubScreenState extends State<ContractManagementHubScree
               Text(
                 'Choose an option to analyze documents or images.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
+                      color: AppTheme.textSecondary,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -88,7 +88,7 @@ class _ContractManagementHubScreenState extends State<ContractManagementHubScree
                 label: const Text('PDF Analysis'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 20),
-                  backgroundColor: AppTheme.primaryGreen,
+                  backgroundColor: AppTheme.iconGraphGreen,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -99,7 +99,7 @@ class _ContractManagementHubScreenState extends State<ContractManagementHubScree
                 label: const Text('Image Analysis'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 20),
-                  backgroundColor: AppTheme.primaryGreen,
+                  backgroundColor: AppTheme.iconGraphGreen,
                   foregroundColor: Colors.white,
                 ),
               ),

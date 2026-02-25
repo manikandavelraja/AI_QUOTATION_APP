@@ -10,7 +10,10 @@ import '../../data/services/test_data_generator.dart';
 import '../providers/po_provider.dart';
 
 class MaterialForecastScreen extends ConsumerStatefulWidget {
-  const MaterialForecastScreen({super.key});
+  /// When true, shown inside dashboard tab (no back button).
+  final bool embedInDashboard;
+
+  const MaterialForecastScreen({super.key, this.embedInDashboard = false});
 
   @override
   ConsumerState<MaterialForecastScreen> createState() =>
@@ -95,7 +98,7 @@ class _MaterialForecastScreenState
     final availableCodes = forecastState.availableMaterialCodes;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       appBar: AppBar(
         elevation: 0,
         flexibleSpace: Container(
@@ -103,7 +106,7 @@ class _MaterialForecastScreenState
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.primaryGreen, AppTheme.primaryGreenLight],
+              colors: [AppTheme.iconGraphGreen, AppTheme.primaryGreenLight],
             ),
           ),
         ),
@@ -111,10 +114,12 @@ class _MaterialForecastScreenState
           'Forecast & Insights',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: widget.embedInDashboard
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -219,7 +224,7 @@ class _MaterialForecastScreenState
                           horizontal: 16,
                           vertical: 12,
                         ),
-                        side: const BorderSide(color: AppTheme.primaryGreen),
+                        side: const BorderSide(color: AppTheme.iconGraphGreen),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -227,7 +232,7 @@ class _MaterialForecastScreenState
                       'Generate test POs for: 1069683 (Water Tap), 1069685 (Bearing), 1069687 (Timing Belt), 1069689 (Filter), 1069680 (Lubricant)',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: AppTheme.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -277,18 +282,18 @@ class _MaterialForecastScreenState
                       Icon(
                         Icons.inventory_2_outlined,
                         size: 64,
-                        color: Colors.grey[400],
+                        color: AppTheme.textSecondary,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'Enter a Material Code to analyze',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'The system will analyze procurement patterns and provide inventory recommendations',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                        style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                       ),
                     ],
                   ),
@@ -339,74 +344,8 @@ class _MaterialForecastScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Recommendation Card
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: forecast.recommendation == 'Stock'
-                    ? [
-                        AppTheme.successGreen.withOpacity(0.1),
-                        AppTheme.successGreen.withOpacity(0.05),
-                      ]
-                    : [
-                        AppTheme.warningOrange.withOpacity(0.1),
-                        AppTheme.warningOrange.withOpacity(0.05),
-                      ],
-              ),
-            ),
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      forecast.recommendation == 'Stock'
-                          ? Icons.check_circle
-                          : Icons.cancel,
-                      color: forecast.recommendation == 'Stock'
-                          ? AppTheme.successGreen
-                          : AppTheme.warningOrange,
-                      size: 32,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recommendation: ${forecast.recommendation}',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: forecast.recommendation == 'Stock'
-                                  ? AppTheme.successGreen
-                                  : AppTheme.warningOrange,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            forecast.recommendationReason,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+        // Intelligence Recommendations (same style as Seasonal Trends)
+        _buildIntelligenceRecommendations(forecast),
 
         const SizedBox(height: 16),
 
@@ -427,7 +366,7 @@ class _MaterialForecastScreenState
                 'Consumption Rate',
                 '${forecast.consumptionRatePerMonth.toStringAsFixed(1)} units/month',
                 Icons.trending_up,
-                AppTheme.primaryGreen,
+                AppTheme.iconGraphGreen,
               ),
             ),
           ],
@@ -496,7 +435,7 @@ class _MaterialForecastScreenState
                 children: [
                   const Icon(
                     Icons.event,
-                    color: AppTheme.primaryGreen,
+                    color: AppTheme.iconGraphGreen,
                     size: 32,
                   ),
                   const SizedBox(width: 16),
@@ -527,7 +466,7 @@ class _MaterialForecastScreenState
                           'Based on historical purchase intervals',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -589,6 +528,137 @@ class _MaterialForecastScreenState
           ),
         ),
       ],
+    );
+  }
+
+  /// Intelligence Recommendations section (same card style as Seasonal Trends).
+  Widget _buildIntelligenceRecommendations(MaterialForecast forecast) {
+    final isStock = forecast.recommendation == 'Stock';
+    final color = isStock ? AppTheme.successGreen : AppTheme.warningOrange;
+    final icon = isStock ? Icons.check_circle : Icons.cancel;
+    final title = isStock
+        ? 'Stock Recommendation'
+        : 'Do Not Stock Recommendation';
+    final priority = isStock ? 'Medium' : 'High';
+    final priorityColor = isStock ? Colors.orange : Colors.red;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.lightbulb_outline,
+                  color: AppTheme.iconGraphGreen,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Intelligence Recommendations',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.iconGraphGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Based on your material analysis',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              margin: const EdgeInsets.only(bottom: 0),
+              decoration: BoxDecoration(
+                border: Border.all(color: color.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(8),
+                color: color.withOpacity(0.05),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: color, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: priorityColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  priority,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: priorityColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Material Forecasting',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${forecast.materialCode} (${forecast.materialName}): '
+                            '${forecast.recommendationReason}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.dashboardText,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -679,12 +749,12 @@ class _MaterialForecastScreenState
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: AppTheme.primaryGreen,
+            color: AppTheme.iconGraphGreen,
             barWidth: 3,
             dotData: FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.iconGraphGreen.withOpacity(0.1),
             ),
           ),
         ],

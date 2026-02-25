@@ -20,6 +20,9 @@ import '../../presentation/screens/quotation_list_screen.dart';
 import '../../presentation/screens/quotation_detail_screen.dart';
 import '../../presentation/screens/splash_screen.dart';
 import '../../presentation/screens/material_forecast_screen.dart';
+import '../../presentation/screens/overall_recommendation_screen.dart';
+import '../../presentation/screens/coming_soon_screen.dart';
+import '../theme/app_theme.dart';
 
 /// Global navigator key for safe navigation from background tasks (e.g. after
 /// inquiry/PO sync completes when the user may be on a different screen).
@@ -43,7 +46,7 @@ class AppRouter {
             const SizedBox(height: 8),
             Text(
               'The requested page "${state.uri.path}" does not exist.',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -126,6 +129,11 @@ class AppRouter {
         builder: (context, state) => const QuotationListScreen(),
       ),
       GoRoute(
+        path: '/smart-quotations',
+        name: 'smart-quotations',
+        builder: (context, state) => const QuotationListScreen(),
+      ),
+      GoRoute(
         path: '/quotation-detail/:id',
         name: 'quotation-detail',
         builder: (context, state) {
@@ -194,6 +202,32 @@ class AppRouter {
         path: '/material-forecast',
         name: 'material-forecast',
         builder: (context, state) => const MaterialForecastScreen(),
+      ),
+      // Overall Recommendation (Planning & Forecasting aggregate)
+      GoRoute(
+        path: '/overall-recommendation',
+        name: 'overall-recommendation',
+        builder: (context, state) => const OverallRecommendationScreen(),
+      ),
+      // Planning and Reconstruct (Coming Soon)
+      GoRoute(
+        path: '/planning-reconstruct',
+        name: 'planning-reconstruct',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Planning and Reconstruct'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.pop(),
+            ),
+          ),
+          body: const ComingSoonScreen(
+            title: 'Planning and Reconstruct',
+            icon: Icons.construction_outlined,
+            description:
+                'Plan and reconstruct supply chain workflows. This feature is under development.',
+          ),
+        ),
       ),
     ],
   );
