@@ -98,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryGreen,
+              AppTheme.iconGraphGreen,
               AppTheme.primaryGreenLight,
               AppTheme.secondaryGreen,
             ],
@@ -144,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      AppTheme.primaryGreen.withOpacity(0.1),
+                                      AppTheme.iconGraphGreen.withOpacity(0.1),
                                       AppTheme.primaryGreenLight.withOpacity(0.05),
                                     ],
                                   ),
@@ -153,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                 child: Icon(
                                   Icons.description,
                                   size: 64,
-                                  color: AppTheme.primaryGreen,
+                                  color: AppTheme.iconGraphGreen,
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -161,14 +161,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                 'app_name'.tr(),
                                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryGreen,
+                                      color: AppTheme.iconGraphGreen,
                                     ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'welcome'.tr(),
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[600],
+                                      color: AppTheme.textSecondary,
                                     ),
                               ),
                               const SizedBox(height: 40),
@@ -180,31 +180,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     margin: const EdgeInsets.all(8),
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                                      color: AppTheme.iconGraphGreen.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
                                       Icons.person,
-                                      color: AppTheme.primaryGreen,
+                                      color: AppTheme.iconGraphGreen,
                                     ),
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                    borderSide: BorderSide(color: AppTheme.textSecondary),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                    borderSide: BorderSide(color: AppTheme.textSecondary),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: const BorderSide(
-                                      color: AppTheme.primaryGreen,
+                                      color: AppTheme.iconGraphGreen,
                                       width: 2,
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.grey.shade50,
+                                  fillColor: AppTheme.dashboardBackground,
                                 ),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -223,12 +223,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     margin: const EdgeInsets.all(8),
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                                      color: AppTheme.iconGraphGreen.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
                                       Icons.lock,
-                                      color: AppTheme.primaryGreen,
+                                      color: AppTheme.iconGraphGreen,
                                     ),
                                   ),
                                   suffixIcon: IconButton(
@@ -245,21 +245,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                    borderSide: BorderSide(color: AppTheme.textSecondary),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                    borderSide: BorderSide(color: AppTheme.textSecondary),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: const BorderSide(
-                                      color: AppTheme.primaryGreen,
+                                      color: AppTheme.iconGraphGreen,
                                       width: 2,
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.grey.shade50,
+                                  fillColor: AppTheme.dashboardBackground,
                                 ),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -276,14 +276,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      AppTheme.primaryGreen,
+                                      AppTheme.iconGraphGreen,
                                       AppTheme.primaryGreenLight,
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppTheme.primaryGreen.withOpacity(0.3),
+                                      color: AppTheme.iconGraphGreen.withOpacity(0.3),
                                       blurRadius: 12,
                                       offset: const Offset(0, 6),
                                     ),
@@ -329,7 +329,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                 child: Text(
                                   'use_default_credentials'.tr(),
                                   style: TextStyle(
-                                    color: AppTheme.primaryGreen,
+                                    color: AppTheme.iconGraphGreen,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -338,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
+                                  color: AppTheme.dashboardBackground,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -347,13 +347,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     Icon(
                                       Icons.language,
                                       size: 20,
-                                      color: Colors.grey[600],
+                                      color: AppTheme.textSecondary,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
                                       'language'.tr(),
                                       style: TextStyle(
-                                        color: Colors.grey[700],
+                                        color: AppTheme.dashboardText,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -367,7 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: Colors.grey.shade300,
+                                          color: AppTheme.textSecondary,
                                         ),
                                       ),
                                       child: DropdownButton<String>(

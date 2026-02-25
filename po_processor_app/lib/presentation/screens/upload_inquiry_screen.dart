@@ -432,7 +432,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       appBar: AppBar(
         elevation: 0,
         flexibleSpace: Container(
@@ -441,7 +441,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.primaryGreen,
+                AppTheme.iconGraphGreen,
                 AppTheme.primaryGreenLight,
               ],
             ),
@@ -502,7 +502,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryGreen.withOpacity(0.1),
+                  AppTheme.iconGraphGreen.withOpacity(0.1),
                   AppTheme.primaryGreenLight.withOpacity(0.05),
                 ],
               ),
@@ -511,7 +511,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
             child: Icon(
               Icons.upload_file,
               size: 64,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.iconGraphGreen,
             ),
           ),
           const SizedBox(height: 24),
@@ -519,14 +519,14 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
             'Upload Inquiry PDF',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             'Select a Customer Inquiry/RFQ PDF file',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
+                  color: AppTheme.textSecondary,
                 ),
             textAlign: TextAlign.center,
           ),
@@ -636,7 +636,7 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
                           'File selected',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -651,14 +651,14 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryGreen,
+                  AppTheme.iconGraphGreen,
                   AppTheme.primaryGreenLight,
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryGreen.withOpacity(0.3),
+                  color: AppTheme.iconGraphGreen.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -714,14 +714,14 @@ class _UploadInquiryScreenState extends ConsumerState<UploadInquiryScreen> with 
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.iconGraphGreen),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Extracting inquiry data...',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: AppTheme.textSecondary,
                     fontSize: 14,
                   ),
                 ),

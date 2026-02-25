@@ -35,32 +35,41 @@ class RecordingGalleryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 400;
+    final padding = isNarrow ? 10.0 : 16.0;
+    final iconSize = isNarrow ? 28.0 : 32.0;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(
+        horizontal: isNarrow ? 12 : 16,
+        vertical: isNarrow ? 6 : 8,
+      ),
       child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(padding),
           child: Row(
             children: [
-              // Play button
               IconButton(
                 icon: Icon(
                   isPlaying ? Icons.pause : Icons.play_arrow,
                   color: Colors.indigo.shade700,
                 ),
                 onPressed: onPlay,
-                iconSize: 32,
+                iconSize: iconSize,
+                padding: isNarrow ? const EdgeInsets.all(8) : null,
+                constraints: isNarrow
+                    ? const BoxConstraints(minWidth: 44, minHeight: 44)
+                    : null,
               ),
-              const SizedBox(width: 12),
-              // File info
+              SizedBox(width: isNarrow ? 8 : 12),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       recording.fileName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: isNarrow ? 14 : 16,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -160,10 +169,10 @@ class RecordingGalleryItem extends StatelessWidget {
               if (onAnalyze != null)
                 IconButton(
                   icon: isAnalyzing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
+                      ? SizedBox(
+                          width: isNarrow ? 18 : 20,
+                          height: isNarrow ? 18 : 20,
+                          child: const CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         )
@@ -171,6 +180,7 @@ class RecordingGalleryItem extends StatelessWidget {
                           recording.analysis != null
                               ? Icons.visibility
                               : Icons.analytics,
+                          size: isNarrow ? 22 : 24,
                         ),
                   color: recording.analysis != null
                       ? Colors.green.shade700
@@ -179,13 +189,17 @@ class RecordingGalleryItem extends StatelessWidget {
                   tooltip: recording.analysis != null
                       ? 'View Details'
                       : 'Analyze',
+                  padding: isNarrow ? const EdgeInsets.all(8) : null,
                 ),
-              // Delete button
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: isNarrow ? 22 : 24,
+                ),
                 color: Colors.red,
                 onPressed: onDelete,
                 tooltip: 'Delete',
+                padding: isNarrow ? const EdgeInsets.all(8) : null,
               ),
             ],
           ),

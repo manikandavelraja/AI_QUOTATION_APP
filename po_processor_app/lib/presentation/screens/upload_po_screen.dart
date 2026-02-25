@@ -431,7 +431,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.dashboardBackground,
       appBar: AppBar(
         elevation: 0,
         flexibleSpace: Container(
@@ -440,7 +440,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.primaryGreen,
+                AppTheme.iconGraphGreen,
                 AppTheme.primaryGreenLight,
               ],
             ),
@@ -501,7 +501,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryGreen.withOpacity(0.1),
+                  AppTheme.iconGraphGreen.withOpacity(0.1),
                   AppTheme.primaryGreenLight.withOpacity(0.05),
                 ],
               ),
@@ -510,7 +510,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
             child: Icon(
               Icons.cloud_upload_outlined,
               size: 64,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.iconGraphGreen,
             ),
           ),
           const SizedBox(height: 24),
@@ -518,14 +518,14 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
             'upload_pdf'.tr(),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.iconGraphGreen,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             'select_file'.tr(),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
+                  color: AppTheme.textSecondary,
                 ),
             textAlign: TextAlign.center,
           ),
@@ -635,7 +635,7 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
                           'File selected',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -650,14 +650,14 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryGreen,
+                  AppTheme.iconGraphGreen,
                   AppTheme.primaryGreenLight,
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryGreen.withOpacity(0.3),
+                  color: AppTheme.iconGraphGreen.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -713,14 +713,14 @@ class _UploadPOScreenState extends ConsumerState<UploadPOScreen> with SingleTick
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.iconGraphGreen),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'extracting_data'.tr(),
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: AppTheme.textSecondary,
                     fontSize: 14,
                   ),
                 ),

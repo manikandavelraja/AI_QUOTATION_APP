@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import '../providers/call_recordings_provider.dart';
 import '../services/call_analysis_service.dart';
 import '../models/call_recording.dart';
@@ -33,61 +36,71 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
   Duration _audioPosition = Duration.zero;
   String? _errorMessage;
   bool _showAggregateDashboard = false;
+  bool _audioSessionConfigured = false;
 
   late TabController _tabController;
+  final List<StreamSubscription<dynamic>> _streamSubscriptions = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      if (mounted) {
-        setState(() {
-          // Trigger rebuild when tab changes
-        });
-      }
+      if (mounted) setState(() {});
     });
-    // Listen to player state changes
-    _audioPlayer.playerStateStream.listen((state) {
-      if (mounted) {
+
+    // Listen to player state changes (cancel on dispose)
+    _streamSubscriptions.add(
+      _audioPlayer.playerStateStream.listen((state) {
+        if (!mounted) return;
         setState(() {
           _isPlaying = state.playing;
-          // Only clear playing ID when playback completes (not when paused)
-          // Check if player is stopped (not paused)
           if (!state.playing &&
               state.processingState == ProcessingState.completed) {
             _currentlyPlayingId = null;
             _audioPosition = Duration.zero;
           }
         });
-      }
-    });
-
-    // Listen to duration changes
-    _audioPlayer.durationStream.listen((duration) {
-      if (mounted) {
+      }),
+    );
+    _streamSubscriptions.add(
+      _audioPlayer.durationStream.listen((duration) {
+        if (!mounted) return;
         setState(() {
           _audioDuration = duration ?? Duration.zero;
         });
-      }
-    });
+      }),
+    );
+    _streamSubscriptions.add(
+      _audioPlayer.positionStream.listen((position) {
+        if (!mounted) return;
+        setState(() => _audioPosition = position);
+      }),
+    );
 
-    // Listen to position changes for progress slider
-    _audioPlayer.positionStream.listen((position) {
-      if (mounted) {
-        setState(() {
-          _audioPosition = position;
-        });
-      }
-    });
     // Initialize hardcoded audio files
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHardcodedRecordings();
     });
   }
 
+  /// Configure audio session for mobile (iOS/Android) so playback works.
+  Future<void> _ensureAudioSession() async {
+    if (_audioSessionConfigured || kIsWeb) return;
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(AudioSessionConfiguration.music());
+      if (mounted) _audioSessionConfigured = true;
+    } catch (e) {
+      AppLogger.error('Audio session configuration failed', e);
+    }
+  }
+
   @override
   void dispose() {
+    for (final sub in _streamSubscriptions) {
+      sub.cancel();
+    }
     _tabController.dispose();
     _audioPlayer.dispose();
     super.dispose();
@@ -424,31 +437,30 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
       AppLogger.info('Attempting to play recording: ${recording.fileName}');
       AppLogger.info('File path: ${recording.filePath}');
 
-      // Check if this is the currently loaded recording (playing or paused)
+      // On mobile (iOS/Android), configure audio session so playback works
+      await _ensureAudioSession();
+
       final isCurrentRecording = _currentlyPlayingId == recording.id;
 
       if (_isPlaying && isCurrentRecording) {
-        // If this recording is playing, pause it (keep the ID for resume)
         AppLogger.info('Pausing current recording');
         await _audioPlayer.pause();
+        if (!mounted) return;
         setState(() {
           _isPlaying = false;
-          // Keep _currentlyPlayingId so we can resume later
         });
       } else if (!_isPlaying && isCurrentRecording) {
-        // If this recording is paused, resume from current position
         AppLogger.info(
           'Resuming paused recording from position: $_audioPosition',
         );
-        setState(() {
-          _isPlaying = true;
-        });
         await _audioPlayer.play();
+        if (!mounted) return;
+        setState(() => _isPlaying = true);
       } else {
-        // If another recording is playing, stop it first
         if (_isPlaying && _currentlyPlayingId != null) {
           AppLogger.info('Stopping previous recording');
           await _audioPlayer.stop();
+          if (!mounted) return;
           setState(() {
             _isPlaying = false;
             _currentlyPlayingId = null;
@@ -457,28 +469,28 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
         }
 
         // Load the new recording
-        // Handle asset paths for Flutter
-        // just_audio setAsset requires path without 'assets/' prefix
         if (recording.filePath.startsWith('assets/')) {
+          // just_audio setAsset expects path WITHOUT 'assets/' prefix
           final assetPath = recording.filePath.replaceFirst('assets/', '');
           AppLogger.info('Loading asset: $assetPath');
           await _audioPlayer.setAsset(assetPath);
-        } else if (recording.filePath.startsWith('data:')) {
-          // Handle data URLs (for web)
-          AppLogger.info('Loading data URL');
+        } else if (recording.filePath.startsWith('http') ||
+            recording.filePath.startsWith('data:')) {
+          AppLogger.info('Loading URL');
           await _audioPlayer.setUrl(recording.filePath);
-        } else {
+        } else if (!kIsWeb) {
           AppLogger.info('Loading file path: ${recording.filePath}');
           await _audioPlayer.setFilePath(recording.filePath);
+        } else {
+          throw UnsupportedError(
+            'File path playback is not supported on web. Use assets or URLs.',
+          );
         }
 
-        AppLogger.info('Starting playback');
-        // Update state immediately before play() to show pause button instantly
+        if (!mounted) return;
         setState(() {
           _currentlyPlayingId = recording.id;
           _isPlaying = true;
-          // Don't reset position - let it start from beginning for new recording
-          // Position will be updated by the position stream
         });
         await _audioPlayer.play();
         AppLogger.info('Playback started successfully');
@@ -486,19 +498,22 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
     } catch (e, stackTrace) {
       AppLogger.error('Error playing recording: ${e.toString()}', e);
       AppLogger.error('Stack trace: $stackTrace');
+      if (!mounted) return;
       setState(() {
         _currentlyPlayingId = null;
         _isPlaying = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error playing audio: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+      final message = e.toString().contains('Unable to load asset') ||
+              e.toString().contains('NotFound')
+          ? 'Audio file not found. Please ensure the app has the audio assets.'
+          : 'Unable to play audio. ${e.toString().split('\n').first}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -612,20 +627,20 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
               )
             : null,
       ),
-      body: Consumer<CallRecordingsProvider>(
-        builder: (context, provider, _) {
-          // Show aggregate dashboard if toggled
-          if (_showAggregateDashboard) {
-            return ComprehensiveCallDashboard(showAggregateMetrics: true);
-          }
+      body: SafeArea(
+        child: Consumer<CallRecordingsProvider>(
+          builder: (context, provider, _) {
+            if (_showAggregateDashboard) {
+              return ComprehensiveCallDashboard(showAggregateMetrics: true);
+            }
 
-          if (provider.recordings.isEmpty && _selectedRecording == null) {
-            return _buildEmptyState();
-          }
+            if (provider.recordings.isEmpty && _selectedRecording == null) {
+              return _buildEmptyState();
+            }
 
-          if (_selectedRecording == null) {
-            return _buildRecordingGallery(provider);
-          }
+            if (_selectedRecording == null) {
+              return _buildRecordingGallery(provider);
+            }
 
           // Always get fresh data from provider when building TabBarView
           final currentRecording = _selectedRecording != null
@@ -636,17 +651,18 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
             return _buildRecordingGallery(provider);
           }
 
-          return TabBarView(
-            key: ValueKey(currentRecording.id),
-            controller: _tabController,
-            children: [
-              _buildTranscriptView(currentRecording),
-              _buildComprehensiveDashboard(currentRecording),
-              _buildInsightsView(currentRecording),
-              _buildSummaryView(currentRecording),
-            ],
-          );
-        },
+            return TabBarView(
+              key: ValueKey(currentRecording.id),
+              controller: _tabController,
+              children: [
+                _buildTranscriptView(currentRecording),
+                _buildComprehensiveDashboard(currentRecording),
+                _buildInsightsView(currentRecording),
+                _buildSummaryView(currentRecording),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -700,6 +716,9 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
           ),
         Expanded(
           child: ListView.builder(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+            ),
             itemCount: provider.recordings.length,
             itemBuilder: (context, index) {
               final recording = provider.recordings[index];
