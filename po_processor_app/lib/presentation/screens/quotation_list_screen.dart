@@ -24,6 +24,8 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
   final Set<String> _selectedIds = {};
   /// null = all months; otherwise filter by this month (quotationDate)
   DateTime? _selectedMonth;
+  /// null = all weeks; otherwise filter by this week (Monday as start of week)
+  DateTime? _selectedWeek;
 
   void _exitSelectionMode() {
     setState(() {
@@ -92,7 +94,17 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                 q.quotationDate.month == _selectedMonth!.month;
           }).toList();
 
-    final filteredQuotations = monthFiltered.where((quotation) {
+    // Week filter (Monday = start of week)
+    final weekFiltered = _selectedWeek == null
+        ? monthFiltered
+        : monthFiltered.where((q) {
+            final qStart = _startOfWeek(q.quotationDate);
+            return qStart.year == _selectedWeek!.year &&
+                qStart.month == _selectedWeek!.month &&
+                qStart.day == _selectedWeek!.day;
+          }).toList();
+
+    final filteredQuotations = weekFiltered.where((quotation) {
       final matchesSearch = _searchQuery.isEmpty ||
           quotation.quotationNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           quotation.customerName.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -129,32 +141,62 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
                   },
                 ),
                 const SizedBox(height: 10),
-                InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Filter by month',
-                    prefixIcon: const Icon(Icons.calendar_month, size: 22),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<DateTime?>(
-                      value: _selectedMonth,
-                      isExpanded: true,
-                      hint: const Text('All months'),
-                      items: [
-                        const DropdownMenuItem<DateTime?>(
-                          value: null,
-                          child: Text('All months'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Filter by month',
+                          prefixIcon: const Icon(Icons.calendar_month, size: 22),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
-                        ..._buildMonthDropdownItems(allQuotations),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _selectedMonth = value);
-                      },
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<DateTime?>(
+                            value: _selectedMonth,
+                            isExpanded: true,
+                            hint: const Text('All months'),
+                            items: [
+                              const DropdownMenuItem<DateTime?>(
+                                value: null,
+                                child: Text('All months'),
+                              ),
+                              ..._buildMonthDropdownItems(allQuotations),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedMonth = value);
+                            },
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Filter by week',
+                          prefixIcon: const Icon(Icons.date_range, size: 22),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<DateTime?>(
+                            value: _selectedWeek,
+                            isExpanded: true,
+                            hint: const Text('All weeks'),
+                            items: _buildWeekDropdownItems(),
+                            onChanged: (value) {
+                              setState(() => _selectedWeek = value);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
@@ -334,6 +376,41 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
       ),
       body: bodyContent,
     );
+  }
+
+  static DateTime _startOfWeek(DateTime d) {
+    return DateTime(d.year, d.month, d.day - (d.weekday - 1));
+  }
+
+  List<DropdownMenuItem<DateTime?>> _buildWeekDropdownItems() {
+    const nullItem = DropdownMenuItem<DateTime?>(
+      value: null,
+      child: Text('All weeks'),
+    );
+    final now = DateTime.now();
+    final thisWeek = _startOfWeek(now);
+    final lastWeek = thisWeek.subtract(const Duration(days: 7));
+    final twoWeeksAgo = thisWeek.subtract(const Duration(days: 14));
+    final threeWeeksAgo = thisWeek.subtract(const Duration(days: 21));
+    return [
+      nullItem,
+      DropdownMenuItem<DateTime?>(
+        value: thisWeek,
+        child: Text('This week (${DateFormat('MMM d').format(thisWeek)})'),
+      ),
+      DropdownMenuItem<DateTime?>(
+        value: lastWeek,
+        child: Text('Last week (${DateFormat('MMM d').format(lastWeek)})'),
+      ),
+      DropdownMenuItem<DateTime?>(
+        value: twoWeeksAgo,
+        child: Text('2 weeks ago (${DateFormat('MMM d').format(twoWeeksAgo)})'),
+      ),
+      DropdownMenuItem<DateTime?>(
+        value: threeWeeksAgo,
+        child: Text('3 weeks ago (${DateFormat('MMM d').format(threeWeeksAgo)})'),
+      ),
+    ];
   }
 
   List<DropdownMenuItem<DateTime?>> _buildMonthDropdownItems(List<Quotation> list) {

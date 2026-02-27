@@ -29,6 +29,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   bool _autoSendEmail = true;
   late TextEditingController _recipientEmailController;
   final TextEditingController _ccEmailController = TextEditingController();
+  final Map<int, TextEditingController> _itemNameControllers = {};
   final Map<int, TextEditingController> _itemCodeControllers = {};
   final Map<int, TextEditingController> _quantityControllers = {};
   final Map<int, TextEditingController> _unitPriceControllers = {};
@@ -48,6 +49,9 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   void dispose() {
     _recipientEmailController.dispose();
     _ccEmailController.dispose();
+    for (var controller in _itemNameControllers.values) {
+      controller.dispose();
+    }
     for (var controller in _itemCodeControllers.values) {
       controller.dispose();
     }
@@ -144,6 +148,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         // Initialize controllers for items
         for (int i = 0; i < quotation.items.length; i++) {
           final item = quotation.items[i];
+          _itemNameControllers[i] = TextEditingController(text: item.itemName);
           _itemCodeControllers[i] = TextEditingController(text: item.itemCode ?? '');
           _quantityControllers[i] = TextEditingController(text: item.quantity.toStringAsFixed(2));
           _unitPriceControllers[i] = TextEditingController(text: item.unitPrice.toStringAsFixed(2));
@@ -172,7 +177,9 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       final isPriced = price > 0;
       final status = isPriced ? 'ready' : 'pending';
       
+      final nameText = (_itemNameControllers[index]?.text ?? '').trim();
       updatedItems[index] = updatedItems[index].copyWith(
+        itemName: nameText.isNotEmpty ? nameText : updatedItems[index].itemName,
         quantity: quantity,
         unitPrice: price,
         total: quantity * price,
@@ -203,6 +210,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
       final updatedItems = <QuotationItem>[];
       for (int i = 0; i < _quotation!.items.length; i++) {
         final originalItem = _quotation!.items[i];
+        final itemName = _itemNameControllers[i]?.text.trim();
         final quantity = double.tryParse(_quantityControllers[i]?.text ?? '0') ?? originalItem.quantity;
         final unitPrice = double.tryParse(_unitPriceControllers[i]?.text ?? '0') ?? originalItem.unitPrice;
         final itemCode = _itemCodeControllers[i]?.text ?? originalItem.itemCode;
@@ -212,6 +220,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
         final status = isPriced ? 'ready' : 'pending';
         
         updatedItems.add(originalItem.copyWith(
+          itemName: (itemName != null && itemName.isNotEmpty) ? itemName : originalItem.itemName,
           quantity: quantity,
           unitPrice: unitPrice,
           total: quantity * unitPrice,
@@ -1183,12 +1192,22 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  item.itemName,
+                child: TextField(
+                  controller: _itemNameControllers[index],
+                  decoration: InputDecoration(
+                    labelText: 'Item Name',
+                    filled: true,
+                    fillColor: fieldBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    isDense: true,
+                  ),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                  onChanged: (_) => _calculateItemTotal(index),
                 ),
               ),
               if (isPending)
