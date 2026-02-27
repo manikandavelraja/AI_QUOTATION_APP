@@ -19,37 +19,45 @@ class GeminiAIService {
   // Singleton instance
   static final GeminiAIService _instance = GeminiAIService._internal();
   factory GeminiAIService() => _instance;
-  GeminiAIService._internal() {
-    if (AppConstants.hasGeminiApiKey) {
-      _modelOrNull = GenerativeModel(
-        model: AppConstants.geminiModel,
-        apiKey: AppConstants.geminiApiKey,
-      );
-      _jsonModelOrNull = GenerativeModel(
-        model: AppConstants.geminiModel,
-        apiKey: AppConstants.geminiApiKey,
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-          maxOutputTokens: 2048
-        ),
-      );
-      debugPrint('✅ GeminiAIService initialized with model: ${AppConstants.geminiModel}');
-    } else {
-      _modelOrNull = null;
-      _jsonModelOrNull = null;
-      debugPrint('⚠️ GeminiAIService: GEMINI_API_KEY not set. Set it in Vercel Environment Variables or .env to use AI features.');
-    }
-  }
+  GeminiAIService._internal();
 
   GenerativeModel? _modelOrNull;
   GenerativeModel? _jsonModelOrNull;
 
-  GenerativeModel get _m => _modelOrNull ?? (throw StateError(
-    'Gemini API key not configured. Set GEMINI_API_KEY in Vercel project Environment Variables or in a .env file.'
-  ));
-  GenerativeModel get _j => _jsonModelOrNull ?? (throw StateError(
-    'Gemini API key not configured. Set GEMINI_API_KEY in Vercel project Environment Variables or in a .env file.'
-  ));
+  /// Lazy init: create models when first used so .env is already loaded by main().
+  void _ensureModels() {
+    if (_modelOrNull != null) return;
+    if (!AppConstants.hasGeminiApiKey) {
+      debugPrint('⚠️ GeminiAIService: GEMINI_API_KEY not set. Add GEMINI_API_KEY to .env in po_processor_app.');
+      return;
+    }
+    _modelOrNull = GenerativeModel(
+      model: AppConstants.geminiModel,
+      apiKey: AppConstants.geminiApiKey,
+    );
+    _jsonModelOrNull = GenerativeModel(
+      model: AppConstants.geminiModel,
+      apiKey: AppConstants.geminiApiKey,
+      generationConfig: GenerationConfig(
+        responseMimeType: 'application/json',
+        maxOutputTokens: 2048
+      ),
+    );
+    debugPrint('✅ GeminiAIService: model initialized (key from .env)');
+  }
+
+  GenerativeModel get _m {
+    _ensureModels();
+    return _modelOrNull ?? (throw StateError(
+      'GEMINI_API_KEY missing. Add it to .env in po_processor_app (see .env.example).'
+    ));
+  }
+  GenerativeModel get _j {
+    _ensureModels();
+    return _jsonModelOrNull ?? (throw StateError(
+      'GEMINI_API_KEY missing. Add it to .env in po_processor_app (see .env.example).'
+    ));
+  }
   
   // ========== COMPREHENSIVE RATE LIMITING SYSTEM ==========
   // Global rate limiting (shared across all instances)
