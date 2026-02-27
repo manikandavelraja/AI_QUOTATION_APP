@@ -503,7 +503,8 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
         _currentlyPlayingId = null;
         _isPlaying = false;
       });
-      final message = e.toString().contains('Unable to load asset') ||
+      final message =
+          e.toString().contains('Unable to load asset') ||
               e.toString().contains('NotFound')
           ? 'Audio file not found. Please ensure the app has the audio assets.'
           : 'Unable to play audio. ${e.toString().split('\n').first}';
@@ -606,9 +607,9 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
         bottom: _selectedRecording != null
             ? TabBar(
                 controller: _tabController,
-                labelColor: Colors.white,
+                labelColor: Colors.grey,
                 unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.white,
+                indicatorColor: Colors.grey,
                 indicatorWeight: 3,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -642,14 +643,14 @@ class _PostCallAnalyzeScreenState extends State<PostCallAnalyzeScreen>
               return _buildRecordingGallery(provider);
             }
 
-          // Always get fresh data from provider when building TabBarView
-          final currentRecording = _selectedRecording != null
-              ? provider.getRecordingWithData(_selectedRecording!.id)
-              : null;
+            // Always get fresh data from provider when building TabBarView
+            final currentRecording = _selectedRecording != null
+                ? provider.getRecordingWithData(_selectedRecording!.id)
+                : null;
 
-          if (currentRecording == null) {
-            return _buildRecordingGallery(provider);
-          }
+            if (currentRecording == null) {
+              return _buildRecordingGallery(provider);
+            }
 
             return TabBarView(
               key: ValueKey(currentRecording.id),
