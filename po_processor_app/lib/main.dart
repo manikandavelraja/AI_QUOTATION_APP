@@ -15,16 +15,17 @@ import 'contract management _ personal assistant/utils/logger.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
+  // Load .env so GEMINI_API_KEY is available. Must be in po_processor_app and in pubspec assets for web.
   try {
     await dotenv.load(fileName: '.env');
-    debugPrint('✅ Environment variables loaded successfully');
+    if ((dotenv.env['GEMINI_API_KEY'] ?? '').trim().isNotEmpty) {
+      debugPrint('✅ .env loaded, GEMINI_API_KEY set');
+    } else {
+      debugPrint('⚠️ .env loaded but GEMINI_API_KEY is empty');
+    }
   } catch (e) {
-    debugPrint('⚠️ Warning: Could not load .env file: $e');
-    debugPrint(
-      '⚠️ Make sure .env file exists in the po_processor_app directory',
-    );
-    debugPrint('⚠️ You can copy .env.example to .env and fill in your values');
+    debugPrint('⚠️ Could not load .env: $e');
+    debugPrint('   Add .env in po_processor_app with GEMINI_API_KEY=... (see .env.example)');
   }
 
   // Initialize logger first
