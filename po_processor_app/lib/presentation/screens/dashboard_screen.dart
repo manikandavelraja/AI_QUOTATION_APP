@@ -36,6 +36,7 @@ import '../../contract management _ personal assistant/providers/call_recordings
 import '../../contract management _ personal assistant/screens/post_call_analyze_screen.dart';
 import 'seasonal_trends_screen.dart';
 import 'quotation_list_screen.dart';
+import 'view_quotation_screen.dart';
 import 'material_forecast_screen.dart';
 import 'overall_recommendation_screen.dart';
 import 'esg_module_screen.dart';
@@ -85,7 +86,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 11, vsync: this);
+    _tabController = TabController(length: 12, vsync: this);
     _tabController.addListener(() {
       // Rebuild when tab changes to update FAB visibility
       setState(() {});
@@ -220,11 +221,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       ),
                       // Tab 7: Smart Quotations - View All Quotations (in-dashboard)
                       const QuotationListScreen(embedInDashboard: true),
-                      // Tab 8: Material Forecasting (in-dashboard)
+                      // Tab 8: View Quotation (4 tabs: Total / Order Received / Not Received / Partially)
+                      const ViewQuotationScreen(embedInDashboard: true),
+                      // Tab 9: Material Forecasting (in-dashboard)
                       const MaterialForecastScreen(embedInDashboard: true),
-                      // Tab 9: Overall Recommendation (in-dashboard)
+                      // Tab 10: Overall Recommendation (in-dashboard)
                       const OverallRecommendationScreen(embedInDashboard: true),
-                      // Tab 10: Overall ESG Module (in-dashboard)
+                      // Tab 11: Overall ESG Module (in-dashboard)
                       const EsgModuleScreen(embedInDashboard: true),
                     ],
                   ),
@@ -3058,6 +3061,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     ));
     if (_expandedSections.contains('Smart Quotations')) {
       list.add(_buildSubItem(context, 'View All Quotations', Icons.list_alt, tabIndex: 7, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'View Quotation', Icons.receipt_long, tabIndex: 8, isDrawer: isDrawer));
     }
 
     // 3. PO Purchasing (expandable) -> tab 1
@@ -3085,9 +3089,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     if (_expandedSections.contains('Planning & Forecasting')) {
       list.add(_buildSubItem(context, 'Inventory Management', Icons.inventory_2_outlined, tabIndex: 4, isDrawer: isDrawer));
       list.add(_buildSubItem(context, 'Seasonal Trends', Icons.trending_up, tabIndex: 3, isDrawer: isDrawer));
-      list.add(_buildSubItem(context, 'Forecast & Insights', Icons.analytics_outlined, tabIndex: 8, isDrawer: isDrawer));
-      list.add(_buildSubItem(context, 'Overall Recommendation', Icons.lightbulb_outline, tabIndex: 9, isDrawer: isDrawer));
-      list.add(_buildSubItem(context, 'Overall ESG Module', Icons.eco, tabIndex: 10, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Forecast & Insights', Icons.analytics_outlined, tabIndex: 9, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Overall Recommendation', Icons.lightbulb_outline, tabIndex: 10, isDrawer: isDrawer));
+      list.add(_buildSubItem(context, 'Overall ESG Module', Icons.eco, tabIndex: 11, isDrawer: isDrawer));
       //list.add(_buildSubItem(context, 'Planning and Reconstruct', Icons.construction_outlined, route: '/planning-reconstruct', isDrawer: isDrawer));
     }
 
